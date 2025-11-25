@@ -1,0 +1,67 @@
+@page "/new-player"
+@inject NavigationManager Navigation
+@inject PlayerState PlayerState
+
+<h1>New Player</h1>
+
+<table>
+    <thead>
+        <tr>
+            <th>Stat</th>
+            <th>Value</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr><td>Strength</td><td>@currentStats.Strength</td></tr>
+        <tr><td>Stamina</td><td>@currentStats.Stamina</td></tr>
+        <tr><td>Agility</td><td>@currentStats.Agility</td></tr>
+        <tr><td>Constitution</td><td>@currentStats.Constitution</td></tr>
+        <tr><td>Intelligence</td><td>@currentStats.Intelligence</td></tr>
+        <tr><td>Wisdom</td><td>@currentStats.Wisdom</td></tr>
+        <tr><td>Experience</td><td>@currentStats.Experience</td></tr>
+        <tr><td>Speed</td><td>@currentStats.Speed</td></tr>
+    </tbody>
+</table>
+
+<div style="margin-top: 1rem; display: flex; gap: 1rem;">
+    <button @onclick="Respin">Respin</button>
+    <button @onclick="Select">Select</button>
+</div>
+
+@code {
+    private PlayerStats currentStats = new();
+    private static readonly Random Random = new();
+
+    protected override void OnInitialized()
+    {
+        RollStats();
+    }
+
+    private void RollStats()
+    {
+        currentStats = new PlayerStats
+        {
+            Strength = Roll(),
+            Stamina = Roll(),
+            Agility = Roll(),
+            Constitution = Roll(),
+            Intelligence = Roll(),
+            Wisdom = Roll(),
+            Experience = Roll(),
+            Speed = Roll()
+        };
+    }
+
+    private int Roll() => Random.Next(5, 22);
+
+    private void Respin()
+    {
+        RollStats();
+    }
+
+    private void Select()
+    {
+        PlayerState.SetStats(currentStats);
+        Navigation.NavigateTo("/game");
+    }
+}

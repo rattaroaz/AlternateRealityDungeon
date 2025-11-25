@@ -564,3 +564,4 @@ C:\Users\kimri\OneDrive\Desktop\cloned repos\AlternateRealityDungeon\AlternateRe
 C:\Users\kimri\OneDrive\Desktop\cloned repos\AlternateRealityDungeon\AlternateRealityDungeon\obj\Debug\net10.0-windows10.0.19041.0\win-x64\qualifiers.txt.intermediate
 C:\Users\kimri\OneDrive\Desktop\cloned repos\AlternateRealityDungeon\AlternateRealityDungeon\obj\Debug\net10.0-windows10.0.19041.0\win-x64\MultipleQualifiersPerDimensionFound.txt
 C:\Users\kimri\OneDrive\Desktop\cloned repos\AlternateRealityDungeon\AlternateRealityDungeon\bin\Debug\net10.0-windows10.0.19041.0\win-x64\wwwroot\js\game.js
+C:\Users\kimri\OneDrive\Desktop\cloned repos\AlternateRealityDungeon\AlternateRealityDungeon\obj\Debug\net10.0-windows10.0.19041.0\win-x64\AlternateRealityDungeon.sourcelink.json

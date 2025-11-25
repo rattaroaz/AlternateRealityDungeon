@@ -1,0 +1,16 @@
+@page "/"
+@inject NavigationManager Navigation
+
+<h1>Alternate Reality Dungeon</h1>
+
+<div style="display: flex; flex-direction: column; gap: 1rem; max-width: 300px;">
+    <button @onclick="StartNewPlayer">New Player</button>
+    <button disabled>Load Player (coming soon)</button>
+</div>
+
+@code {
+    private void StartNewPlayer()
+    {
+        Navigation.NavigateTo("/new-player");
+    }
+}

@@ -1,5 +1,5 @@
 window.game = {
-    initGame: function (containerId) {
+    initGame: function (containerId, playerStats) {
         const container = document.getElementById(containerId);
         if (!container) return;
 
@@ -211,8 +211,24 @@ window.game = {
         };
 
         // Initialize stats between 8-21
-        for (let stat in player.stats) {
-            player.stats[stat] = Math.floor(Math.random() * (21 - 8 + 1)) + 8;
+        if (playerStats && typeof playerStats === 'object') {
+            for (let stat in player.stats) {
+                // Blazor typically serializes anonymous-type property names to camelCase.
+                const camelKey = stat.charAt(0).toLowerCase() + stat.slice(1);
+                let value = undefined;
+                if (Object.prototype.hasOwnProperty.call(playerStats, stat)) {
+                    value = playerStats[stat];
+                } else if (Object.prototype.hasOwnProperty.call(playerStats, camelKey)) {
+                    value = playerStats[camelKey];
+                }
+                if (typeof value === 'number') {
+                    player.stats[stat] = value;
+                }
+            }
+        } else {
+            for (let stat in player.stats) {
+                player.stats[stat] = Math.floor(Math.random() * (21 - 8 + 1)) + 8;
+            }
         }
 
         function updateHUD() {
@@ -235,8 +251,18 @@ window.game = {
 
         // Controls
         // Base speed 0.1, modified by Speed stat (e.g., +0.001 per point)
-        const baseMoveSpeed = 0.1;
-        const moveSpeed = baseMoveSpeed + (player.stats.Speed * 0.002);
+        const minSpeedStat = 5;
+        const maxSpeedStat = 50;
+        const minMoveSpeed = 0.08;
+        const maxMoveSpeed = 0.3;
+
+        function computeMoveSpeed(speedStat) {
+            const clamped = Math.max(minSpeedStat, Math.min(maxSpeedStat, speedStat));
+            const t = (clamped - minSpeedStat) / (maxSpeedStat - minSpeedStat);
+            return minMoveSpeed + (maxMoveSpeed - minMoveSpeed) * t;
+        }
+
+        const moveSpeed = computeMoveSpeed(player.stats.Speed);
         const lookSpeed = 0.002;
         const turnSpeed = 0.03;
         const playerRadius = 0.6;

@@ -15,6 +15,7 @@ namespace AlternateRealityDungeon
                 });
 
             builder.Services.AddMauiBlazorWebView();
+            builder.Services.AddSingleton<PlayerState>();
 
 #if DEBUG
     		builder.Services.AddBlazorWebViewDeveloperTools();

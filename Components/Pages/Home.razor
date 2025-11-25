@@ -1,5 +1,6 @@
-﻿@page "/"
+﻿@page "/game"
 @inject IJSRuntime JSRuntime
+@inject PlayerState PlayerState
 
 <div id="game-container" style="width: 100%; height: 100%; overflow: hidden; margin: 0; padding: 0; position: relative;">
     <div id="stats-overlay" style="position: absolute; top: 10px; left: 10px; color: white; background: rgba(0, 0, 0, 0.5); padding: 10px; font-family: monospace; pointer-events: none; user-select: none;">
@@ -13,7 +14,24 @@
     {
         if (firstRender)
         {
-            await JSRuntime.InvokeVoidAsync("window.game.initGame", "game-container");
+            object? statsArg = null;
+
+            if (PlayerState.HasStats && PlayerState.Stats is not null)
+            {
+                statsArg = new
+                {
+                    Strength = PlayerState.Stats.Strength,
+                    Stamina = PlayerState.Stats.Stamina,
+                    Agility = PlayerState.Stats.Agility,
+                    Constitution = PlayerState.Stats.Constitution,
+                    Intelligence = PlayerState.Stats.Intelligence,
+                    Wisdom = PlayerState.Stats.Wisdom,
+                    Experience = PlayerState.Stats.Experience,
+                    Speed = PlayerState.Stats.Speed
+                };
+            }
+
+            await JSRuntime.InvokeVoidAsync("window.game.initGame", "game-container", statsArg);
         }
     }
 }

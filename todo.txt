@@ -1,0 +1,7 @@
+start game - choose name, stats.
+dungeon design
+monsters
+equipment
+combat
+action choices
+encounter randomness.
