@@ -1,3 +1,11 @@
+html, body, #app {
+    overflow: hidden;
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    width: 100%;
+}
+
 h1:focus {
     outline: none;
 }

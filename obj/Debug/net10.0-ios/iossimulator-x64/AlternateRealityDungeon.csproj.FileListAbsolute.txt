@@ -358,3 +358,4 @@ C:\Users\kimri\OneDrive\Desktop\cloned repos\AlternateRealityDungeon\AlternateRe
 C:\Users\kimri\OneDrive\Desktop\cloned repos\AlternateRealityDungeon\AlternateRealityDungeon\obj\Debug\net10.0-ios\iossimulator-x64\AlternateRealityDungeon.pdb
 C:\Users\kimri\OneDrive\Desktop\cloned repos\AlternateRealityDungeon\AlternateRealityDungeon\obj\Debug\net10.0-ios\iossimulator-x64\AlternateRealityDungeon.genruntimeconfig.cache
 C:\Users\kimri\OneDrive\Desktop\cloned repos\AlternateRealityDungeon\AlternateRealityDungeon\obj\Debug\net10.0-ios\iossimulator-x64\ref\AlternateRealityDungeon.dll
+C:\Users\kimri\OneDrive\Desktop\cloned repos\AlternateRealityDungeon\AlternateRealityDungeon\obj\Debug\net10.0-ios\iossimulator-x64\AlternateRealityDungeon.sourcelink.json

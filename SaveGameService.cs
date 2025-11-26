@@ -9,7 +9,7 @@ namespace AlternateRealityDungeon
 {
     public class GameSave
     {
-        public PlayerStats Stats { get; set; } = new PlayerStats();
+        public GameState State { get; set; } = new GameState();
         public CameraState Camera { get; set; } = new CameraState();
         public DateTime SavedAt { get; set; }
     }
@@ -30,8 +30,8 @@ namespace AlternateRealityDungeon
 
         public SaveGameService()
         {
-            var root = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            _saveDirectory = Path.Combine(root, "AlternateRealityDungeon", "Saves");
+            var appDirectory = AppContext.BaseDirectory;
+            _saveDirectory = Path.Combine(appDirectory, "Database");
             Directory.CreateDirectory(_saveDirectory);
 
             _jsonOptions = new JsonSerializerOptions
@@ -54,13 +54,13 @@ namespace AlternateRealityDungeon
             }
         }
 
-        public async Task SaveAsync(int slot, PlayerStats stats, CameraState camera)
+        public async Task SaveAsync(int slot, GameState state, CameraState camera)
         {
             ValidateSlot(slot);
 
             var save = new GameSave
             {
-                Stats = stats,
+                State = state,
                 Camera = camera,
                 SavedAt = DateTime.UtcNow
             };

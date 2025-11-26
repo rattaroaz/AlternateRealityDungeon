@@ -2812,3 +2812,5 @@ C:\Users\kimri\OneDrive\Desktop\cloned repos\AlternateRealityDungeon\AlternateRe
 C:\Users\kimri\OneDrive\Desktop\cloned repos\AlternateRealityDungeon\AlternateRealityDungeon\obj\Debug\net10.0-android\stamp\_GenerateJavaStubs.stamp
 C:\Users\kimri\OneDrive\Desktop\cloned repos\AlternateRealityDungeon\AlternateRealityDungeon\obj\Debug\net10.0-android\stamp\_GeneratePackageManagerJava.stamp
 C:\Users\kimri\OneDrive\Desktop\cloned repos\AlternateRealityDungeon\AlternateRealityDungeon\obj\Debug\net10.0-android\stamp\_ResolveLibraryProjectImports.stamp
+C:\Users\kimri\OneDrive\Desktop\cloned repos\AlternateRealityDungeon\AlternateRealityDungeon\obj\Debug\net10.0-android\AlternateRealityDungeon.sourcelink.json
+C:\Users\kimri\OneDrive\Desktop\cloned repos\AlternateRealityDungeon\AlternateRealityDungeon\obj\Debug\net10.0-android\assets\wwwroot\js\game.js

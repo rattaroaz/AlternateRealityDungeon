@@ -72,12 +72,12 @@
       <RelatedAsset></RelatedAsset>
       <AssetTraitName></AssetTraitName>
       <AssetTraitValue></AssetTraitValue>
-      <Fingerprint>dtxlwf01yg</Fingerprint>
-      <Integrity>j2WMbwLk1n6oJgXz4zMi55X+XAU4qL097wJ0onxXKsk=</Integrity>
+      <Fingerprint>8n60yzfp51</Fingerprint>
+      <Integrity>pB/bNmTlqspmolXqJt5ajysP2FMVhpHnc1jQ0AfZZVY=</Integrity>
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-      <FileLength>32497</FileLength>
-      <LastWriteTime>Wed, 26 Nov 2025 04:56:42 GMT</LastWriteTime>
+      <FileLength>35075</FileLength>
+      <LastWriteTime>Wed, 26 Nov 2025 05:15:57 GMT</LastWriteTime>
       <OriginalItemSpec>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\js\game.js'))</OriginalItemSpec>
     </StaticWebAsset>
     <StaticWebAsset Include="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\_framework\blazor.modules.json'))">

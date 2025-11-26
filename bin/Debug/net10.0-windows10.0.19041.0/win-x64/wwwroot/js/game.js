@@ -1,4 +1,5 @@
 window.game = {
+    _player: null, // Reference to current player state for saving
     initGame: function (containerId, playerStats, dotNetHelper, cameraState) {
         const container = document.getElementById(containerId);
         if (!container) return;
@@ -226,37 +227,76 @@ window.game = {
             getItemIndex: 0
         };
 
-        // Initialize stats between 8-21
-        if (playerStats && typeof playerStats === 'object') {
-            // Get player name (check both camelCase and PascalCase)
-            if (typeof playerStats.name === 'string') {
-                player.name = playerStats.name;
-            } else if (typeof playerStats.Name === 'string') {
-                player.name = playerStats.Name;
-            }
+        // Store player reference for getGameState access
+        window.game._player = player;
 
-            for (let stat in player.stats) {
-                // Blazor typically serializes anonymous-type property names to camelCase.
-                const camelKey = stat.charAt(0).toLowerCase() + stat.slice(1);
-                let value = undefined;
-                if (Object.prototype.hasOwnProperty.call(playerStats, stat)) {
-                    value = playerStats[stat];
-                } else if (Object.prototype.hasOwnProperty.call(playerStats, camelKey)) {
-                    value = playerStats[camelKey];
+        // Initialize player state
+        if (playerStats && typeof playerStats === 'object') {
+            // Check if this is a full game state (from loaded save) or basic stats (new game)
+            if (playerStats.name && playerStats.stats && playerStats.inventory) {
+                // Full game state restoration
+                player.name = playerStats.name;
+                player.level = playerStats.level || 1;
+                player.hitpoints = playerStats.hitpoints || 0;
+                player.experience = playerStats.experience || 0;
+
+                // Restore stats
+                for (let stat in player.stats) {
+                    if (playerStats.stats && typeof playerStats.stats[stat] === 'number') {
+                        player.stats[stat] = playerStats.stats[stat];
+                    }
                 }
-                if (typeof value === 'number') {
-                    player.stats[stat] = value;
+
+                // Restore ground items
+                player.groundItems = playerStats.groundItems || {};
+
+                // Restore inventory
+                player.inventory = playerStats.inventory || [];
+
+                // Restore UI state
+                player.showInventory = playerStats.showInventory || false;
+                player.showLoseMode = playerStats.showLoseMode || false;
+                player.showGetMode = playerStats.showGetMode || false;
+                player.getItemIndex = playerStats.getItemIndex || 0;
+            } else {
+                // Basic stats initialization (new game)
+                // Get player name (check both camelCase and PascalCase)
+                if (typeof playerStats.name === 'string') {
+                    player.name = playerStats.name;
+                } else if (typeof playerStats.Name === 'string') {
+                    player.name = playerStats.Name;
+                }
+
+                for (let stat in player.stats) {
+                    // Blazor typically serializes anonymous-type property names to camelCase.
+                    const camelKey = stat.charAt(0).toLowerCase() + stat.slice(1);
+                    let value = undefined;
+                    if (Object.prototype.hasOwnProperty.call(playerStats, stat)) {
+                        value = playerStats[stat];
+                    } else if (Object.prototype.hasOwnProperty.call(playerStats, camelKey)) {
+                        value = playerStats[camelKey];
+                    }
+                    if (typeof value === 'number') {
+                        player.stats[stat] = value;
+                    }
                 }
             }
         } else {
+            // Random stats for completely new games
             for (let stat in player.stats) {
                 player.stats[stat] = Math.floor(Math.random() * (21 - 8 + 1)) + 8;
             }
         }
 
-        // Set starting hitpoints = stamina, experience = 0
-        player.hitpoints = player.stats.Stamina;
-        player.experience = 0;
+        // Set hitpoints if not already set (for new games)
+        if (player.hitpoints === 0) {
+            player.hitpoints = player.stats.Stamina;
+        }
+        
+        // Ensure experience is set
+        if (player.experience === 0 && player.level > 1) {
+            // Could implement experience calculation here if needed
+        }
 
         function updateHUD() {
             // 1. Update Character Name (4th Quarter)
@@ -389,8 +429,8 @@ window.game = {
             // Actually, let's visualize the dial:
             // N is at 12 o'clock (0 deg visual).
             // E is at 3 o'clock (90 deg visual).
-            // S is at 6 o'clock (180 deg visual).
-            // W is at 9 o'clock (270 deg visual).
+            // S at 6 o'clock (180 deg visual).
+            // W at 9 o'clock (270 deg visual).
             
             // If player faces West (yaw = PI/2), we want W to be at 12 o'clock.
             // So we need to rotate the dial by +90 degrees (clockwise)? No, +90 makes N go to 3 o'clock.
@@ -760,5 +800,24 @@ window.game = {
         }
 
         animate();
+    },
+
+    // Public method to get current game state for saving
+    getGameState: function() {
+        const player = this._player;
+        if (!player) return '{}';
+        return JSON.stringify({
+            name: player.name,
+            level: player.level,
+            hitpoints: player.hitpoints,
+            experience: player.experience,
+            stats: player.stats,
+            groundItems: player.groundItems,
+            inventory: player.inventory,
+            showInventory: player.showInventory,
+            showLoseMode: player.showLoseMode,
+            showGetMode: player.showGetMode,
+            getItemIndex: player.getItemIndex
+        });
     }
 };

@@ -89,20 +89,72 @@
     {
         if (firstRender)
         {
-            object? statsArg = null;
+            object? gameStateArg = null;
 
-            if (PlayerState.HasStats && PlayerState.Stats is not null)
+            // Check if we have a loaded game state from LoadPlayer
+            if (PlayerState.LoadedGameState != null)
             {
-                statsArg = new
+                gameStateArg = new
                 {
-                    Name = PlayerState.Stats.Name,
-                    Stamina = PlayerState.Stats.Stamina,
-                    Charisma = PlayerState.Stats.Charisma,
-                    Strength = PlayerState.Stats.Strength,
-                    Intelligence = PlayerState.Stats.Intelligence,
-                    Wisdom = PlayerState.Stats.Wisdom,
-                    Skill = PlayerState.Stats.Skill,
-                    Speed = PlayerState.Stats.Speed
+                    name = PlayerState.LoadedGameState.Name,
+                    level = PlayerState.LoadedGameState.Level,
+                    hitpoints = PlayerState.LoadedGameState.Hitpoints,
+                    experience = PlayerState.LoadedGameState.Experience,
+                    stats = new
+                    {
+                        Stamina = PlayerState.LoadedGameState.Stats.Stamina,
+                        Charisma = PlayerState.LoadedGameState.Stats.Charisma,
+                        Strength = PlayerState.LoadedGameState.Stats.Strength,
+                        Intelligence = PlayerState.LoadedGameState.Stats.Intelligence,
+                        Wisdom = PlayerState.LoadedGameState.Stats.Wisdom,
+                        Skill = PlayerState.LoadedGameState.Stats.Skill,
+                        Speed = PlayerState.LoadedGameState.Stats.Speed
+                    },
+                    groundItems = PlayerState.LoadedGameState.GroundItems,
+                    inventory = PlayerState.LoadedGameState.Inventory.Select(i => new
+                    {
+                        name = i.Name,
+                        count = i.Count,
+                        equipped = i.Equipped
+                    }),
+                    showInventory = PlayerState.LoadedGameState.ShowInventory,
+                    showLoseMode = PlayerState.LoadedGameState.ShowLoseMode,
+                    showGetMode = PlayerState.LoadedGameState.ShowGetMode,
+                    getItemIndex = PlayerState.LoadedGameState.GetItemIndex
+                };
+            }
+            else if (PlayerState.HasStats && PlayerState.Stats is not null)
+            {
+                // Fallback to basic stats for new games
+                gameStateArg = new
+                {
+                    name = PlayerState.Stats.Name,
+                    level = 1,
+                    hitpoints = PlayerState.Stats.Stamina,
+                    experience = 0,
+                    stats = new
+                    {
+                        Stamina = PlayerState.Stats.Stamina,
+                        Charisma = PlayerState.Stats.Charisma,
+                        Strength = PlayerState.Stats.Strength,
+                        Intelligence = PlayerState.Stats.Intelligence,
+                        Wisdom = PlayerState.Stats.Wisdom,
+                        Skill = PlayerState.Stats.Skill,
+                        Speed = PlayerState.Stats.Speed
+                    },
+                    groundItems = new Dictionary<string, List<string>>(),
+                    inventory = new[]
+                    {
+                        new { name = "Compass", count = 1, equipped = true },
+                        new { name = "Timepiece", count = 1, equipped = true },
+                        new { name = "Food", count = 0, equipped = false },
+                        new { name = "Torches", count = 0, equipped = false },
+                        new { name = "Flasks", count = 0, equipped = false }
+                    },
+                    showInventory = false,
+                    showLoseMode = false,
+                    showGetMode = false,
+                    getItemIndex = 0
                 };
             }
 
@@ -121,7 +173,10 @@
 
             _dotNetRef ??= DotNetObjectReference.Create(this);
 
-            await JSRuntime.InvokeVoidAsync("window.game.initGame", "game-container", statsArg, _dotNetRef, cameraArg);
+            await JSRuntime.InvokeVoidAsync("window.game.initGame", "game-container", gameStateArg, _dotNetRef, cameraArg);
+
+            // Clear the loaded game state after using it
+            PlayerState.ClearLoadedGameState();
         }
     }
 
@@ -141,7 +196,7 @@
 
     private async Task SaveToSlot(int slot)
     {
-        if (PlayerState.Stats is null || _pendingCamera is null)
+        if (_pendingCamera is null)
         {
             _showSaveSlots = false;
             await InvokeAsync(StateHasChanged);
@@ -150,7 +205,17 @@
 
         try
         {
-            await SaveGameService.SaveAsync(slot, PlayerState.Stats, _pendingCamera);
+            // Get the full game state from JavaScript
+            var gameStateJson = await JSRuntime.InvokeAsync<string>("window.game.getGameState");
+            var gameState = System.Text.Json.JsonSerializer.Deserialize<GameState>(gameStateJson, new System.Text.Json.JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+
+            if (gameState != null)
+            {
+                await SaveGameService.SaveAsync(slot, gameState, _pendingCamera);
+            }
         }
         catch (Exception)
         {

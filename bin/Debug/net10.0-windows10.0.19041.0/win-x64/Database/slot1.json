@@ -1,0 +1,19 @@
+{
+  "Stats": {
+    "Name": "Mr. Sinister",
+    "Stamina": 15,
+    "Charisma": 9,
+    "Strength": 17,
+    "Intelligence": 10,
+    "Wisdom": 12,
+    "Skill": 12,
+    "Speed": 15
+  },
+  "Camera": {
+    "X": 39,
+    "Y": 1.6,
+    "Z": 60.00444444444422,
+    "Yaw": -3.141592653589793
+  },
+  "SavedAt": "2025-11-26T05:03:58.2403089Z"
+}

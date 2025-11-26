@@ -49,10 +49,8 @@ else
             return;
         }
 
-        if (save.Stats != null)
-        {
-            PlayerState.SetStats(save.Stats);
-        }
+        // Set the full game state for restoration
+        PlayerState.SetLoadedGameState(save.State);
 
         if (save.Camera != null)
         {

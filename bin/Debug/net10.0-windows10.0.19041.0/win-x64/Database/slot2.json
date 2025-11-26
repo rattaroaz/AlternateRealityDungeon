@@ -1,0 +1,57 @@
+{
+  "State": {
+    "Name": "Adventurer",
+    "Level": 1,
+    "Hitpoints": 19,
+    "Experience": 0,
+    "Stats": {
+      "Name": "Adventurer",
+      "Stamina": 0,
+      "Charisma": 0,
+      "Strength": 0,
+      "Intelligence": 0,
+      "Wisdom": 0,
+      "Skill": 0,
+      "Speed": 0
+    },
+    "GroundItems": {},
+    "Inventory": [
+      {
+        "Name": "Compass",
+        "Count": 1,
+        "Equipped": true
+      },
+      {
+        "Name": "Timepiece",
+        "Count": 1,
+        "Equipped": true
+      },
+      {
+        "Name": "Food",
+        "Count": 0,
+        "Equipped": false
+      },
+      {
+        "Name": "Torches",
+        "Count": 0,
+        "Equipped": false
+      },
+      {
+        "Name": "Flasks",
+        "Count": 0,
+        "Equipped": false
+      }
+    ],
+    "ShowInventory": false,
+    "ShowLoseMode": false,
+    "ShowGetMode": false,
+    "GetItemIndex": 0
+  },
+  "Camera": {
+    "X": 39,
+    "Y": 1.6,
+    "Z": 55.7199999999999,
+    "Yaw": 3.141592653589793
+  },
+  "SavedAt": "2025-11-26T05:18:32.9909959Z"
+}

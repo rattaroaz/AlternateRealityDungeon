@@ -20,11 +20,35 @@ namespace AlternateRealityDungeon
         public double Yaw { get; set; }
     }
 
+    public class InventoryItem
+    {
+        public string Name { get; set; } = "";
+        public int Count { get; set; }
+        public bool Equipped { get; set; }
+    }
+
+    public class GameState
+    {
+        public string Name { get; set; } = "Adventurer";
+        public int Level { get; set; } = 1;
+        public int Hitpoints { get; set; }
+        public int Experience { get; set; }
+        public PlayerStats Stats { get; set; } = new PlayerStats();
+        public Dictionary<string, List<string>> GroundItems { get; set; } = new Dictionary<string, List<string>>();
+        public List<InventoryItem> Inventory { get; set; } = new List<InventoryItem>();
+        public bool ShowInventory { get; set; }
+        public bool ShowLoseMode { get; set; }
+        public bool ShowGetMode { get; set; }
+        public int GetItemIndex { get; set; }
+    }
+
     public class PlayerState
     {
         public PlayerStats? Stats { get; private set; }
 
         public CameraState? LastCameraState { get; private set; }
+
+        public GameState? LoadedGameState { get; private set; }
 
         public bool HasStats => Stats != null;
 
@@ -38,9 +62,19 @@ namespace AlternateRealityDungeon
             LastCameraState = cameraState;
         }
 
+        public void SetLoadedGameState(GameState gameState)
+        {
+            LoadedGameState = gameState;
+        }
+
         public void ClearCameraState()
         {
             LastCameraState = null;
+        }
+
+        public void ClearLoadedGameState()
+        {
+            LoadedGameState = null;
         }
     }
 }
