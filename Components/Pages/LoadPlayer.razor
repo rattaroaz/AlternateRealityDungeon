@@ -1,0 +1,70 @@
+@page "/load-player"
+@inject NavigationManager Navigation
+@inject SaveGameService SaveGameService
+@inject PlayerState PlayerState
+
+<h1>Load Player</h1>
+
+<div style="margin-bottom: 1rem;">
+    <button @onclick="GoBack">Back</button>
+</div>
+
+@if (_slots is null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <div style="display: flex; flex-direction: column; gap: 0.5rem; max-width: 320px;">
+        @foreach (var slot in _slots)
+        {
+            var label = slot.HasSave && slot.SavedAt.HasValue
+                ? $"Slot {slot.Slot} - Saved {slot.SavedAt.Value.ToLocalTime():g}"
+                : $"Slot {slot.Slot} - Empty";
+
+            <button disabled="@(slot.HasSave ? false : true)" @onclick="() => LoadSlot(slot.Slot)">@label</button>
+        }
+    </div>
+}
+
+@code {
+    private List<SaveSlotInfo>? _slots;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var infos = await SaveGameService.GetSlotInfosAsync();
+        _slots = new List<SaveSlotInfo>(infos);
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/");
+    }
+
+    private async Task LoadSlot(int slot)
+    {
+        var save = await SaveGameService.LoadAsync(slot);
+        if (save == null)
+        {
+            return;
+        }
+
+        if (save.Stats != null)
+        {
+            PlayerState.SetStats(save.Stats);
+        }
+
+        if (save.Camera != null)
+        {
+            PlayerState.SetCameraState(save.Camera);
+        }
+        else
+        {
+            PlayerState.ClearCameraState();
+        }
+
+        // After successfully loading, force navigation to the game route so the
+        // saved character and camera state are actually entered.
+        Navigation.NavigateTo("/game", true);
+    }
+}

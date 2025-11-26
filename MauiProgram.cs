@@ -22,6 +22,8 @@ namespace AlternateRealityDungeon
     		builder.Logging.AddDebug();
 #endif
 
+            builder.Services.AddSingleton<SaveGameService>();
+
             return builder.Build();
         }
     }

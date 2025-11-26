@@ -4,6 +4,17 @@
 
 <h1>New Player</h1>
 
+<div style="margin-bottom: 1rem;">
+    <button @onclick="GoBack">Back</button>
+</div>
+
+<div style="margin-bottom: 1rem;">
+    <label for="playerName" style="display: block; margin-bottom: 0.25rem;">Player Name:</label>
+    <input id="playerName" type="text" @bind="playerName" @bind:event="oninput" 
+           style="padding: 0.5rem; font-size: 1rem; width: 200px;" 
+           placeholder="Enter your name" />
+</div>
+
 <table>
     <thead>
         <tr>
@@ -12,14 +23,13 @@
         </tr>
     </thead>
     <tbody>
-        <tr><td>Strength</td><td>@currentStats.Strength</td></tr>
-        <tr><td>Stamina</td><td>@currentStats.Stamina</td></tr>
-        <tr><td>Agility</td><td>@currentStats.Agility</td></tr>
-        <tr><td>Constitution</td><td>@currentStats.Constitution</td></tr>
-        <tr><td>Intelligence</td><td>@currentStats.Intelligence</td></tr>
-        <tr><td>Wisdom</td><td>@currentStats.Wisdom</td></tr>
-        <tr><td>Experience</td><td>@currentStats.Experience</td></tr>
-        <tr><td>Speed</td><td>@currentStats.Speed</td></tr>
+        <tr><td>Stamina</td><td><input type="number" @bind="currentStats.Stamina" min="1" max="99" style="width: 60px;" /></td></tr>
+        <tr><td>Charisma</td><td><input type="number" @bind="currentStats.Charisma" min="1" max="99" style="width: 60px;" /></td></tr>
+        <tr><td>Strength</td><td><input type="number" @bind="currentStats.Strength" min="1" max="99" style="width: 60px;" /></td></tr>
+        <tr><td>Intelligence</td><td><input type="number" @bind="currentStats.Intelligence" min="1" max="99" style="width: 60px;" /></td></tr>
+        <tr><td>Wisdom</td><td><input type="number" @bind="currentStats.Wisdom" min="1" max="99" style="width: 60px;" /></td></tr>
+        <tr><td>Skill</td><td><input type="number" @bind="currentStats.Skill" min="1" max="99" style="width: 60px;" /></td></tr>
+        <tr><td>Speed</td><td><input type="number" @bind="currentStats.Speed" min="1" max="99" style="width: 60px;" /></td></tr>
     </tbody>
 </table>
 
@@ -30,6 +40,7 @@
 
 @code {
     private PlayerStats currentStats = new();
+    private string playerName = "Adventurer";
     private static readonly Random Random = new();
 
     protected override void OnInitialized()
@@ -41,13 +52,12 @@
     {
         currentStats = new PlayerStats
         {
-            Strength = Roll(),
             Stamina = Roll(),
-            Agility = Roll(),
-            Constitution = Roll(),
+            Charisma = Roll(),
+            Strength = Roll(),
             Intelligence = Roll(),
             Wisdom = Roll(),
-            Experience = Roll(),
+            Skill = Roll(),
             Speed = Roll()
         };
     }
@@ -61,7 +71,13 @@
 
     private void Select()
     {
+        currentStats.Name = string.IsNullOrWhiteSpace(playerName) ? "Adventurer" : playerName.Trim();
         PlayerState.SetStats(currentStats);
         Navigation.NavigateTo("/game");
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/");
     }
 }

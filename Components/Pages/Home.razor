@@ -1,15 +1,90 @@
 ﻿@page "/game"
 @inject IJSRuntime JSRuntime
 @inject PlayerState PlayerState
+@inject SaveGameService SaveGameService
 
-<div id="game-container" style="width: 100%; height: 100%; overflow: hidden; margin: 0; padding: 0; position: relative;">
-    <div id="stats-overlay" style="position: absolute; top: 10px; left: 10px; color: white; background: rgba(0, 0, 0, 0.5); padding: 10px; font-family: monospace; pointer-events: none; user-select: none;">
-        Loading Stats...
+@inject NavigationManager Navigation
+
+<div style="width: 100%; height: 100%; display: flex; flex-direction: column; overflow: hidden;">
+    <!-- Game View (Top 75%) -->
+    <div id="game-container" style="width: 100%; height: 75%; position: relative; background: #000;">
+        <div id="stats-overlay" style="position: absolute; top: 10px; left: 10px; color: white; background: rgba(0, 0, 0, 0.5); padding: 10px; font-family: monospace; pointer-events: none; user-select: none; z-index: 10;">
+            Loading Stats...
+        </div>
+        <div id="hit-flash" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; border: 10px solid red; box-sizing: border-box; pointer-events: none; opacity: 0; transition: opacity 0.1s; z-index: 20;"></div>
+        <div id="pause-overlay" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.7); color: white; display: none; align-items: center; justify-content: center; font-size: 2rem; z-index: 30;">
+            Paused
+        </div>
+
+        @if (_showSaveSlots && _slotInfos != null)
+        {
+            <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.8); display: flex; align-items: center; justify-content: center; z-index: 40;">
+                <div style="background: #222; padding: 1rem; border-radius: 4px; color: white; min-width: 320px;">
+                    <div style="margin-bottom: 0.5rem;">Select save slot</div>
+                    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                        @foreach (var slot in _slotInfos)
+                        {
+                            var label = slot.HasSave && slot.SavedAt.HasValue
+                                ? $"Slot {slot.Slot} - Saved {slot.SavedAt.Value.ToLocalTime():g}"
+                                : $"Slot {slot.Slot} - Empty";
+
+                            <button @onclick="() => SaveToSlot(slot.Slot)">@label</button>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
     </div>
-    <div id="hit-flash" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; border: 10px solid red; box-sizing: border-box; pointer-events: none; opacity: 0; transition: opacity 0.1s;"></div>
+
+    <!-- Navigation / Info Panel (Bottom 25%) -->
+    <div id="navigation-panel" style="width: 100%; height: 25%; background: #222; border-top: 2px solid #444; display: flex; color: white; font-family: monospace;">
+        <!-- 1st Quarter: Area Description -->
+        <div id="nav-area-desc" style="flex: 1; border-right: 1px solid #444; padding: 10px; overflow-y: auto; font-size: 0.9rem;">
+            <div id="level-text" style="color: gold; font-weight: bold; margin-bottom: 5px;">You are on Level 1 of the Dungeon.</div>
+            <div id="area-text">You are standing in a dark dungeon corridor.</div>
+            <div id="ground-items" style="margin-top: 5px; color: #aaa;">There is nothing on the ground.</div>
+        </div>
+
+        <!-- 2nd Quarter: Compass & Time -->
+        <div id="nav-compass-time" style="flex: 1; border-right: 1px solid #444; padding: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; overflow: hidden;">
+            <!-- Visual Compass -->
+            <div id="compass-container" style="width: 80px; height: 80px; border: 2px solid gold; border-radius: 50%; position: relative; margin-bottom: 5px; background: #111;">
+                <!-- The dial rotates so the current heading is at the top -->
+                <div id="compass-dial" style="width: 100%; height: 100%; position: absolute; top: 0; left: 0; transition: transform 0.1s linear;">
+                    <div style="position: absolute; top: 2px; left: 50%; transform: translateX(-50%); font-weight: bold; color: #f66; font-size: 0.8rem;">N</div>
+                    <div style="position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%); font-weight: bold; color: #ccc; font-size: 0.8rem;">S</div>
+                    <div style="position: absolute; top: 50%; right: 2px; transform: translateY(-50%); font-weight: bold; color: #ccc; font-size: 0.8rem;">E</div>
+                    <div style="position: absolute; top: 50%; left: 2px; transform: translateY(-50%); font-weight: bold; color: #ccc; font-size: 0.8rem;">W</div>
+                </div>
+                <!-- Arrow pointing up (fixed) indicating 'Current Direction' -->
+                <div style="position: absolute; top: -5px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 8px solid gold; z-index: 10;"></div>
+            </div>
+            <div id="time-display" style="color: #aaa; font-size: 0.9rem; min-height: 1.2rem;"></div>
+        </div>
+
+        <!-- 3rd Quarter: Inventory Counts / Full Inventory -->
+        <div id="nav-inventory" style="flex: 1; border-right: 1px solid #444; padding: 10px; overflow-y: auto; display: flex; flex-direction: column;">
+            <!-- Content injected by JS -->
+            <div style="display: flex; flex-direction: column; justify-content: center; gap: 5px; height: 100%;">
+                <div>Food: <span id="inv-food">0</span></div>
+                <div>Torches: <span id="inv-torches">0</span></div>
+                <div>Flasks: <span id="inv-flasks">0</span></div>
+            </div>
+        </div>
+
+        <!-- 4th Quarter: Character Name -->
+        <div id="nav-char-name" style="flex: 1; padding: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: bold; color: gold;">
+            Player
+        </div>
+    </div>
 </div>
 
 @code {
+    private DotNetObjectReference<Home>? _dotNetRef;
+    private bool _showSaveSlots;
+    private CameraState? _pendingCamera;
+    private List<SaveSlotInfo>? _slotInfos;
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
@@ -20,18 +95,75 @@
             {
                 statsArg = new
                 {
-                    Strength = PlayerState.Stats.Strength,
+                    Name = PlayerState.Stats.Name,
                     Stamina = PlayerState.Stats.Stamina,
-                    Agility = PlayerState.Stats.Agility,
-                    Constitution = PlayerState.Stats.Constitution,
+                    Charisma = PlayerState.Stats.Charisma,
+                    Strength = PlayerState.Stats.Strength,
                     Intelligence = PlayerState.Stats.Intelligence,
                     Wisdom = PlayerState.Stats.Wisdom,
-                    Experience = PlayerState.Stats.Experience,
+                    Skill = PlayerState.Stats.Skill,
                     Speed = PlayerState.Stats.Speed
                 };
             }
 
-            await JSRuntime.InvokeVoidAsync("window.game.initGame", "game-container", statsArg);
+            object? cameraArg = null;
+
+            if (PlayerState.LastCameraState is not null)
+            {
+                cameraArg = new
+                {
+                    X = PlayerState.LastCameraState.X,
+                    Y = PlayerState.LastCameraState.Y,
+                    Z = PlayerState.LastCameraState.Z,
+                    Yaw = PlayerState.LastCameraState.Yaw
+                };
+            }
+
+            _dotNetRef ??= DotNetObjectReference.Create(this);
+
+            await JSRuntime.InvokeVoidAsync("window.game.initGame", "game-container", statsArg, _dotNetRef, cameraArg);
         }
+    }
+
+    [JSInvokable]
+    public async Task OnSaveRequested(CameraState camera)
+    {
+        PlayerState.SetCameraState(camera);
+        _pendingCamera = camera;
+
+        // Load slot info to display which slots already have saves
+        var infos = await SaveGameService.GetSlotInfosAsync();
+        _slotInfos = new List<SaveSlotInfo>(infos);
+
+        _showSaveSlots = true;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task SaveToSlot(int slot)
+    {
+        if (PlayerState.Stats is null || _pendingCamera is null)
+        {
+            _showSaveSlots = false;
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        try
+        {
+            await SaveGameService.SaveAsync(slot, PlayerState.Stats, _pendingCamera);
+        }
+        catch (Exception)
+        {
+            // Swallow or log as needed; prevents unhandled error from bubbling.
+        }
+        finally
+        {
+            _showSaveSlots = false;
+            await InvokeAsync(StateHasChanged);
+        }
+
+        // Force navigation back to the opening screen (main menu) so the user
+        // reliably sees the "Alternate Reality Dungeon" menu after saving.
+        Navigation.NavigateTo("/", true);
     }
 }
