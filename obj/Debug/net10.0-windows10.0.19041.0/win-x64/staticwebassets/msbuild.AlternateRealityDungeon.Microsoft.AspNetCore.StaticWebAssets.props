@@ -52,12 +52,12 @@
       <RelatedAsset></RelatedAsset>
       <AssetTraitName></AssetTraitName>
       <AssetTraitValue></AssetTraitValue>
-      <Fingerprint>oxkw5xv85f</Fingerprint>
-      <Integrity>BJVjMeyRosXlCdinZVBmVjsg2iSwOxTHJy54LNcV5pA=</Integrity>
+      <Fingerprint>52zfet82ex</Fingerprint>
+      <Integrity>PcHtYur6haEtEplTtciueZUN+ZmzJXK1/ciTzjXsr1Y=</Integrity>
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-      <FileLength>962</FileLength>
-      <LastWriteTime>Sun, 23 Nov 2025 20:04:43 GMT</LastWriteTime>
+      <FileLength>1007</FileLength>
+      <LastWriteTime>Thu, 27 Nov 2025 06:15:25 GMT</LastWriteTime>
       <OriginalItemSpec>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\index.html'))</OriginalItemSpec>
     </StaticWebAsset>
     <StaticWebAsset Include="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\js\game.js'))">
@@ -72,13 +72,33 @@
       <RelatedAsset></RelatedAsset>
       <AssetTraitName></AssetTraitName>
       <AssetTraitValue></AssetTraitValue>
-      <Fingerprint>cb3dq68ju6</Fingerprint>
-      <Integrity>+Dt/B+paGfOE7h8efmdzrt9t242iZ6hrE+CyQhW1HO8=</Integrity>
+      <Fingerprint>wu3mv9nltn</Fingerprint>
+      <Integrity>+E+3O1TPreSLHwnURMJ2+yryAx75bGbIdM7s21gZVrs=</Integrity>
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-      <FileLength>43211</FileLength>
-      <LastWriteTime>Thu, 27 Nov 2025 05:19:37 GMT</LastWriteTime>
+      <FileLength>57713</FileLength>
+      <LastWriteTime>Thu, 27 Nov 2025 06:23:50 GMT</LastWriteTime>
       <OriginalItemSpec>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\js\game.js'))</OriginalItemSpec>
+    </StaticWebAsset>
+    <StaticWebAsset Include="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\js\mapeditor.js'))">
+      <SourceType>Package</SourceType>
+      <SourceId>AlternateRealityDungeon</SourceId>
+      <ContentRoot>$(MSBuildThisFileDirectory)..\staticwebassets\</ContentRoot>
+      <BasePath>/</BasePath>
+      <RelativePath>js/mapeditor.js</RelativePath>
+      <AssetKind>All</AssetKind>
+      <AssetMode>All</AssetMode>
+      <AssetRole>Primary</AssetRole>
+      <RelatedAsset></RelatedAsset>
+      <AssetTraitName></AssetTraitName>
+      <AssetTraitValue></AssetTraitValue>
+      <Fingerprint>838jatjbin</Fingerprint>
+      <Integrity>tH07RVUhZstSAhhZweorqoVPZUdsZK9X+9HMdV6nDf8=</Integrity>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <FileLength>1199</FileLength>
+      <LastWriteTime>Thu, 27 Nov 2025 06:15:17 GMT</LastWriteTime>
+      <OriginalItemSpec>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\js\mapeditor.js'))</OriginalItemSpec>
     </StaticWebAsset>
     <StaticWebAsset Include="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\_framework\blazor.modules.json'))">
       <SourceType>Package</SourceType>

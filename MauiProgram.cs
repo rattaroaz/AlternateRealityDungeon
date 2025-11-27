@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using AlternateRealityDungeon.Services;
 
 namespace AlternateRealityDungeon
 {
@@ -23,6 +24,7 @@ namespace AlternateRealityDungeon
 #endif
 
             builder.Services.AddSingleton<SaveGameService>();
+            builder.Services.AddSingleton<MapStorageService>();
 
             return builder.Build();
         }

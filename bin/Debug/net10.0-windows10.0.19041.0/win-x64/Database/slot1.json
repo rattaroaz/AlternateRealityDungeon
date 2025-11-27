@@ -1,19 +1,57 @@
 {
-  "Stats": {
-    "Name": "Mr. Sinister",
-    "Stamina": 15,
-    "Charisma": 9,
-    "Strength": 17,
-    "Intelligence": 10,
-    "Wisdom": 12,
-    "Skill": 12,
-    "Speed": 15
+  "State": {
+    "Name": "Adventurer",
+    "Level": 1,
+    "Hitpoints": 9,
+    "Experience": 0,
+    "Stats": {
+      "Name": "Adventurer",
+      "Stamina": 9,
+      "Charisma": 15,
+      "Strength": 12,
+      "Intelligence": 20,
+      "Wisdom": 14,
+      "Skill": 10,
+      "Speed": 7
+    },
+    "GroundItems": {},
+    "Inventory": [
+      {
+        "Name": "Compass",
+        "Count": 1,
+        "Equipped": true
+      },
+      {
+        "Name": "Timepiece",
+        "Count": 1,
+        "Equipped": true
+      },
+      {
+        "Name": "Food",
+        "Count": 0,
+        "Equipped": false
+      },
+      {
+        "Name": "Torches",
+        "Count": 0,
+        "Equipped": false
+      },
+      {
+        "Name": "Flasks",
+        "Count": 0,
+        "Equipped": false
+      }
+    ],
+    "ShowInventory": false,
+    "ShowLoseMode": false,
+    "ShowGetMode": false,
+    "GetItemIndex": 0
   },
   "Camera": {
-    "X": 39,
+    "X": -4,
     "Y": 1.6,
-    "Z": 60.00444444444422,
-    "Yaw": -3.141592653589793
+    "Z": -16,
+    "Yaw": 0
   },
-  "SavedAt": "2025-11-26T05:03:58.2403089Z"
+  "SavedAt": "2025-11-27T06:31:54.9261089Z"
 }

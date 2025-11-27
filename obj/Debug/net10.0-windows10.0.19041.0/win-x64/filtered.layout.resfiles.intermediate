@@ -64,3 +64,4 @@ AboutAssets.txt
 wwwroot\app.css
 wwwroot\index.html
 wwwroot\js\game.js
+wwwroot\js\mapeditor.js

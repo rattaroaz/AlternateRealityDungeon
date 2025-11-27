@@ -1,10 +1,10 @@
-<api type="debug" assembly-name="AlternateRealityDungeon" mvid="df906967502445edb5446d1235a55805">
+<api type="debug" assembly-name="AlternateRealityDungeon" mvid="747173adfca441598580d48044edadad">
   <java-to-managed>
-    <entry java-name="crc64691bc17c79f4dabb/MainActivity" managed-name="AlternateRealityDungeon.MainActivity, AlternateRealityDungeon" managed-type-token-id="33554444" />
-    <entry java-name="crc64691bc17c79f4dabb/MainApplication" managed-name="AlternateRealityDungeon.MainApplication, AlternateRealityDungeon" managed-type-token-id="33554445" />
+    <entry java-name="crc64691bc17c79f4dabb/MainActivity" managed-name="AlternateRealityDungeon.MainActivity, AlternateRealityDungeon" managed-type-token-id="33554450" />
+    <entry java-name="crc64691bc17c79f4dabb/MainApplication" managed-name="AlternateRealityDungeon.MainApplication, AlternateRealityDungeon" managed-type-token-id="33554451" />
   </java-to-managed>
   <managed-to-java>
-    <entry java-name="crc64691bc17c79f4dabb/MainActivity" managed-name="AlternateRealityDungeon.MainActivity, AlternateRealityDungeon" managed-type-token-id="33554444" />
-    <entry java-name="crc64691bc17c79f4dabb/MainApplication" managed-name="AlternateRealityDungeon.MainApplication, AlternateRealityDungeon" managed-type-token-id="33554445" />
+    <entry java-name="crc64691bc17c79f4dabb/MainActivity" managed-name="AlternateRealityDungeon.MainActivity, AlternateRealityDungeon" managed-type-token-id="33554450" />
+    <entry java-name="crc64691bc17c79f4dabb/MainApplication" managed-name="AlternateRealityDungeon.MainApplication, AlternateRealityDungeon" managed-type-token-id="33554451" />
   </managed-to-java>
 </api>

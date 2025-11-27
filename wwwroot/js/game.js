@@ -1,6 +1,6 @@
 window.game = {
     _player: null, // Reference to current player state for saving
-    initGame: function (containerId, playerStats, dotNetHelper, cameraState) {
+    initGame: function (containerId, playerStats, dotNetHelper, cameraState, mapData) {
         const container = document.getElementById(containerId);
         if (!container) return;
 
@@ -26,11 +26,19 @@ window.game = {
         dirLight.position.set(10, 20, 10);
         scene.add(dirLight);
 
-        // Dungeon grid
-        const MAP_WIDTH = 64;
-        const MAP_HEIGHT = 64;
+        // Dungeon grid - use provided map data or defaults
+        const MAP_WIDTH = mapData?.width || 65;
+        const MAP_HEIGHT = mapData?.height || 65;
         const TILE_SIZE = 4;
-        const playerStartTile = { x: 51, y: 61 };
+        const NUM_LEVELS = mapData?.numLevels || 4;
+        let currentLevel = 0; // 0-indexed (Level 1 = index 0)
+        const playerStartTile = { 
+            x: mapData?.playerStartX || 32, 
+            y: mapData?.playerStartY || 32 
+        };
+        
+        // Flag to track if we're using a custom map
+        const useCustomMap = mapData && mapData.levels && mapData.levels.length > 0;
 
         const planeGeometry = new THREE.PlaneGeometry(MAP_WIDTH * TILE_SIZE, MAP_HEIGHT * TILE_SIZE);
         const planeMaterial = new THREE.MeshStandardMaterial({ color: 0x444444 });
@@ -67,35 +75,215 @@ window.game = {
         //     createTree(x, z);
         // }
 
-        // Dungeon layout
+        // Dungeon layout - Multi-level
         const WALL = 1;
         const FLOOR = 0;
-        const dungeonMap = [];
-
-        for (let y = 0; y < MAP_HEIGHT; y++) {
-            dungeonMap[y] = [];
-            for (let x = 0; x < MAP_WIDTH; x++) {
-                dungeonMap[y][x] = WALL;
+        const STAIRS_DOWN = 2;
+        const STAIRS_UP = 3;
+        
+        // All dungeon levels [level][y][x]
+        const dungeonLevels = [];
+        // Stair positions for each level: { down: [{x,y}, {x,y}], up: [{x,y}, {x,y}] }
+        const stairPositions = [];
+        
+        // Initialize all levels
+        for (let level = 0; level < NUM_LEVELS; level++) {
+            dungeonLevels[level] = [];
+            for (let y = 0; y < MAP_HEIGHT; y++) {
+                dungeonLevels[level][y] = [];
+                for (let x = 0; x < MAP_WIDTH; x++) {
+                    dungeonLevels[level][y][x] = WALL;
+                }
             }
+            stairPositions[level] = { down: [], up: [] };
         }
-
-        function carveCorridor(x1, y1, x2, y2) {
-            const dx = Math.sign(x2 - x1);
-            const dy = Math.sign(y2 - y1);
-            let x = x1;
-            let y = y1;
-            dungeonMap[y][x] = FLOOR;
-            while (x !== x2 || y !== y2) {
-                if (x !== x2) x += dx;
-                if (y !== y2) y += dy;
-                dungeonMap[y][x] = FLOOR;
+        
+        // Room generation for each level
+        function generateLevel(level) {
+            const map = dungeonLevels[level];
+            const rooms = [];
+            const minRooms = 8;
+            const maxRooms = 12;
+            const minRoomSize = 4;
+            const maxRoomSize = 10;
+            const numRooms = minRooms + Math.floor(Math.random() * (maxRooms - minRooms + 1));
+            
+            // Carve a room
+            function carveRoom(x, y, w, h) {
+                for (let ry = y; ry < y + h && ry < MAP_HEIGHT - 1; ry++) {
+                    for (let rx = x; rx < x + w && rx < MAP_WIDTH - 1; rx++) {
+                        if (rx > 0 && ry > 0) {
+                            map[ry][rx] = FLOOR;
+                        }
+                    }
+                }
             }
+            
+            // Carve corridor between two points
+            function carveCorridor(x1, y1, x2, y2) {
+                let x = x1;
+                let y = y1;
+                while (x !== x2 || y !== y2) {
+                    if (x >= 0 && x < MAP_WIDTH && y >= 0 && y < MAP_HEIGHT) {
+                        map[y][x] = FLOOR;
+                    }
+                    if (Math.random() < 0.5) {
+                        if (x !== x2) x += Math.sign(x2 - x);
+                        else if (y !== y2) y += Math.sign(y2 - y);
+                    } else {
+                        if (y !== y2) y += Math.sign(y2 - y);
+                        else if (x !== x2) x += Math.sign(x2 - x);
+                    }
+                }
+                if (x >= 0 && x < MAP_WIDTH && y >= 0 && y < MAP_HEIGHT) {
+                    map[y][x] = FLOOR;
+                }
+            }
+            
+            // Generate rooms
+            for (let i = 0; i < numRooms; i++) {
+                const w = minRoomSize + Math.floor(Math.random() * (maxRoomSize - minRoomSize + 1));
+                const h = minRoomSize + Math.floor(Math.random() * (maxRoomSize - minRoomSize + 1));
+                const x = 1 + Math.floor(Math.random() * (MAP_WIDTH - w - 2));
+                const y = 1 + Math.floor(Math.random() * (MAP_HEIGHT - h - 2));
+                
+                // Check for overlap with existing rooms (with 1 tile buffer)
+                let overlaps = false;
+                for (const room of rooms) {
+                    if (x < room.x + room.w + 1 && x + w + 1 > room.x &&
+                        y < room.y + room.h + 1 && y + h + 1 > room.y) {
+                        overlaps = true;
+                        break;
+                    }
+                }
+                
+                if (!overlaps) {
+                    carveRoom(x, y, w, h);
+                    rooms.push({ x, y, w, h, cx: Math.floor(x + w / 2), cy: Math.floor(y + h / 2) });
+                }
+            }
+            
+            // Connect rooms with corridors
+            for (let i = 1; i < rooms.length; i++) {
+                carveCorridor(rooms[i - 1].cx, rooms[i - 1].cy, rooms[i].cx, rooms[i].cy);
+            }
+            // Connect last to first to ensure connectivity
+            if (rooms.length > 2) {
+                carveCorridor(rooms[rooms.length - 1].cx, rooms[rooms.length - 1].cy, rooms[0].cx, rooms[0].cy);
+            }
+            
+            // Ensure player start area is open (for level 0)
+            if (level === 0) {
+                for (let dy = -2; dy <= 2; dy++) {
+                    for (let dx = -2; dx <= 2; dx++) {
+                        const px = playerStartTile.x + dx;
+                        const py = playerStartTile.y + dy;
+                        if (px > 0 && px < MAP_WIDTH - 1 && py > 0 && py < MAP_HEIGHT - 1) {
+                            map[py][px] = FLOOR;
+                        }
+                    }
+                }
+                // Connect player start to nearest room
+                if (rooms.length > 0) {
+                    let nearest = rooms[0];
+                    let minDist = Math.abs(nearest.cx - playerStartTile.x) + Math.abs(nearest.cy - playerStartTile.y);
+                    for (const room of rooms) {
+                        const dist = Math.abs(room.cx - playerStartTile.x) + Math.abs(room.cy - playerStartTile.y);
+                        if (dist < minDist) {
+                            minDist = dist;
+                            nearest = room;
+                        }
+                    }
+                    carveCorridor(playerStartTile.x, playerStartTile.y, nearest.cx, nearest.cy);
+                }
+            }
+            
+            return rooms;
         }
-
-        // Simple cross-shaped corridor network near the player start
-        carveCorridor(41, 61, 61, 61);
-        carveCorridor(51, 46, 51, 62);
-        carveCorridor(41, 56, 41, 61);
+        
+        // Load custom map or generate procedurally
+        if (useCustomMap) {
+            // Load map data from provided mapData
+            for (let level = 0; level < NUM_LEVELS && level < mapData.levels.length; level++) {
+                for (let y = 0; y < MAP_HEIGHT && y < mapData.levels[level].length; y++) {
+                    for (let x = 0; x < MAP_WIDTH && x < mapData.levels[level][y].length; x++) {
+                        dungeonLevels[level][y][x] = mapData.levels[level][y][x];
+                        
+                        // Track stair positions
+                        if (mapData.levels[level][y][x] === STAIRS_DOWN) {
+                            stairPositions[level].down.push({ x, y });
+                        } else if (mapData.levels[level][y][x] === STAIRS_UP) {
+                            stairPositions[level].up.push({ x, y });
+                        }
+                    }
+                }
+            }
+            console.log('Loaded custom map from editor');
+        } else {
+            // Generate all levels procedurally
+            const allRooms = [];
+            for (let level = 0; level < NUM_LEVELS; level++) {
+                allRooms[level] = generateLevel(level);
+            }
+            
+            // Place stairs between levels (2 sets per level connection)
+            function placeStairs() {
+                for (let level = 0; level < NUM_LEVELS - 1; level++) {
+                    const rooms = allRooms[level];
+                    const nextRooms = allRooms[level + 1];
+                    
+                    // Find 2 good stair locations on current level
+                    const usedPositions = [];
+                    for (let stairNum = 0; stairNum < 2; stairNum++) {
+                        // Pick a room for stairs down
+                        let stairRoom;
+                        let attempts = 0;
+                        do {
+                            stairRoom = rooms[Math.floor(Math.random() * rooms.length)];
+                            attempts++;
+                        } while (usedPositions.some(p => Math.abs(p.x - stairRoom.cx) < 8 && Math.abs(p.y - stairRoom.cy) < 8) && attempts < 20);
+                        
+                        // Find a floor tile in the room for stairs
+                        let stairX = stairRoom.cx;
+                        let stairY = stairRoom.cy;
+                        
+                        // Make sure the position is valid
+                        if (dungeonLevels[level][stairY][stairX] === FLOOR) {
+                            dungeonLevels[level][stairY][stairX] = STAIRS_DOWN;
+                            stairPositions[level].down.push({ x: stairX, y: stairY });
+                            usedPositions.push({ x: stairX, y: stairY });
+                            
+                            // Ensure the corresponding position on next level is open and has stairs up
+                            dungeonLevels[level + 1][stairY][stairX] = STAIRS_UP;
+                            stairPositions[level + 1].up.push({ x: stairX, y: stairY });
+                            
+                            // Ensure area around stairs is walkable on both levels
+                            for (let dy = -1; dy <= 1; dy++) {
+                                for (let dx = -1; dx <= 1; dx++) {
+                                    const nx = stairX + dx;
+                                    const ny = stairY + dy;
+                                    if (nx > 0 && nx < MAP_WIDTH - 1 && ny > 0 && ny < MAP_HEIGHT - 1) {
+                                        if (dungeonLevels[level][ny][nx] === WALL) {
+                                            dungeonLevels[level][ny][nx] = FLOOR;
+                                        }
+                                        if (dungeonLevels[level + 1][ny][nx] === WALL) {
+                                            dungeonLevels[level + 1][ny][nx] = FLOOR;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            placeStairs();
+            console.log('Generated procedural dungeon');
+        }
+        
+        // Get current level's map
+        function getDungeonMap() {
+            return dungeonLevels[currentLevel];
+        }
 
         const wallHeight = 3;
 
@@ -148,6 +336,14 @@ window.game = {
         const wallEdgeGeometry = new THREE.EdgesGeometry(wallGeometry);
         const wallEdgeMaterial = new THREE.LineBasicMaterial({ color: 0xFF6666 });
 
+        // Stair materials
+        const stairsDownMaterial = new THREE.MeshStandardMaterial({ color: 0x8B0000, roughness: 0.5 }); // Dark red for down
+        const stairsUpMaterial = new THREE.MeshStandardMaterial({ color: 0x006400, roughness: 0.5 }); // Dark green for up
+        const stairGeometry = new THREE.BoxGeometry(TILE_SIZE * 0.8, 0.3, TILE_SIZE * 0.8);
+        
+        // Track dungeon meshes for level switching
+        let dungeonMeshes = [];
+        
         function addWallTile(tx, ty) {
             const mesh = new THREE.Mesh(wallGeometry, wallMaterial);
             const worldX = (tx - MAP_WIDTH / 2) * TILE_SIZE + TILE_SIZE / 2;
@@ -160,15 +356,53 @@ window.game = {
 
             scene.add(mesh);
             scene.add(edges);
+            dungeonMeshes.push(mesh);
+            dungeonMeshes.push(edges);
         }
-
-        for (let y = 0; y < MAP_HEIGHT; y++) {
-            for (let x = 0; x < MAP_WIDTH; x++) {
-                if (dungeonMap[y][x] === WALL) {
-                    addWallTile(x, y);
+        
+        function addStairTile(tx, ty, isDown) {
+            const material = isDown ? stairsDownMaterial : stairsUpMaterial;
+            const mesh = new THREE.Mesh(stairGeometry, material);
+            const worldX = (tx - MAP_WIDTH / 2) * TILE_SIZE + TILE_SIZE / 2;
+            const worldZ = (ty - MAP_HEIGHT / 2) * TILE_SIZE + TILE_SIZE / 2;
+            mesh.position.set(worldX, 0.15, worldZ);
+            scene.add(mesh);
+            dungeonMeshes.push(mesh);
+            
+            // Add arrow indicator
+            const arrowGeo = new THREE.ConeGeometry(0.5, 1, 4);
+            const arrowMesh = new THREE.Mesh(arrowGeo, material);
+            arrowMesh.position.set(worldX, isDown ? 0.5 : 1.5, worldZ);
+            arrowMesh.rotation.x = isDown ? Math.PI : 0; // Point down or up
+            scene.add(arrowMesh);
+            dungeonMeshes.push(arrowMesh);
+        }
+        
+        function buildLevel(level) {
+            // Clear existing meshes
+            for (const mesh of dungeonMeshes) {
+                scene.remove(mesh);
+                if (mesh.geometry) mesh.geometry.dispose();
+            }
+            dungeonMeshes = [];
+            
+            const map = dungeonLevels[level];
+            for (let y = 0; y < MAP_HEIGHT; y++) {
+                for (let x = 0; x < MAP_WIDTH; x++) {
+                    const tile = map[y][x];
+                    if (tile === WALL) {
+                        addWallTile(x, y);
+                    } else if (tile === STAIRS_DOWN) {
+                        addStairTile(x, y, true);
+                    } else if (tile === STAIRS_UP) {
+                        addStairTile(x, y, false);
+                    }
                 }
             }
         }
+        
+        // Build initial level
+        buildLevel(currentLevel);
 
         // Tile helpers for collision
         function worldToTile(x, z) {
@@ -181,7 +415,23 @@ window.game = {
             if (tx < 0 || tx >= MAP_WIDTH || ty < 0 || ty >= MAP_HEIGHT) {
                 return false;
             }
-            return dungeonMap[ty][tx] === FLOOR;
+            const tile = dungeonLevels[currentLevel][ty][tx];
+            return tile === FLOOR || tile === STAIRS_DOWN || tile === STAIRS_UP;
+        }
+        
+        function getTileType(tx, ty) {
+            if (tx < 0 || tx >= MAP_WIDTH || ty < 0 || ty >= MAP_HEIGHT) {
+                return WALL;
+            }
+            return dungeonLevels[currentLevel][ty][tx];
+        }
+        
+        // Level transition
+        function changeLevel(newLevel) {
+            if (newLevel < 0 || newLevel >= NUM_LEVELS) return;
+            currentLevel = newLevel;
+            buildLevel(currentLevel);
+            updateHUD();
         }
 
         const hitFlash = document.getElementById('hit-flash');
@@ -279,6 +529,8 @@ window.game = {
 
         // Store player reference for getGameState access
         window.game._player = player;
+        window.game._getCurrentLevel = function() { return currentLevel; };
+        window.game._setCurrentLevel = function(lvl) { changeLevel(lvl); };
 
         // Initialize player state
         if (playerStats && typeof playerStats === 'object') {
@@ -318,6 +570,13 @@ window.game = {
                 player.showLoseMode = playerStats.showLoseMode || false;
                 player.showGetMode = playerStats.showGetMode || false;
                 player.getItemIndex = playerStats.getItemIndex || 0;
+                
+                // Restore dungeon level
+                const savedDungeonLevel = playerStats.dungeonLevel || playerStats.DungeonLevel || 0;
+                if (savedDungeonLevel !== currentLevel && savedDungeonLevel >= 0 && savedDungeonLevel < NUM_LEVELS) {
+                    currentLevel = savedDungeonLevel;
+                    buildLevel(currentLevel);
+                }
             } else {
                 // Basic stats initialization (new game)
                 // Get player name (check both camelCase and PascalCase)
@@ -365,10 +624,24 @@ window.game = {
                 charNameEl.textContent = player.name;
             }
 
-            // Update Level Text (1st Quarter)
+            // Update Level Text (1st Quarter) - show dungeon floor level
             const levelTextEl = document.getElementById('level-text');
             if (levelTextEl) {
-                levelTextEl.textContent = `You are on Level ${player.level} of the Dungeon.`;
+                levelTextEl.textContent = `You are on Dungeon Level ${currentLevel + 1} of ${NUM_LEVELS}.`;
+            }
+            
+            // Update area description based on tile type
+            const areaTextEl = document.getElementById('area-text');
+            if (areaTextEl) {
+                const tile = worldToTile(camera.position.x, camera.position.z);
+                const tileType = getTileType(tile.tx, tile.ty);
+                if (tileType === STAIRS_DOWN) {
+                    areaTextEl.innerHTML = 'You see <span style="color: #8B0000; font-weight: bold;">stairs leading DOWN</span>. Press <strong>Enter</strong> to descend.';
+                } else if (tileType === STAIRS_UP) {
+                    areaTextEl.innerHTML = 'You see <span style="color: #006400; font-weight: bold;">stairs leading UP</span>. Press <strong>Enter</strong> to ascend.';
+                } else {
+                    areaTextEl.textContent = 'You are standing in a dark dungeon corridor.';
+                }
             }
 
             // Update Ground Items Text (1st Quarter) - based on current tile
@@ -391,7 +664,8 @@ window.game = {
             const overlay = document.getElementById('stats-overlay');
             if (overlay) {
                 overlay.innerHTML = `
-                    <strong>Level: ${player.level}</strong><br>
+                    <strong>Floor: ${currentLevel + 1}/${NUM_LEVELS}</strong><br>
+                    <strong>Char Lvl: ${player.level}</strong><br>
                     <strong>HP: ${player.hitpoints} | EXP: ${player.experience}</strong><br>
                     STA: ${player.stats.Stamina}<br>
                     CHR: ${player.stats.Charisma}<br>
@@ -672,6 +946,17 @@ window.game = {
                     overlay.style.display = isPaused ? 'flex' : 'none';
                 }
             }
+            
+            // Use stairs (Enter key)
+            if (e.code === 'Enter' || e.code === 'NumpadEnter') {
+                const tile = worldToTile(camera.position.x, camera.position.z);
+                const tileType = getTileType(tile.tx, tile.ty);
+                if (tileType === STAIRS_DOWN && currentLevel < NUM_LEVELS - 1) {
+                    changeLevel(currentLevel + 1);
+                } else if (tileType === STAIRS_UP && currentLevel > 0) {
+                    changeLevel(currentLevel - 1);
+                }
+            }
 
             if (e.code === 'KeyI') {
                 player.showInventory = !player.showInventory;
@@ -942,7 +1227,8 @@ window.game = {
             showInventory: player.showInventory,
             showLoseMode: player.showLoseMode,
             showGetMode: player.showGetMode,
-            getItemIndex: player.getItemIndex
+            getItemIndex: player.getItemIndex,
+            dungeonLevel: this._getCurrentLevel ? this._getCurrentLevel() : 0
         });
     }
 };

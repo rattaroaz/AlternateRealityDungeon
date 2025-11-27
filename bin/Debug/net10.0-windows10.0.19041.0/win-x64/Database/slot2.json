@@ -2,17 +2,17 @@
   "State": {
     "Name": "Adventurer",
     "Level": 1,
-    "Hitpoints": 19,
+    "Hitpoints": 9,
     "Experience": 0,
     "Stats": {
       "Name": "Adventurer",
-      "Stamina": 0,
-      "Charisma": 0,
-      "Strength": 0,
-      "Intelligence": 0,
-      "Wisdom": 0,
-      "Skill": 0,
-      "Speed": 0
+      "Stamina": 9,
+      "Charisma": 15,
+      "Strength": 12,
+      "Intelligence": 20,
+      "Wisdom": 14,
+      "Skill": 10,
+      "Speed": 7
     },
     "GroundItems": {},
     "Inventory": [
@@ -48,10 +48,10 @@
     "GetItemIndex": 0
   },
   "Camera": {
-    "X": 39,
+    "X": 4,
     "Y": 1.6,
-    "Z": 55.7199999999999,
-    "Yaw": 3.141592653589793
+    "Z": -16,
+    "Yaw": 0
   },
-  "SavedAt": "2025-11-26T05:18:32.9909959Z"
+  "SavedAt": "2025-11-27T06:32:16.3762392Z"
 }

@@ -1,0 +1,592 @@
+@page "/map-editor"
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+@inject AlternateRealityDungeon.Services.MapStorageService MapStorage
+
+<div style="display: flex; flex-direction: column; height: 100vh; background: #1a1a1a; color: white; font-family: monospace;">
+    <!-- Header -->
+    <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; background: #2a2a2a; border-bottom: 2px solid #444;">
+        <h2 style="margin: 0; color: gold;">Map Editor</h2>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <input type="text" @bind="mapName" placeholder="Map Name" style="padding: 8px; background: #333; border: 1px solid #555; color: white; width: 150px;" />
+            <button @onclick="SaveAsDefault" style="background: #2a5a2a; padding: 8px 16px;">Set as Default</button>
+            <button @onclick="ShowSaveSlots" style="background: #3a4a5a; padding: 8px 16px;">Save to Slot</button>
+            <button @onclick="ShowLoadSlots" style="background: #2a2a5a; padding: 8px 16px;">Load from Slot</button>
+            <button @onclick="GenerateNew" style="background: #5a4a2a; padding: 8px 16px;">Generate New</button>
+            <button @onclick="ClearLevel" style="background: #5a2a2a; padding: 8px 16px;">Clear Level</button>
+            <button @onclick="BackToMenu" style="background: #444; padding: 8px 16px;">Back to Menu</button>
+        </div>
+    </div>
+
+    <div style="display: flex; flex: 1; overflow: hidden;">
+        <!-- Tool Panel -->
+        <div style="width: 200px; background: #252525; padding: 15px; border-right: 2px solid #444; display: flex; flex-direction: column; gap: 15px;">
+            <div>
+                <h3 style="margin: 0 0 10px 0; color: #aaa;">Level</h3>
+                <div style="display: flex; flex-direction: column; gap: 5px;">
+                    @for (int i = 0; i < 4; i++)
+                    {
+                        var level = i;
+                        <button @onclick="() => SelectLevel(level)" 
+                                style="background: @(currentLevel == level ? "#4a4a4a" : "#333"); padding: 8px; text-align: left;">
+                            Level @(level + 1)
+                        </button>
+                    }
+                </div>
+            </div>
+
+            <div>
+                <h3 style="margin: 0 0 10px 0; color: #aaa;">Tile Type</h3>
+                <div style="display: flex; flex-direction: column; gap: 5px;">
+                    <button @onclick="() => SelectTool(TileType.Wall)" 
+                            style="background: @(selectedTool == TileType.Wall ? "#666" : "#333"); padding: 8px; text-align: left;">
+                        <span style="display: inline-block; width: 16px; height: 16px; background: #8B4513; margin-right: 8px; vertical-align: middle;"></span>
+                        Wall
+                    </button>
+                    <button @onclick="() => SelectTool(TileType.Floor)" 
+                            style="background: @(selectedTool == TileType.Floor ? "#666" : "#333"); padding: 8px; text-align: left;">
+                        <span style="display: inline-block; width: 16px; height: 16px; background: #444; margin-right: 8px; vertical-align: middle;"></span>
+                        Floor
+                    </button>
+                    <button @onclick="() => SelectTool(TileType.StairsDown)" 
+                            style="background: @(selectedTool == TileType.StairsDown ? "#666" : "#333"); padding: 8px; text-align: left;">
+                        <span style="display: inline-block; width: 16px; height: 16px; background: #8B0000; margin-right: 8px; vertical-align: middle;"></span>
+                        Stairs Down
+                    </button>
+                    <button @onclick="() => SelectTool(TileType.StairsUp)" 
+                            style="background: @(selectedTool == TileType.StairsUp ? "#666" : "#333"); padding: 8px; text-align: left;">
+                        <span style="display: inline-block; width: 16px; height: 16px; background: #006400; margin-right: 8px; vertical-align: middle;"></span>
+                        Stairs Up
+                    </button>
+                    <button @onclick="() => SelectTool(TileType.PlayerStart)" 
+                            style="background: @(selectedTool == TileType.PlayerStart ? "#666" : "#333"); padding: 8px; text-align: left;">
+                        <span style="display: inline-block; width: 16px; height: 16px; background: #FFD700; margin-right: 8px; vertical-align: middle;"></span>
+                        Player Start
+                    </button>
+                </div>
+            </div>
+
+            <div>
+                <h3 style="margin: 0 0 10px 0; color: #aaa;">Brush Size</h3>
+                <div style="display: flex; gap: 5px;">
+                    @for (int i = 1; i <= 5; i++)
+                    {
+                        var size = i;
+                        <button @onclick="() => brushSize = size" 
+                                style="background: @(brushSize == size ? "#666" : "#333"); padding: 8px; flex: 1;">
+                            @size
+                        </button>
+                    }
+                </div>
+            </div>
+
+            <div style="margin-top: auto; padding-top: 15px; border-top: 1px solid #444; font-size: 0.8rem; color: #888;">
+                <div>Left-click: Paint</div>
+                <div>Right-click: Erase (Wall)</div>
+                <div>Mouse wheel: Zoom</div>
+                <div>Middle-click drag: Pan</div>
+            </div>
+        </div>
+
+        <!-- Map Canvas Area -->
+        <div style="flex: 1; overflow: hidden; position: relative;" @oncontextmenu:preventDefault="true">
+            <div id="map-viewport" style="width: 100%; height: 100%; overflow: auto; background: #111;"
+                 @onmousedown="OnMouseDown" @onmouseup="OnMouseUp" @onmousemove="OnMouseMove" @onwheel="OnWheel">
+                <div style="transform: scale(@zoom); transform-origin: top left; padding: 20px;">
+                    <div style="display: grid; grid-template-columns: repeat(@MapWidth, @(TileDisplaySize)px); gap: 0; border: 2px solid #666;">
+                        @for (int y = 0; y < MapHeight; y++)
+                        {
+                            @for (int x = 0; x < MapWidth; x++)
+                            {
+                                var tileX = x;
+                                var tileY = y;
+                                var tile = GetTile(x, y);
+                                <div style="width: @(TileDisplaySize)px; height: @(TileDisplaySize)px; background: @GetTileColor(tile); border: 1px solid rgba(255,255,255,0.1); cursor: crosshair; position: relative;"
+                                     @onmouseenter="() => OnTileHover(tileX, tileY)">
+                                    @if (playerStartX == tileX && playerStartY == tileY && currentLevel == 0)
+                                    {
+                                        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 6px; height: 6px; background: gold; border-radius: 50%;"></div>
+                                    }
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <!-- Status Bar -->
+            <div style="position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.8); padding: 8px 15px; display: flex; justify-content: space-between; font-size: 0.85rem;">
+                <span>Level: @(currentLevel + 1) | Position: (@hoverX, @hoverY) | Zoom: @(Math.Round(zoom * 100))%</span>
+                <span>Tool: @selectedTool | Brush: @brushSize x @brushSize | Map: @mapName</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Save Slot Modal -->
+@if (showSaveSlotModal)
+{
+    <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 1000;">
+        <div style="background: #2a2a2a; padding: 20px; border-radius: 8px; min-width: 400px; border: 2px solid #444;">
+            <h3 style="margin: 0 0 15px 0; color: gold;">Save Map to Slot</h3>
+            <div style="display: flex; flex-direction: column; gap: 8px; max-height: 400px; overflow-y: auto;">
+                @for (int i = 0; i < 10; i++)
+                {
+                    var slotIndex = i;
+                    var slotMap = savedMaps.Count > i ? savedMaps[i] : null;
+                    <button @onclick="() => SaveToSlot(slotIndex)" style="padding: 10px; background: #333; text-align: left; display: flex; justify-content: space-between;">
+                        <span>Slot @(slotIndex + 1): @(slotMap?.Name ?? "(Empty)")</span>
+                        @if (slotMap != null)
+                        {
+                            <span style="color: #888; font-size: 0.8rem;">@slotMap.CreatedAt.ToLocalTime().ToString("g")</span>
+                        }
+                    </button>
+                }
+            </div>
+            <div style="margin-top: 15px; display: flex; justify-content: flex-end;">
+                <button @onclick="() => showSaveSlotModal = false" style="padding: 8px 16px; background: #444;">Cancel</button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Load Slot Modal -->
+@if (showLoadSlotModal)
+{
+    <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 1000;">
+        <div style="background: #2a2a2a; padding: 20px; border-radius: 8px; min-width: 400px; border: 2px solid #444;">
+            <h3 style="margin: 0 0 15px 0; color: gold;">Load Map from Slot</h3>
+            <div style="display: flex; flex-direction: column; gap: 8px; max-height: 400px; overflow-y: auto;">
+                <button @onclick="LoadDefaultMap" style="padding: 10px; background: #2a5a2a; text-align: left;">
+                    <span style="font-weight: bold;">DEFAULT MAP</span>
+                    @if (hasDefaultMap)
+                    {
+                        <span style="color: #aaa; margin-left: 10px;">(@defaultMapName)</span>
+                    }
+                    else
+                    {
+                        <span style="color: #888; margin-left: 10px;">(Generate New)</span>
+                    }
+                </button>
+                @for (int i = 0; i < 10; i++)
+                {
+                    var slotIndex = i;
+                    var slotMap = savedMaps.Count > i ? savedMaps[i] : null;
+                    <div style="display: flex; gap: 5px;">
+                        <button @onclick="() => LoadFromSlot(slotIndex)" disabled="@(slotMap == null)" 
+                                style="flex: 1; padding: 10px; background: @(slotMap != null ? "#333" : "#222"); text-align: left; opacity: @(slotMap != null ? "1" : "0.5");">
+                            <span>Slot @(slotIndex + 1): @(slotMap?.Name ?? "(Empty)")</span>
+                            @if (slotMap != null)
+                            {
+                                <span style="color: #888; font-size: 0.8rem; margin-left: 10px;">@slotMap.CreatedAt.ToLocalTime().ToString("g")</span>
+                            }
+                        </button>
+                        @if (slotMap != null)
+                        {
+                            <button @onclick="() => DeleteSlot(slotIndex)" style="padding: 10px; background: #5a2a2a;" title="Delete">✕</button>
+                        }
+                    </div>
+                }
+            </div>
+            <div style="margin-top: 15px; display: flex; justify-content: flex-end;">
+                <button @onclick="() => showLoadSlotModal = false" style="padding: 8px 16px; background: #444;">Cancel</button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Status Message -->
+@if (!string.IsNullOrEmpty(statusMessage))
+{
+    <div style="position: fixed; bottom: 50px; left: 50%; transform: translateX(-50%); background: rgba(0,100,0,0.9); padding: 10px 20px; border-radius: 4px; z-index: 1000;">
+        @statusMessage
+    </div>
+}
+
+@code {
+    private const int MapWidth = 65;
+    private const int MapHeight = 65;
+    private const int TileDisplaySize = 10;
+    private const int NumLevels = 4;
+
+    private enum TileType { Wall = 1, Floor = 0, StairsDown = 2, StairsUp = 3, PlayerStart = 4 }
+
+    private int[,,] mapData = new int[NumLevels, MapHeight, MapWidth];
+    private int currentLevel = 0;
+    private TileType selectedTool = TileType.Floor;
+    private int brushSize = 1;
+    private double zoom = 1.0;
+    private bool isDrawing = false;
+    private bool isErasing = false;
+    private int hoverX = 0;
+    private int hoverY = 0;
+    private int playerStartX = 32;
+    private int playerStartY = 32;
+    
+    // Map management
+    private string mapName = "Untitled";
+    private bool showSaveSlotModal = false;
+    private bool showLoadSlotModal = false;
+    private List<AlternateRealityDungeon.Services.MapStorageService.MapData> savedMaps = new();
+    private bool hasDefaultMap = false;
+    private string defaultMapName = "";
+    private string statusMessage = "";
+    private System.Timers.Timer? statusTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Initialize all tiles as walls first
+        InitializeMap();
+        
+        try
+        {
+            await LoadCurrentMap();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading map: {ex.Message}");
+            // Map is already initialized as walls, so we're safe
+        }
+    }
+
+    private async Task LoadCurrentMap()
+    {
+        try
+        {
+            // Try to load the default map, or generate a new one
+            var defaultMap = await MapStorage.GetDefaultMapAsync();
+            if (defaultMap != null)
+            {
+                LoadMapData(defaultMap);
+                hasDefaultMap = true;
+                defaultMapName = defaultMap.Name;
+            }
+            else
+            {
+                // Generate a procedural map
+                var proceduralMap = MapStorage.GenerateProceduralMap();
+                LoadMapData(proceduralMap);
+                hasDefaultMap = false;
+            }
+            
+            // Load saved maps list
+            savedMaps = await MapStorage.GetSavedMapsAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in LoadCurrentMap: {ex.Message}");
+            hasDefaultMap = false;
+            savedMaps = new();
+        }
+    }
+
+    private void LoadMapData(AlternateRealityDungeon.Services.MapStorageService.MapData map)
+    {
+        if (map == null) return;
+        
+        mapName = map.Name ?? "Untitled";
+        playerStartX = map.PlayerStartX;
+        playerStartY = map.PlayerStartY;
+        
+        if (map.Levels == null || map.Levels.Length == 0) return;
+        
+        for (int level = 0; level < Math.Min(NumLevels, map.Levels.Length); level++)
+        {
+            if (map.Levels[level] == null) continue;
+            for (int y = 0; y < Math.Min(MapHeight, map.Levels[level].Length); y++)
+            {
+                if (map.Levels[level][y] == null) continue;
+                for (int x = 0; x < Math.Min(MapWidth, map.Levels[level][y].Length); x++)
+                {
+                    mapData[level, y, x] = map.Levels[level][y][x];
+                }
+            }
+        }
+        StateHasChanged();
+    }
+
+    private AlternateRealityDungeon.Services.MapStorageService.MapData CreateMapData()
+    {
+        var map = new AlternateRealityDungeon.Services.MapStorageService.MapData
+        {
+            Name = mapName,
+            CreatedAt = DateTime.UtcNow,
+            Width = MapWidth,
+            Height = MapHeight,
+            NumLevels = NumLevels,
+            PlayerStartX = playerStartX,
+            PlayerStartY = playerStartY,
+            Levels = new int[NumLevels][][]
+        };
+
+        for (int level = 0; level < NumLevels; level++)
+        {
+            map.Levels[level] = new int[MapHeight][];
+            for (int y = 0; y < MapHeight; y++)
+            {
+                map.Levels[level][y] = new int[MapWidth];
+                for (int x = 0; x < MapWidth; x++)
+                {
+                    map.Levels[level][y][x] = mapData[level, y, x];
+                }
+            }
+        }
+
+        return map;
+    }
+
+    private void InitializeMap()
+    {
+        // Initialize all tiles as walls
+        for (int level = 0; level < NumLevels; level++)
+        {
+            for (int y = 0; y < MapHeight; y++)
+            {
+                for (int x = 0; x < MapWidth; x++)
+                {
+                    mapData[level, y, x] = (int)TileType.Wall;
+                }
+            }
+        }
+    }
+
+    private int GetTile(int x, int y)
+    {
+        if (x < 0 || x >= MapWidth || y < 0 || y >= MapHeight) return (int)TileType.Wall;
+        return mapData[currentLevel, y, x];
+    }
+
+    private void SetTile(int x, int y, TileType type)
+    {
+        if (x < 0 || x >= MapWidth || y < 0 || y >= MapHeight) return;
+        
+        if (type == TileType.PlayerStart)
+        {
+            playerStartX = x;
+            playerStartY = y;
+            mapData[0, y, x] = (int)TileType.Floor; // Player start is on floor
+        }
+        else
+        {
+            mapData[currentLevel, y, x] = (int)type;
+        }
+    }
+
+    private string GetTileColor(int tile)
+    {
+        return tile switch
+        {
+            0 => "#444444", // Floor
+            1 => "#8B4513", // Wall
+            2 => "#8B0000", // Stairs Down
+            3 => "#006400", // Stairs Up
+            _ => "#444444"
+        };
+    }
+
+    private void SelectLevel(int level)
+    {
+        currentLevel = level;
+        StateHasChanged();
+    }
+
+    private void SelectTool(TileType tool)
+    {
+        selectedTool = tool;
+    }
+
+    private void OnMouseDown(MouseEventArgs e)
+    {
+        if (e.Button == 0) // Left click
+        {
+            isDrawing = true;
+            PaintAtHover();
+        }
+        else if (e.Button == 2) // Right click
+        {
+            isErasing = true;
+            EraseAtHover();
+        }
+    }
+
+    private void OnMouseUp(MouseEventArgs e)
+    {
+        isDrawing = false;
+        isErasing = false;
+    }
+
+    private void OnMouseMove(MouseEventArgs e)
+    {
+        if (isDrawing)
+        {
+            PaintAtHover();
+        }
+        else if (isErasing)
+        {
+            EraseAtHover();
+        }
+    }
+
+    private void OnTileHover(int x, int y)
+    {
+        hoverX = x;
+        hoverY = y;
+        
+        if (isDrawing)
+        {
+            PaintAtHover();
+        }
+        else if (isErasing)
+        {
+            EraseAtHover();
+        }
+    }
+
+    private void PaintAtHover()
+    {
+        int halfBrush = brushSize / 2;
+        for (int dy = -halfBrush; dy <= halfBrush; dy++)
+        {
+            for (int dx = -halfBrush; dx <= halfBrush; dx++)
+            {
+                SetTile(hoverX + dx, hoverY + dy, selectedTool);
+            }
+        }
+        StateHasChanged();
+    }
+
+    private void EraseAtHover()
+    {
+        int halfBrush = brushSize / 2;
+        for (int dy = -halfBrush; dy <= halfBrush; dy++)
+        {
+            for (int dx = -halfBrush; dx <= halfBrush; dx++)
+            {
+                SetTile(hoverX + dx, hoverY + dy, TileType.Wall);
+            }
+        }
+        StateHasChanged();
+    }
+
+    private void OnWheel(WheelEventArgs e)
+    {
+        if (e.DeltaY < 0)
+        {
+            zoom = Math.Min(3.0, zoom + 0.1);
+        }
+        else
+        {
+            zoom = Math.Max(0.3, zoom - 0.1);
+        }
+    }
+
+    private void ClearLevel()
+    {
+        for (int y = 0; y < MapHeight; y++)
+        {
+            for (int x = 0; x < MapWidth; x++)
+            {
+                mapData[currentLevel, y, x] = (int)TileType.Wall;
+            }
+        }
+        StateHasChanged();
+    }
+
+    private async Task SaveAsDefault()
+    {
+        var map = CreateMapData();
+        await MapStorage.SetDefaultMapAsync(map);
+        hasDefaultMap = true;
+        defaultMapName = map.Name;
+        ShowStatus("Map saved as default! New players will use this map.");
+    }
+
+    private async Task ShowSaveSlots()
+    {
+        savedMaps = await MapStorage.GetSavedMapsAsync();
+        showSaveSlotModal = true;
+    }
+
+    private async Task ShowLoadSlots()
+    {
+        savedMaps = await MapStorage.GetSavedMapsAsync();
+        var defaultMap = await MapStorage.GetDefaultMapAsync();
+        hasDefaultMap = defaultMap != null;
+        defaultMapName = defaultMap?.Name ?? "";
+        showLoadSlotModal = true;
+    }
+
+    private async Task SaveToSlot(int slotIndex)
+    {
+        var map = CreateMapData();
+        await MapStorage.SaveMapToSlotAsync(map, slotIndex);
+        savedMaps = await MapStorage.GetSavedMapsAsync();
+        showSaveSlotModal = false;
+        ShowStatus($"Map saved to slot {slotIndex + 1}!");
+    }
+
+    private async Task LoadFromSlot(int slotIndex)
+    {
+        if (slotIndex >= 0 && slotIndex < savedMaps.Count && savedMaps[slotIndex] != null)
+        {
+            LoadMapData(savedMaps[slotIndex]);
+            showLoadSlotModal = false;
+            ShowStatus($"Map loaded from slot {slotIndex + 1}!");
+        }
+    }
+
+    private async Task LoadDefaultMap()
+    {
+        var defaultMap = await MapStorage.GetDefaultMapAsync();
+        if (defaultMap != null)
+        {
+            LoadMapData(defaultMap);
+            ShowStatus("Default map loaded!");
+        }
+        else
+        {
+            var proceduralMap = MapStorage.GenerateProceduralMap();
+            LoadMapData(proceduralMap);
+            ShowStatus("New procedural map generated!");
+        }
+        showLoadSlotModal = false;
+    }
+
+    private async Task DeleteSlot(int slotIndex)
+    {
+        await MapStorage.DeleteMapAtSlotAsync(slotIndex);
+        savedMaps = await MapStorage.GetSavedMapsAsync();
+        ShowStatus($"Slot {slotIndex + 1} deleted.");
+        StateHasChanged();
+    }
+
+    private void GenerateNew()
+    {
+        var proceduralMap = MapStorage.GenerateProceduralMap();
+        LoadMapData(proceduralMap);
+        mapName = "New Dungeon";
+        ShowStatus("New procedural map generated!");
+    }
+
+    private void ShowStatus(string message)
+    {
+        statusMessage = message;
+        StateHasChanged();
+        
+        statusTimer?.Stop();
+        statusTimer?.Dispose();
+        statusTimer = new System.Timers.Timer(3000);
+        statusTimer.Elapsed += (s, e) =>
+        {
+            statusMessage = "";
+            InvokeAsync(StateHasChanged);
+            statusTimer?.Stop();
+        };
+        statusTimer.Start();
+    }
+
+    private void BackToMenu()
+    {
+        Navigation.NavigateTo("/");
+    }
+}

@@ -2,6 +2,7 @@
 @inject IJSRuntime JSRuntime
 @inject PlayerState PlayerState
 @inject SaveGameService SaveGameService
+@inject AlternateRealityDungeon.Services.MapStorageService MapStorage
 
 @inject NavigationManager Navigation
 
@@ -84,6 +85,12 @@
     private bool _showSaveSlots;
     private CameraState? _pendingCamera;
     private List<SaveSlotInfo>? _slotInfos;
+    
+    // Track current map for saving
+    private string? _currentMapId;
+    private int[][][]? _currentMapLevels;
+    private int _currentMapPlayerStartX = 32;
+    private int _currentMapPlayerStartY = 32;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -171,9 +178,55 @@
                 };
             }
 
+            // Load map data
+            object? mapArg = null;
+            
+            // For loaded games, use the map from the save
+            if (PlayerState.CurrentMapData != null)
+            {
+                _currentMapId = PlayerState.CurrentMapData.Id;
+                _currentMapLevels = PlayerState.CurrentMapData.Levels;
+                _currentMapPlayerStartX = PlayerState.CurrentMapData.PlayerStartX;
+                _currentMapPlayerStartY = PlayerState.CurrentMapData.PlayerStartY;
+                
+                mapArg = new
+                {
+                    width = PlayerState.CurrentMapData.Width,
+                    height = PlayerState.CurrentMapData.Height,
+                    numLevels = PlayerState.CurrentMapData.NumLevels,
+                    playerStartX = PlayerState.CurrentMapData.PlayerStartX,
+                    playerStartY = PlayerState.CurrentMapData.PlayerStartY,
+                    levels = PlayerState.CurrentMapData.Levels
+                };
+                
+                PlayerState.ClearCurrentMapData();
+            }
+            // For new games, use the default map if available
+            else
+            {
+                var defaultMap = await MapStorage.GetDefaultMapAsync();
+                if (defaultMap != null)
+                {
+                    _currentMapId = defaultMap.Id;
+                    _currentMapLevels = defaultMap.Levels;
+                    _currentMapPlayerStartX = defaultMap.PlayerStartX;
+                    _currentMapPlayerStartY = defaultMap.PlayerStartY;
+                    
+                    mapArg = new
+                    {
+                        width = defaultMap.Width,
+                        height = defaultMap.Height,
+                        numLevels = defaultMap.NumLevels,
+                        playerStartX = defaultMap.PlayerStartX,
+                        playerStartY = defaultMap.PlayerStartY,
+                        levels = defaultMap.Levels
+                    };
+                }
+            }
+
             _dotNetRef ??= DotNetObjectReference.Create(this);
 
-            await JSRuntime.InvokeVoidAsync("window.game.initGame", "game-container", gameStateArg, _dotNetRef, cameraArg);
+            await JSRuntime.InvokeVoidAsync("window.game.initGame", "game-container", gameStateArg, _dotNetRef, cameraArg, mapArg);
 
             // Clear the loaded game state after using it
             PlayerState.ClearLoadedGameState();
@@ -214,7 +267,8 @@
 
             if (gameState != null)
             {
-                await SaveGameService.SaveAsync(slot, gameState, _pendingCamera);
+                await SaveGameService.SaveAsync(slot, gameState, _pendingCamera, 
+                    _currentMapId, _currentMapLevels, _currentMapPlayerStartX, _currentMapPlayerStartY);
             }
         }
         catch (Exception)

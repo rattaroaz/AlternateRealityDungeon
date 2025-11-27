@@ -2,6 +2,7 @@
 @inject NavigationManager Navigation
 @inject SaveGameService SaveGameService
 @inject PlayerState PlayerState
+@inject MapStorageService MapStorage
 
 <h1>Load Player</h1>
 
@@ -61,8 +62,75 @@ else
             PlayerState.ClearCameraState();
         }
 
+        // Load the map associated with this save
+        LoadedMapData? mapData = null;
+        
+        // First, check if we have embedded map data in the save
+        if (save.MapLevels != null && save.MapLevels.Length > 0)
+        {
+            // Convert jagged 2D array to 3D array format
+            mapData = new LoadedMapData
+            {
+                Id = save.MapId,
+                Width = 65,
+                Height = 65,
+                NumLevels = 4,
+                PlayerStartX = save.MapPlayerStartX,
+                PlayerStartY = save.MapPlayerStartY,
+                Levels = ConvertTo3DArray(save.MapLevels)
+            };
+        }
+        // Otherwise, try to find the map by ID
+        else if (!string.IsNullOrEmpty(save.MapId))
+        {
+            var storedMap = await MapStorage.GetMapByIdAsync(save.MapId);
+            if (storedMap != null)
+            {
+                mapData = new LoadedMapData
+                {
+                    Id = storedMap.Id,
+                    Width = storedMap.Width,
+                    Height = storedMap.Height,
+                    NumLevels = storedMap.NumLevels,
+                    PlayerStartX = storedMap.PlayerStartX,
+                    PlayerStartY = storedMap.PlayerStartY,
+                    Levels = storedMap.Levels
+                };
+            }
+        }
+        
+        PlayerState.SetCurrentMapData(mapData);
+
         // After successfully loading, force navigation to the game route so the
         // saved character and camera state are actually entered.
         Navigation.NavigateTo("/game", true);
+    }
+    
+    private int[][][] ConvertTo3DArray(int[][] flatLevels)
+    {
+        // The save format stores levels as a flat array where each 65 rows represent a level
+        // Convert to [level][y][x] format
+        const int width = 65;
+        const int height = 65;
+        const int numLevels = 4;
+        
+        var result = new int[numLevels][][];
+        for (int level = 0; level < numLevels; level++)
+        {
+            result[level] = new int[height][];
+            for (int y = 0; y < height; y++)
+            {
+                result[level][y] = new int[width];
+                int flatIndex = level * height + y;
+                if (flatIndex < flatLevels.Length && flatLevels[flatIndex] != null)
+                {
+                    for (int x = 0; x < Math.Min(width, flatLevels[flatIndex].Length); x++)
+                    {
+                        result[level][y][x] = flatLevels[flatIndex][x];
+                    }
+                }
+            }
+        }
+        return result;
     }
 }

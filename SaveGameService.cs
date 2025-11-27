@@ -12,6 +12,10 @@ namespace AlternateRealityDungeon
         public GameState State { get; set; } = new GameState();
         public CameraState Camera { get; set; } = new CameraState();
         public DateTime SavedAt { get; set; }
+        public string? MapId { get; set; } // ID of the map used for this save
+        public int[][]? MapLevels { get; set; } // Embedded map data for persistence
+        public int MapPlayerStartX { get; set; } = 32;
+        public int MapPlayerStartY { get; set; } = 32;
     }
 
     public class SaveSlotInfo
@@ -54,7 +58,8 @@ namespace AlternateRealityDungeon
             }
         }
 
-        public async Task SaveAsync(int slot, GameState state, CameraState camera)
+        public async Task SaveAsync(int slot, GameState state, CameraState camera, 
+            string? mapId = null, int[][][]? mapLevels = null, int mapPlayerStartX = 32, int mapPlayerStartY = 32)
         {
             ValidateSlot(slot);
 
@@ -62,8 +67,28 @@ namespace AlternateRealityDungeon
             {
                 State = state,
                 Camera = camera,
-                SavedAt = DateTime.UtcNow
+                SavedAt = DateTime.UtcNow,
+                MapId = mapId,
+                MapPlayerStartX = mapPlayerStartX,
+                MapPlayerStartY = mapPlayerStartY
             };
+            
+            // Flatten the 3D map array to 2D for storage (level * height rows, width columns)
+            if (mapLevels != null && mapLevels.Length > 0)
+            {
+                var flatLevels = new List<int[]>();
+                foreach (var level in mapLevels)
+                {
+                    if (level != null)
+                    {
+                        foreach (var row in level)
+                        {
+                            flatLevels.Add(row ?? Array.Empty<int>());
+                        }
+                    }
+                }
+                save.MapLevels = flatLevels.ToArray();
+            }
 
             var json = JsonSerializer.Serialize(save, _jsonOptions);
             var path = GetSlotPath(slot);

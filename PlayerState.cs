@@ -42,6 +42,18 @@ namespace AlternateRealityDungeon
         public int GetItemIndex { get; set; }
     }
 
+    // Map data passed along with loaded games
+    public class LoadedMapData
+    {
+        public string? Id { get; set; }
+        public int Width { get; set; } = 65;
+        public int Height { get; set; } = 65;
+        public int NumLevels { get; set; } = 4;
+        public int PlayerStartX { get; set; } = 32;
+        public int PlayerStartY { get; set; } = 32;
+        public int[][][] Levels { get; set; } = Array.Empty<int[][]>();
+    }
+
     public class PlayerState
     {
         public PlayerStats? Stats { get; private set; }
@@ -49,6 +61,8 @@ namespace AlternateRealityDungeon
         public CameraState? LastCameraState { get; private set; }
 
         public GameState? LoadedGameState { get; private set; }
+        
+        public LoadedMapData? CurrentMapData { get; private set; }
 
         public bool HasStats => Stats != null;
 
@@ -66,6 +80,11 @@ namespace AlternateRealityDungeon
         {
             LoadedGameState = gameState;
         }
+        
+        public void SetCurrentMapData(LoadedMapData? mapData)
+        {
+            CurrentMapData = mapData;
+        }
 
         public void ClearCameraState()
         {
@@ -75,6 +94,11 @@ namespace AlternateRealityDungeon
         public void ClearLoadedGameState()
         {
             LoadedGameState = null;
+        }
+        
+        public void ClearCurrentMapData()
+        {
+            CurrentMapData = null;
         }
     }
 }
