@@ -1,0 +1,299 @@
+Weapons Documentation
+
+This file documents the 40 weapons defined in the game, including 10 standard weapons and 30 magical weapons. Each weapon has properties such as damage types with grades (None, Low, Medium, High, Excellent, Godlike), condition (0-100), value in silver, attack value (1-100), and defense value (1-100).
+
+Standard Weapons (10):
+1. Sword
+   - Damage Types: sharp (High), blunt (Medium)
+   - Condition: 80
+   - Value: 100 silver
+   - Attack: 70
+   - Defense: 10
+
+2. Bow
+   - Damage Types: sharp (Low)
+   - Condition: 70
+   - Value: 50 silver
+   - Attack: 60
+   - Defense: 5
+
+3. Dagger
+   - Damage Types: sharp (Excellent)
+   - Condition: 90
+   - Value: 75 silver
+   - Attack: 50
+   - Defense: 5
+
+4. Axe
+   - Damage Types: sharp (High), blunt (High)
+   - Condition: 75
+   - Value: 120 silver
+   - Attack: 80
+   - Defense: 15
+
+5. Mace
+   - Damage Types: blunt (Excellent)
+   - Condition: 85
+   - Value: 90 silver
+   - Attack: 65
+   - Defense: 20
+
+6. Spear
+   - Damage Types: sharp (Medium), earth (Low)
+   - Condition: 80
+   - Value: 110 silver
+   - Attack: 75
+   - Defense: 25
+
+7. Hammer
+   - Damage Types: blunt (High), earth (Medium)
+   - Condition: 70
+   - Value: 130 silver
+   - Attack: 85
+   - Defense: 10
+
+8. Staff
+   - Damage Types: blunt (Low), magic (Medium)
+   - Condition: 95
+   - Value: 60 silver
+   - Attack: 40
+   - Defense: 30
+
+9. Crossbow
+   - Damage Types: sharp (Medium)
+   - Condition: 65
+   - Value: 140 silver
+   - Attack: 70
+   - Defense: 5
+
+10. Shield
+    - Damage Types: blunt (Low)
+    - Condition: 90
+    - Value: 80 silver
+    - Attack: 20
+    - Defense: 50
+
+Magical Weapons (30):
+11. Flame Sword
+    - Damage Types: sharp (Excellent), fire (Godlike)
+    - Condition: 95
+    - Value: 500 silver
+    - Attack: 90
+    - Defense: 15
+
+12. Ice Dagger
+    - Damage Types: sharp (High), cold (Godlike)
+    - Condition: 100
+    - Value: 600 silver
+    - Attack: 65
+    - Defense: 10
+
+13. Thunder Axe
+    - Damage Types: sharp (Excellent), air (Godlike)
+    - Condition: 85
+    - Value: 550 silver
+    - Attack: 95
+    - Defense: 20
+
+14. Earth Mace
+    - Damage Types: blunt (Godlike), earth (Excellent)
+    - Condition: 90
+    - Value: 480 silver
+    - Attack: 80
+    - Defense: 25
+
+15. Water Spear
+    - Damage Types: sharp (High), water (Godlike)
+    - Condition: 88
+    - Value: 520 silver
+    - Attack: 85
+    - Defense: 30
+
+16. Light Hammer
+    - Damage Types: blunt (Excellent), good (Godlike)
+    - Condition: 92
+    - Value: 580 silver
+    - Attack: 88
+    - Defense: 15
+
+17. Shadow Staff
+    - Damage Types: magic (Godlike), evil (Excellent)
+    - Condition: 100
+    - Value: 650 silver
+    - Attack: 50
+    - Defense: 35
+
+18. Phoenix Bow
+    - Damage Types: sharp (Medium), fire (Excellent), air (High)
+    - Condition: 85
+    - Value: 620 silver
+    - Attack: 75
+    - Defense: 10
+
+19. Frost Crossbow
+    - Damage Types: sharp (High), cold (Excellent)
+    - Condition: 80
+    - Value: 600 silver
+    - Attack: 80
+    - Defense: 5
+
+20. Holy Shield
+    - Damage Types: good (Godlike), blunt (Medium)
+    - Condition: 100
+    - Value: 700 silver
+    - Attack: 30
+    - Defense: 80
+
+21. Dragon Blade
+    - Damage Types: sharp (Godlike), fire (Excellent), power (High)
+    - Condition: 95
+    - Value: 800 silver
+    - Attack: 100
+    - Defense: 20
+
+22. Void Dagger
+    - Damage Types: sharp (Excellent), evil (Godlike), magic (High)
+    - Condition: 90
+    - Value: 750 silver
+    - Attack: 70
+    - Defense: 15
+
+23. Storm Axe
+    - Damage Types: sharp (High), air (Godlike), water (Medium)
+    - Condition: 87
+    - Value: 680 silver
+    - Attack: 92
+    - Defense: 18
+
+24. Crystal Mace
+    - Damage Types: blunt (Excellent), magic (Godlike), earth (High)
+    - Condition: 93
+    - Value: 720 silver
+    - Attack: 85
+    - Defense: 28
+
+25. Serpent Spear
+    - Damage Types: sharp (Excellent), poison (Godlike), earth (Medium)
+    - Condition: 89
+    - Value: 650 silver
+    - Attack: 88
+    - Defense: 32
+
+26. Celestial Hammer
+    - Damage Types: blunt (Godlike), good (Excellent), power (High)
+    - Condition: 96
+    - Value: 780 silver
+    - Attack: 90
+    - Defense: 22
+
+27. Necrotic Staff
+    - Damage Types: magic (Godlike), evil (Excellent), cold (High)
+    - Condition: 98
+    - Value: 850 silver
+    - Attack: 55
+    - Defense: 40
+
+28. Inferno Bow
+    - Damage Types: sharp (Medium), fire (Godlike), air (Excellent)
+    - Condition: 84
+    - Value: 730 silver
+    - Attack: 78
+    - Defense: 12
+
+29. Glacier Crossbow
+    - Damage Types: sharp (High), cold (Godlike), water (Excellent)
+    - Condition: 82
+    - Value: 710 silver
+    - Attack: 83
+    - Defense: 8
+
+30. Divine Shield
+    - Damage Types: good (Godlike), magic (Excellent), blunt (Medium)
+    - Condition: 100
+    - Value: 900 silver
+    - Attack: 35
+    - Defense: 90
+
+31. Abyssal Blade
+    - Damage Types: sharp (Godlike), evil (Excellent), power (High)
+    - Condition: 94
+    - Value: 950 silver
+    - Attack: 98
+    - Defense: 18
+
+32. Tempest Dagger
+    - Damage Types: sharp (Excellent), air (Godlike), water (High)
+    - Condition: 91
+    - Value: 800 silver
+    - Attack: 72
+    - Defense: 16
+
+33. Volcanic Axe
+    - Damage Types: sharp (High), fire (Godlike), earth (Excellent)
+    - Condition: 86
+    - Value: 760 silver
+    - Attack: 96
+    - Defense: 19
+
+34. Mystic Mace
+    - Damage Types: blunt (Godlike), magic (Excellent), power (High)
+    - Condition: 95
+    - Value: 820 silver
+    - Attack: 87
+    - Defense: 29
+
+35. Tidal Spear
+    - Damage Types: sharp (Excellent), water (Godlike), cold (Medium)
+    - Condition: 88
+    - Value: 740 silver
+    - Attack: 89
+    - Defense: 33
+
+36. Radiant Hammer
+    - Damage Types: blunt (Excellent), good (Godlike), fire (High)
+    - Condition: 97
+    - Value: 880 silver
+    - Attack: 91
+    - Defense: 23
+
+37. Cursed Staff
+    - Damage Types: magic (Godlike), evil (Excellent), cold (High)
+    - Condition: 99
+    - Value: 920 silver
+    - Attack: 58
+    - Defense: 42
+
+38. Ethereal Bow
+    - Damage Types: sharp (Low), magic (Godlike), air (Excellent)
+    - Condition: 83
+    - Value: 790 silver
+    - Attack: 79
+    - Defense: 13
+
+39. Soul Crossbow
+    - Damage Types: sharp (Medium), evil (Godlike), power (Excellent)
+    - Condition: 81
+    - Value: 770 silver
+    - Attack: 84
+    - Defense: 9
+
+40. Guardian Shield
+    - Damage Types: good (Godlike), earth (Excellent), blunt (High)
+    - Condition: 100
+    - Value: 1000 silver
+    - Attack: 40
+    - Defense: 95
+
+41. Chaos Blade
+    - Damage Types: sharp (Godlike), magic (Excellent), power (Godlike)
+    - Condition: 93
+    - Value: 1100 silver
+    - Attack: 99
+    - Defense: 17
+
+42. Eternal Dagger
+    - Damage Types: sharp (Excellent), good (Godlike), cold (High)
+    - Condition: 100
+    - Value: 1200 silver
+    - Attack: 74
+    - Defense: 17

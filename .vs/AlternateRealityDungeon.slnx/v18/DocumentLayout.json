@@ -3,8 +3,8 @@
   "WorkspaceRootPath": "C:\\Users\\kimri\\OneDrive\\Desktop\\cloned repos\\AlternateRealityDungeon\\AlternateRealityDungeon\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{6C5B8F90-D515-4773-9BFA-8C5874E47602}|AlternateRealityDungeon.csproj|c:\\users\\kimri\\onedrive\\desktop\\cloned repos\\alternaterealitydungeon\\alternaterealitydungeon\\components\\pages\\home.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
-      "RelativeMoniker": "D:0:0:{6C5B8F90-D515-4773-9BFA-8C5874E47602}|AlternateRealityDungeon.csproj|solutionrelative:components\\pages\\home.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+      "AbsoluteMoniker": "D:0:0:{C434150E-2BA4-C9F6-61BE-BBE019C3A1E7}|AlternateRealityDungeon.csproj|c:\\users\\kimri\\onedrive\\desktop\\cloned repos\\alternaterealitydungeon\\alternaterealitydungeon\\components\\pages\\home.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{C434150E-2BA4-C9F6-61BE-BBE019C3A1E7}|AlternateRealityDungeon.csproj|solutionrelative:components\\pages\\home.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
     }
   ],
   "DocumentGroupContainers": [
@@ -14,7 +14,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 6,
+          "SelectedChildIndex": 5,
           "Children": [
             {
               "$type": "Bookmark",
@@ -37,10 +37,6 @@
               "Name": "ST:0:0:{aa2115a1-9712-457b-9047-dbb71ca2cdd2}"
             },
             {
-              "$type": "Bookmark",
-              "Name": "ST:0:0:{1c64b9c2-e352-428e-a56d-0ace190b99a6}"
-            },
-            {
               "$type": "Document",
               "DocumentIndex": 0,
               "Title": "Home.razor",
@@ -52,6 +48,10 @@
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
               "WhenOpened": "2025-11-23T16:38:49.866Z",
               "EditorCaption": ""
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{1c64b9c2-e352-428e-a56d-0ace190b99a6}"
             }
           ]
         }

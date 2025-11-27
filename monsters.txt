@@ -1,0 +1,519 @@
+Monsters Documentation
+
+This file documents the 50 monsters defined in the game, ranging from weak (Level 1) to boss-level (Level 50).
+Each monster has the following properties:
+- Level: Difficulty rating (1-50)
+- Hitpoints: Total health
+- Attack: Base attack power (1-166)
+- Defense: Damage reduction (1-90)
+- Experience: XP reward for defeating
+- Gold: Currency dropped
+- Damage Types: Types of damage dealt with grades (None, Low, Medium, High, Excellent, Godlike)
+- Resistances: Damage type resistances
+
+================================================================================
+WEAK MONSTERS (Level 1-5)
+================================================================================
+
+1. Giant Rat
+   - Level: 1
+   - Hitpoints: 8
+   - Attack: 5
+   - Defense: 2
+   - Experience: 10
+   - Gold: 2
+   - Damage Types: sharp (Low)
+
+2. Cave Bat
+   - Level: 1
+   - Hitpoints: 6
+   - Attack: 4
+   - Defense: 1
+   - Experience: 8
+   - Gold: 1
+   - Damage Types: sharp (Low)
+
+3. Slime
+   - Level: 2
+   - Hitpoints: 12
+   - Attack: 6
+   - Defense: 3
+   - Experience: 15
+   - Gold: 3
+   - Damage Types: blunt (Low)
+   - Resistances: blunt (Medium)
+
+4. Goblin
+   - Level: 2
+   - Hitpoints: 15
+   - Attack: 8
+   - Defense: 4
+   - Experience: 20
+   - Gold: 5
+   - Damage Types: sharp (Medium)
+
+5. Skeleton
+   - Level: 3
+   - Hitpoints: 18
+   - Attack: 10
+   - Defense: 5
+   - Experience: 25
+   - Gold: 8
+   - Damage Types: sharp (Medium)
+   - Resistances: cold (High)
+
+6. Giant Spider
+   - Level: 3
+   - Hitpoints: 20
+   - Attack: 12
+   - Defense: 4
+   - Experience: 30
+   - Gold: 10
+   - Damage Types: sharp (Medium), poison (Medium)
+
+7. Zombie
+   - Level: 4
+   - Hitpoints: 25
+   - Attack: 10
+   - Defense: 8
+   - Experience: 35
+   - Gold: 12
+   - Damage Types: blunt (Medium)
+   - Resistances: cold (High), evil (Medium)
+
+8. Kobold
+   - Level: 4
+   - Hitpoints: 22
+   - Attack: 14
+   - Defense: 6
+   - Experience: 40
+   - Gold: 15
+   - Damage Types: sharp (Medium)
+
+9. Giant Centipede
+   - Level: 5
+   - Hitpoints: 28
+   - Attack: 16
+   - Defense: 7
+   - Experience: 45
+   - Gold: 18
+   - Damage Types: sharp (Low), poison (High)
+
+10. Ghoul
+    - Level: 5
+    - Hitpoints: 32
+    - Attack: 18
+    - Defense: 10
+    - Experience: 55
+    - Gold: 22
+    - Damage Types: sharp (Medium), cold (Low)
+    - Resistances: cold (High)
+
+================================================================================
+MODERATE MONSTERS (Level 6-10)
+================================================================================
+
+11. Orc Warrior
+    - Level: 6
+    - Hitpoints: 40
+    - Attack: 22
+    - Defense: 12
+    - Experience: 70
+    - Gold: 30
+    - Damage Types: sharp (High), blunt (Medium)
+
+12. Hobgoblin
+    - Level: 6
+    - Hitpoints: 38
+    - Attack: 20
+    - Defense: 14
+    - Experience: 65
+    - Gold: 28
+    - Damage Types: sharp (High)
+
+13. Harpy
+    - Level: 7
+    - Hitpoints: 35
+    - Attack: 24
+    - Defense: 10
+    - Experience: 80
+    - Gold: 35
+    - Damage Types: sharp (High), air (Medium)
+
+14. Wererat
+    - Level: 7
+    - Hitpoints: 42
+    - Attack: 26
+    - Defense: 15
+    - Experience: 85
+    - Gold: 40
+    - Damage Types: sharp (High)
+    - Resistances: poison (Medium)
+
+15. Shadow
+    - Level: 8
+    - Hitpoints: 45
+    - Attack: 28
+    - Defense: 8
+    - Experience: 95
+    - Gold: 45
+    - Damage Types: cold (High), evil (Medium)
+    - Resistances: sharp (High), blunt (High)
+
+16. Wight
+    - Level: 8
+    - Hitpoints: 50
+    - Attack: 30
+    - Defense: 18
+    - Experience: 100
+    - Gold: 50
+    - Damage Types: cold (High), evil (High)
+    - Resistances: cold (Excellent)
+
+17. Ogre
+    - Level: 9
+    - Hitpoints: 65
+    - Attack: 35
+    - Defense: 20
+    - Experience: 120
+    - Gold: 60
+    - Damage Types: blunt (Excellent)
+
+18. Gargoyle
+    - Level: 9
+    - Hitpoints: 55
+    - Attack: 32
+    - Defense: 25
+    - Experience: 115
+    - Gold: 55
+    - Damage Types: sharp (High), earth (Medium)
+    - Resistances: sharp (High), blunt (Medium)
+
+19. Wraith
+    - Level: 10
+    - Hitpoints: 60
+    - Attack: 38
+    - Defense: 15
+    - Experience: 140
+    - Gold: 70
+    - Damage Types: cold (Excellent), evil (High)
+    - Resistances: sharp (Excellent), blunt (Excellent)
+
+20. Troll
+    - Level: 10
+    - Hitpoints: 80
+    - Attack: 40
+    - Defense: 22
+    - Experience: 150
+    - Gold: 75
+    - Damage Types: sharp (Excellent), blunt (High)
+    - Resistances: cold (Medium)
+
+================================================================================
+STRONG MONSTERS (Level 11-20)
+================================================================================
+
+21. Minotaur
+    - Level: 11
+    - Hitpoints: 90
+    - Attack: 45
+    - Defense: 28
+    - Experience: 180
+    - Gold: 90
+    - Damage Types: sharp (Excellent), blunt (Excellent)
+
+22. Basilisk
+    - Level: 12
+    - Hitpoints: 85
+    - Attack: 48
+    - Defense: 30
+    - Experience: 200
+    - Gold: 100
+    - Damage Types: sharp (High), poison (Godlike)
+    - Resistances: poison (Godlike)
+
+23. Manticore
+    - Level: 12
+    - Hitpoints: 95
+    - Attack: 50
+    - Defense: 26
+    - Experience: 210
+    - Gold: 105
+    - Damage Types: sharp (Excellent), poison (High)
+
+24. Medusa
+    - Level: 13
+    - Hitpoints: 88
+    - Attack: 52
+    - Defense: 24
+    - Experience: 230
+    - Gold: 115
+    - Damage Types: sharp (High), magic (Excellent)
+    - Resistances: poison (Excellent)
+
+25. Vampire
+    - Level: 14
+    - Hitpoints: 100
+    - Attack: 55
+    - Defense: 32
+    - Experience: 260
+    - Gold: 130
+    - Damage Types: sharp (Excellent), evil (Excellent)
+    - Resistances: cold (Excellent), evil (Godlike)
+
+26. Stone Golem
+    - Level: 15
+    - Hitpoints: 120
+    - Attack: 58
+    - Defense: 45
+    - Experience: 280
+    - Gold: 140
+    - Damage Types: blunt (Godlike), earth (Excellent)
+    - Resistances: sharp (Godlike), fire (High)
+
+27. Chimera
+    - Level: 16
+    - Hitpoints: 130
+    - Attack: 62
+    - Defense: 35
+    - Experience: 320
+    - Gold: 160
+    - Damage Types: sharp (Excellent), fire (Excellent)
+
+28. Hydra
+    - Level: 17
+    - Hitpoints: 150
+    - Attack: 65
+    - Defense: 38
+    - Experience: 360
+    - Gold: 180
+    - Damage Types: sharp (Godlike), poison (Excellent)
+    - Resistances: water (Godlike)
+
+29. Beholder
+    - Level: 18
+    - Hitpoints: 140
+    - Attack: 70
+    - Defense: 30
+    - Experience: 400
+    - Gold: 200
+    - Damage Types: magic (Godlike), evil (High)
+    - Resistances: magic (Excellent)
+
+30. Death Knight
+    - Level: 20
+    - Hitpoints: 160
+    - Attack: 75
+    - Defense: 50
+    - Experience: 500
+    - Gold: 250
+    - Damage Types: sharp (Godlike), cold (Excellent), evil (Excellent)
+    - Resistances: cold (Godlike), evil (Godlike)
+
+================================================================================
+ELITE MONSTERS (Level 21-35)
+================================================================================
+
+31. Fire Elemental
+    - Level: 21
+    - Hitpoints: 170
+    - Attack: 78
+    - Defense: 40
+    - Experience: 550
+    - Gold: 275
+    - Damage Types: fire (Godlike)
+    - Resistances: fire (Godlike), cold (None - Vulnerable!)
+
+32. Ice Elemental
+    - Level: 21
+    - Hitpoints: 170
+    - Attack: 78
+    - Defense: 40
+    - Experience: 550
+    - Gold: 275
+    - Damage Types: cold (Godlike)
+    - Resistances: cold (Godlike), fire (None - Vulnerable!)
+
+33. Earth Elemental
+    - Level: 22
+    - Hitpoints: 200
+    - Attack: 80
+    - Defense: 55
+    - Experience: 600
+    - Gold: 300
+    - Damage Types: blunt (Godlike), earth (Godlike)
+    - Resistances: sharp (Godlike), earth (Godlike)
+
+34. Air Elemental
+    - Level: 22
+    - Hitpoints: 150
+    - Attack: 85
+    - Defense: 35
+    - Experience: 600
+    - Gold: 300
+    - Damage Types: air (Godlike), sharp (High)
+    - Resistances: air (Godlike), sharp (Excellent)
+
+35. Lich
+    - Level: 25
+    - Hitpoints: 180
+    - Attack: 88
+    - Defense: 45
+    - Experience: 750
+    - Gold: 375
+    - Damage Types: magic (Godlike), cold (Excellent), evil (Godlike)
+    - Resistances: cold (Godlike), evil (Godlike), magic (Excellent)
+
+36. Demon
+    - Level: 28
+    - Hitpoints: 220
+    - Attack: 92
+    - Defense: 50
+    - Experience: 900
+    - Gold: 450
+    - Damage Types: fire (Godlike), evil (Godlike)
+    - Resistances: fire (Godlike), evil (Godlike), good (None - Vulnerable!)
+
+37. Dragon Wyrmling
+    - Level: 30
+    - Hitpoints: 250
+    - Attack: 95
+    - Defense: 55
+    - Experience: 1000
+    - Gold: 500
+    - Damage Types: fire (Godlike), sharp (Excellent)
+    - Resistances: fire (Godlike), sharp (High)
+
+38. Mind Flayer
+    - Level: 32
+    - Hitpoints: 200
+    - Attack: 98
+    - Defense: 48
+    - Experience: 1100
+    - Gold: 550
+    - Damage Types: magic (Godlike), evil (Excellent)
+    - Resistances: magic (Excellent)
+
+39. Nightmare
+    - Level: 33
+    - Hitpoints: 230
+    - Attack: 100
+    - Defense: 52
+    - Experience: 1200
+    - Gold: 600
+    - Damage Types: fire (Excellent), evil (Godlike)
+    - Resistances: fire (Excellent), evil (Godlike)
+
+40. Iron Golem
+    - Level: 35
+    - Hitpoints: 300
+    - Attack: 105
+    - Defense: 70
+    - Experience: 1400
+    - Gold: 700
+    - Damage Types: blunt (Godlike)
+    - Resistances: sharp (Godlike), blunt (Excellent), fire (Excellent)
+
+================================================================================
+BOSS MONSTERS (Level 36-50)
+================================================================================
+
+41. Archmage
+    - Level: 36
+    - Hitpoints: 280
+    - Attack: 110
+    - Defense: 55
+    - Experience: 1600
+    - Gold: 800
+    - Damage Types: magic (Godlike), fire (Excellent), cold (Excellent)
+    - Resistances: magic (Godlike)
+
+42. Balor
+    - Level: 38
+    - Hitpoints: 350
+    - Attack: 115
+    - Defense: 60
+    - Experience: 1800
+    - Gold: 900
+    - Damage Types: fire (Godlike), sharp (Godlike), evil (Godlike)
+    - Resistances: fire (Godlike), evil (Godlike)
+
+43. Vampire Lord
+    - Level: 40
+    - Hitpoints: 320
+    - Attack: 120
+    - Defense: 65
+    - Experience: 2000
+    - Gold: 1000
+    - Damage Types: sharp (Godlike), evil (Godlike), cold (Excellent)
+    - Resistances: cold (Godlike), evil (Godlike), good (None - Vulnerable!)
+
+44. Storm Giant
+    - Level: 42
+    - Hitpoints: 400
+    - Attack: 125
+    - Defense: 70
+    - Experience: 2200
+    - Gold: 1100
+    - Damage Types: blunt (Godlike), air (Godlike)
+    - Resistances: air (Godlike)
+
+45. Pit Fiend
+    - Level: 44
+    - Hitpoints: 420
+    - Attack: 130
+    - Defense: 75
+    - Experience: 2500
+    - Gold: 1250
+    - Damage Types: fire (Godlike), evil (Godlike), sharp (Excellent)
+    - Resistances: fire (Godlike), evil (Godlike), magic (Excellent)
+
+46. Ancient Dragon
+    - Level: 46
+    - Hitpoints: 500
+    - Attack: 140
+    - Defense: 80
+    - Experience: 3000
+    - Gold: 1500
+    - Damage Types: fire (Godlike), sharp (Godlike), magic (Excellent)
+    - Resistances: fire (Godlike), sharp (Excellent), magic (High)
+
+47. Archlich
+    - Level: 47
+    - Hitpoints: 450
+    - Attack: 145
+    - Defense: 70
+    - Experience: 3200
+    - Gold: 1600
+    - Damage Types: magic (Godlike), cold (Godlike), evil (Godlike)
+    - Resistances: magic (Godlike), cold (Godlike), evil (Godlike)
+
+48. Titan
+    - Level: 48
+    - Hitpoints: 550
+    - Attack: 150
+    - Defense: 85
+    - Experience: 3500
+    - Gold: 1750
+    - Damage Types: blunt (Godlike), power (Godlike)
+    - Resistances: magic (Excellent), power (Excellent)
+
+49. Demon Lord
+    - Level: 49
+    - Hitpoints: 600
+    - Attack: 155
+    - Defense: 80
+    - Experience: 4000
+    - Gold: 2000
+    - Damage Types: fire (Godlike), evil (Godlike), magic (Godlike)
+    - Resistances: fire (Godlike), evil (Godlike), magic (Excellent)
+
+50. The Dark One
+    - Level: 50
+    - Hitpoints: 666
+    - Attack: 166
+    - Defense: 90
+    - Experience: 5000
+    - Gold: 2500
+    - Damage Types: evil (Godlike), magic (Godlike), power (Godlike)
+    - Resistances: evil (Godlike), magic (Godlike), good (None - Vulnerable!)

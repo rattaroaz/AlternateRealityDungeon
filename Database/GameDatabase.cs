@@ -1,12 +1,7 @@
 namespace AlternateRealityDungeon.Database
 {
-    public class GameDatabase
+    public class GameDatabase(string databasePath)
     {
-        public string DatabasePath { get; }
-
-        public GameDatabase(string databasePath)
-        {
-            DatabasePath = databasePath;
-        }
+        public string DatabasePath { get; } = databasePath;
     }
 }

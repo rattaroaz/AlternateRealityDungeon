@@ -10,7 +10,7 @@ window.game = {
         scene.fog = new THREE.Fog(0x000000, 5, 80);
 
         // Camera
-        const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+        const camera = new THREE.PerspectiveCamera(90, container.clientWidth / container.clientHeight, 0.1, 1000);
         camera.position.set(0, 1.6, 0); // Eye level
 
         // Renderer
@@ -29,7 +29,7 @@ window.game = {
         // Dungeon grid
         const MAP_WIDTH = 64;
         const MAP_HEIGHT = 64;
-        const TILE_SIZE = 2;
+        const TILE_SIZE = 4;
         const playerStartTile = { x: 51, y: 61 };
 
         const planeGeometry = new THREE.PlaneGeometry(MAP_WIDTH * TILE_SIZE, MAP_HEIGHT * TILE_SIZE);
@@ -224,8 +224,58 @@ window.game = {
             showLoseMode: false,
             showGetMode: false,
             showNothingToGrab: false,
-            getItemIndex: 0
+            getItemIndex: 0,
+            // Battle state
+            inBattle: false,
+            currentMonster: null,
+            battleOption: 0
         };
+
+        // Monster definitions (simplified for JS)
+        const monsterList = [
+            // Weak (Level 1-5)
+            { name: 'Giant Rat', level: 1, hitpoints: 8, attack: 5, defense: 2, exp: 10, gold: 2 },
+            { name: 'Cave Bat', level: 1, hitpoints: 6, attack: 4, defense: 1, exp: 8, gold: 1 },
+            { name: 'Slime', level: 2, hitpoints: 12, attack: 6, defense: 3, exp: 15, gold: 3 },
+            { name: 'Goblin', level: 2, hitpoints: 15, attack: 8, defense: 4, exp: 20, gold: 5 },
+            { name: 'Skeleton', level: 3, hitpoints: 18, attack: 10, defense: 5, exp: 25, gold: 8 },
+            { name: 'Giant Spider', level: 3, hitpoints: 20, attack: 12, defense: 4, exp: 30, gold: 10 },
+            { name: 'Zombie', level: 4, hitpoints: 25, attack: 10, defense: 8, exp: 35, gold: 12 },
+            { name: 'Kobold', level: 4, hitpoints: 22, attack: 14, defense: 6, exp: 40, gold: 15 },
+            { name: 'Giant Centipede', level: 5, hitpoints: 28, attack: 16, defense: 7, exp: 45, gold: 18 },
+            { name: 'Ghoul', level: 5, hitpoints: 32, attack: 18, defense: 10, exp: 55, gold: 22 },
+            // Moderate (Level 6-10)
+            { name: 'Orc Warrior', level: 6, hitpoints: 40, attack: 22, defense: 12, exp: 70, gold: 30 },
+            { name: 'Hobgoblin', level: 6, hitpoints: 38, attack: 20, defense: 14, exp: 65, gold: 28 },
+            { name: 'Harpy', level: 7, hitpoints: 35, attack: 24, defense: 10, exp: 80, gold: 35 },
+            { name: 'Wererat', level: 7, hitpoints: 42, attack: 26, defense: 15, exp: 85, gold: 40 },
+            { name: 'Shadow', level: 8, hitpoints: 45, attack: 28, defense: 8, exp: 95, gold: 45 },
+            { name: 'Wight', level: 8, hitpoints: 50, attack: 30, defense: 18, exp: 100, gold: 50 },
+            { name: 'Ogre', level: 9, hitpoints: 65, attack: 35, defense: 20, exp: 120, gold: 60 },
+            { name: 'Gargoyle', level: 9, hitpoints: 55, attack: 32, defense: 25, exp: 115, gold: 55 },
+            { name: 'Wraith', level: 10, hitpoints: 60, attack: 38, defense: 15, exp: 140, gold: 70 },
+            { name: 'Troll', level: 10, hitpoints: 80, attack: 40, defense: 22, exp: 150, gold: 75 },
+            // Strong (Level 11-20)
+            { name: 'Minotaur', level: 11, hitpoints: 90, attack: 45, defense: 28, exp: 180, gold: 90 },
+            { name: 'Basilisk', level: 12, hitpoints: 85, attack: 48, defense: 30, exp: 200, gold: 100 },
+            { name: 'Manticore', level: 12, hitpoints: 95, attack: 50, defense: 26, exp: 210, gold: 105 },
+            { name: 'Medusa', level: 13, hitpoints: 88, attack: 52, defense: 24, exp: 230, gold: 115 },
+            { name: 'Vampire', level: 14, hitpoints: 100, attack: 55, defense: 32, exp: 260, gold: 130 },
+            { name: 'Stone Golem', level: 15, hitpoints: 120, attack: 58, defense: 45, exp: 280, gold: 140 },
+            { name: 'Chimera', level: 16, hitpoints: 130, attack: 62, defense: 35, exp: 320, gold: 160 },
+            { name: 'Hydra', level: 17, hitpoints: 150, attack: 65, defense: 38, exp: 360, gold: 180 },
+            { name: 'Beholder', level: 18, hitpoints: 140, attack: 70, defense: 30, exp: 400, gold: 200 },
+            { name: 'Death Knight', level: 20, hitpoints: 160, attack: 75, defense: 50, exp: 500, gold: 250 }
+        ];
+
+        // Get random monster based on player level
+        function getRandomMonster(playerLevel) {
+            const minLevel = Math.max(1, playerLevel - 2);
+            const maxLevel = playerLevel + 2;
+            const candidates = monsterList.filter(m => m.level >= minLevel && m.level <= maxLevel);
+            if (candidates.length === 0) return monsterList[0];
+            return { ...candidates[Math.floor(Math.random() * candidates.length)] }; // Clone the monster
+        }
 
         // Store player reference for getGameState access
         window.game._player = player;
@@ -242,8 +292,18 @@ window.game = {
 
                 // Restore stats
                 for (let stat in player.stats) {
-                    if (playerStats.stats && typeof playerStats.stats[stat] === 'number') {
-                        player.stats[stat] = playerStats.stats[stat];
+                    // Check both PascalCase and camelCase since Blazor may serialize either way
+                    const camelKey = stat.charAt(0).toLowerCase() + stat.slice(1);
+                    let value = undefined;
+                    if (playerStats.stats) {
+                        if (typeof playerStats.stats[stat] === 'number') {
+                            value = playerStats.stats[stat];
+                        } else if (typeof playerStats.stats[camelKey] === 'number') {
+                            value = playerStats.stats[camelKey];
+                        }
+                    }
+                    if (typeof value === 'number') {
+                        player.stats[stat] = value;
                     }
                 }
 
@@ -351,7 +411,17 @@ window.game = {
                 const tileKey = `${tile.tx},${tile.ty}`;
                 const itemsHere = player.groundItems[tileKey] || [];
                 
-                if (player.showNothingToGrab) {
+                if (player.inBattle) {
+                    // Battle Options View
+                    let html = `<div style="margin-bottom: 5px; font-weight: bold; color: red;">Battle Options:</div>`;
+                    html += `<div style="${player.battleOption === 1 ? 'color: yellow;' : ''}">1. Attack</div>`;
+                    html += `<div style="${player.battleOption === 2 ? 'color: yellow;' : ''}">2. Charge</div>`;
+                    html += `<div style="${player.battleOption === 3 ? 'color: yellow;' : ''}">3. Aimed Attack</div>`;
+                    html += `<div style="${player.battleOption === 4 ? 'color: yellow;' : ''}">4. Transact</div>`;
+                    html += `<div style="${player.battleOption === 5 ? 'color: yellow;' : ''}">5. Switch Weapon</div>`;
+                    html += `<div style="${player.battleOption === 6 ? 'color: yellow;' : ''}">6. Turn and Run</div>`;
+                    invContainer.innerHTML = html;
+                } else if (player.showNothingToGrab) {
                     // Nothing to Grab feedback
                     invContainer.innerHTML = `<div style="display: flex; align-items: center; justify-content: center; height: 100%; font-weight: bold; color: #888;">Nothing to Grab.</div>`;
                 } else if (player.showGetMode && itemsHere.length > 0) {
@@ -400,6 +470,50 @@ window.game = {
             }
         }
         updateHUD();
+
+        // Create monster encounter overlay
+        const monsterOverlay = document.createElement('div');
+        monsterOverlay.id = 'monster-overlay';
+        monsterOverlay.style.cssText = 'position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 35; color: white; font-family: monospace;';
+        container.appendChild(monsterOverlay);
+
+        // Start a battle encounter
+        function startBattle() {
+            if (player.inBattle || isPaused) return;
+            
+            const monster = getRandomMonster(player.level);
+            player.currentMonster = monster;
+            player.inBattle = true;
+            player.battleOption = 0;
+            isPaused = true;
+            
+            // Show monster overlay
+            monsterOverlay.innerHTML = `
+                <div style="font-size: 2rem; color: red; margin-bottom: 20px;">ENCOUNTER!</div>
+                <div style="font-size: 1.5rem; color: gold; margin-bottom: 10px;">${monster.name}</div>
+                <div style="margin-bottom: 5px;">Level: ${monster.level}</div>
+                <div style="margin-bottom: 5px;">HP: ${monster.hitpoints}</div>
+                <div style="margin-bottom: 5px;">Attack: ${monster.attack}</div>
+                <div style="margin-bottom: 5px;">Defense: ${monster.defense}</div>
+                <div style="margin-top: 20px; color: #aaa;">Choose an action (1-6)</div>
+            `;
+            monsterOverlay.style.display = 'flex';
+            
+            // Hide pause overlay if visible
+            const pauseOverlay = document.getElementById('pause-overlay');
+            if (pauseOverlay) pauseOverlay.style.display = 'none';
+            
+            updateHUD();
+        }
+
+        // Random encounter check - 1% chance per second
+        setInterval(() => {
+            if (!player.inBattle && !isPaused) {
+                if (Math.random() < 0.01) { // 1% chance
+                    startBattle();
+                }
+            }
+        }, 1000);
 
         function updateCompass() {
             // Only show compass if player has one
@@ -645,8 +759,19 @@ window.game = {
                 updateHUD();
             }
 
+            // Battle Mode - Select option (Keys 1-6)
+            if (player.inBattle && e.code.startsWith('Digit')) {
+                const digit = parseInt(e.code.replace('Digit', ''));
+                if (digit >= 1 && digit <= 6) {
+                    player.battleOption = digit;
+                    updateHUD();
+                    // Battle is paused - player has selected an option
+                    // Future: implement battle logic here
+                }
+            }
+
             // Drop items in Lose Mode (Keys 1-9)
-            if (player.showLoseMode && e.code.startsWith('Digit')) {
+            if (!player.inBattle && player.showLoseMode && e.code.startsWith('Digit')) {
                 const digit = parseInt(e.code.replace('Digit', ''));
                 if (digit >= 1 && digit <= player.inventory.length) {
                     const itemIndex = digit - 1;

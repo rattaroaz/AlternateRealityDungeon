@@ -1,4 +1,4 @@
-<api type="debug" assembly-name="AlternateRealityDungeon" mvid="e91ae9c928b649ec9b49f1e45782727e">
+<api type="debug" assembly-name="AlternateRealityDungeon" mvid="df906967502445edb5446d1235a55805">
   <java-to-managed>
     <entry java-name="crc64691bc17c79f4dabb/MainActivity" managed-name="AlternateRealityDungeon.MainActivity, AlternateRealityDungeon" managed-type-token-id="33554444" />
     <entry java-name="crc64691bc17c79f4dabb/MainApplication" managed-name="AlternateRealityDungeon.MainApplication, AlternateRealityDungeon" managed-type-token-id="33554445" />
