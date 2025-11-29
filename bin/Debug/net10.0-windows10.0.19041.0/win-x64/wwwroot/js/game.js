@@ -448,7 +448,7 @@ window.game = {
         }
 
         // Player Stats
-        const MAX_STAT = 99;  // Maximum value for any stat
+        const MAX_STAT = 255;  // Maximum value for any stat
         const BASE_XP_THRESHOLD = 1000;  // XP needed for level 1
         
         const player = {
@@ -484,6 +484,24 @@ window.game = {
             ],
             primaryWeapon: null,    // Primary weapon used for attack
             secondaryWeapon: null,  // Secondary weapon used for defense only
+            equippedClothing: {     // Clothing equipped to body parts
+                Head: null,
+                Hands: null,
+                Arms: null,
+                Body: null,
+                Legs: null,
+                Feet: null
+            },
+            temporaryEffects: {     // Active temporary potion effects
+                Strength: { active: false, duration: 0 },
+                Intelligence: { active: false, duration: 0 },
+                Skill: { active: false, duration: 0 },
+                Stamina: { active: false, duration: 0 },
+                Charisma: { active: false, duration: 0 },
+                Wisdom: { active: false, duration: 0 },
+                Speed: { active: false, duration: 0 },
+                invisibility: { active: false, duration: 0 }
+            },
             showInventory: false,
             showLoseMode: false,
             showGetMode: false,
@@ -491,11 +509,19 @@ window.game = {
             getItemIndex: 0,
             showWeaponEquipMode: false,  // Show primary/secondary choice for weapon
             weaponToEquip: null,         // The weapon being equipped
+            showClothingEquipMode: false, // Show body part choice for clothing
+            clothingToEquip: null,       // The clothing being equipped
             // Battle state
             inBattle: false,
             currentMonster: null,
             battleOption: 0
         };
+
+        // Helper function to check if any interaction menu is open
+        function isInteractionMenuOpen() {
+            return player.showInventory || player.showLoseMode || player.showGetMode || 
+                   player.showUseMode || player.showWeaponEquipMode || player.showClothingEquipMode;
+        }
 
         // Monster definitions (simplified for JS)
         const monsterList = [
@@ -535,10 +561,184 @@ window.game = {
         ];
 
         const clothingItems = [
-            "Woolen Hat", "Leather Helm", "Gloves", "Sleeves", 
-            "Leather Armor", "Cloak", "Pants", "Leggings", 
-            "Leather Boots", "Shoes"
+            // HEAD CLOTHING
+            "Woolen Hat", "Leather Helm", "Silk Hood", "Wizard's Cap", "Crown of Speed",
+            "Mask of Stealth", "Hood of Shadows", "Circlet of Wisdom", "Helm of Courage", "Tiara of Luck",
+            // HANDS CLOTHING
+            "Cotton Gloves", "Leather Gloves", "Silk Gloves", "Gauntlets of Strength", "Gloves of Dexterity",
+            "Bracers of Defense", "Gloves of Healing", "Cursed Gauntlets", "Gloves of Fire", "Frost Bracers",
+            // ARMS CLOTHING
+            "Linen Sleeves", "Leather Sleeves", "Silk Sleeves", "Bracers of Power", "Sleeves of Accuracy",
+            "Arm Guards of Protection", "Healing Bracers", "Flame Sleeves", "Ice Bracers", "Poisoner's Sleeves",
+            // BODY CLOTHING
+            "Cotton Shirt", "Leather Vest", "Silk Robe", "Robe of the Mage", "Vest of Swiftness",
+            "Shadow Cloak", "Cloak of Invisibility", "Tunic of Wisdom", "Robe of Courage", "Lucky Tunic",
+            // LEGS CLOTHING
+            "Cotton Pants", "Leather Pants", "Silk Trousers", "Greaves of Might", "Pants of Agility",
+            "Leg Guards of Steel", "Regenerative Greaves", "Flame Leggings", "Frost Pants", "Anti-Venom Greaves",
+            // FEET CLOTHING
+            "Cotton Shoes", "Leather Boots", "Silk Slippers", "Boots of Speed", "Stealth Boots",
+            "Armored Boots", "Healing Sandals", "Fire Boots", "Ice Boots", "Poison Ward Boots"
         ];
+
+        const armorItems = [
+            // HEAD ARMOR
+            "Iron Helm", "Steel Helm", "Mithril Helm", "Helm of Fire Protection", "Frost Crown",
+            "Helm of Clarity", "Crown of Regeneration", "Speed Helm", "Wise Helm", "Lucky Helm",
+            // HANDS ARMOR
+            "Iron Gauntlets", "Steel Gauntlets", "Mithril Gauntlets", "Flame Gauntlets", "Ice Gauntlets",
+            "Pure Gauntlets", "Vital Gauntlets", "Swift Gauntlets", "Arcane Gauntlets", "Fortunate Gauntlets",
+            // ARMS ARMOR
+            "Iron Bracers", "Steel Bracers", "Mithril Bracers", "Fire Bracers", "Frost Bracers",
+            "Clean Bracers", "Life Bracers", "Quick Bracers", "Mystic Bracers", "Blessed Bracers",
+            // BODY ARMOR
+            "Chain Mail", "Plate Armor", "Mithril Armor", "Dragon Scale Armor", "Ice Crystal Armor",
+            "Blessed Chain Mail", "Living Armor", "Wind Walker Armor", "Mage's Robes", "Hero's Plate",
+            // LEGS ARMOR
+            "Iron Greaves", "Steel Greaves", "Mithril Greaves", "Flame Greaves", "Frost Greaves",
+            "Pure Greaves", "Vital Greaves", "Swift Greaves", "Arcane Greaves", "Fortunate Greaves",
+            // FEET ARMOR
+            "Iron Boots", "Steel Boots", "Mithril Boots", "Fire Boots", "Ice Boots",
+            "Clean Boots", "Life Boots", "Quick Boots", "Mystic Boots", "Blessed Boots"
+        ];
+
+        // Body parts for clothing - each can only have 1 piece equipped
+        const bodyParts = [
+            "Head",      // Woolen Hat, Leather Helm
+            "Hands",     // Gloves
+            "Arms",      // Sleeves
+            "Body",      // Leather Armor, Cloak
+            "Legs",      // Pants, Leggings
+            "Feet"       // Leather Boots, Shoes
+        ];
+
+        // Map clothing items to body parts (includes both clothing and armor)
+        const clothingBodyPartMap = {
+            // HEAD CLOTHING & ARMOR
+            "Woolen Hat": "Head", "Leather Helm": "Head", "Silk Hood": "Head", "Wizard's Cap": "Head", "Crown of Speed": "Head",
+            "Mask of Stealth": "Head", "Hood of Shadows": "Head", "Circlet of Wisdom": "Head", "Helm of Courage": "Head", "Tiara of Luck": "Head",
+            "Iron Helm": "Head", "Steel Helm": "Head", "Mithril Helm": "Head", "Helm of Fire Protection": "Head", "Frost Crown": "Head",
+            "Helm of Clarity": "Head", "Crown of Regeneration": "Head", "Speed Helm": "Head", "Wise Helm": "Head", "Lucky Helm": "Head",
+            // HANDS CLOTHING & ARMOR
+            "Cotton Gloves": "Hands", "Leather Gloves": "Hands", "Silk Gloves": "Hands", "Gauntlets of Strength": "Hands", "Gloves of Dexterity": "Hands",
+            "Bracers of Defense": "Hands", "Gloves of Healing": "Hands", "Cursed Gauntlets": "Hands", "Gloves of Fire": "Hands", "Frost Bracers": "Hands",
+            "Iron Gauntlets": "Hands", "Steel Gauntlets": "Hands", "Mithril Gauntlets": "Hands", "Flame Gauntlets": "Hands", "Ice Gauntlets": "Hands",
+            "Pure Gauntlets": "Hands", "Vital Gauntlets": "Hands", "Swift Gauntlets": "Hands", "Arcane Gauntlets": "Hands", "Fortunate Gauntlets": "Hands",
+            // ARMS CLOTHING & ARMOR
+            "Linen Sleeves": "Arms", "Leather Sleeves": "Arms", "Silk Sleeves": "Arms", "Bracers of Power": "Arms", "Sleeves of Accuracy": "Arms",
+            "Arm Guards of Protection": "Arms", "Healing Bracers": "Arms", "Flame Sleeves": "Arms", "Ice Bracers": "Arms", "Poisoner's Sleeves": "Arms",
+            "Iron Bracers": "Arms", "Steel Bracers": "Arms", "Mithril Bracers": "Arms", "Fire Bracers": "Arms", "Frost Bracers": "Arms",
+            "Clean Bracers": "Arms", "Life Bracers": "Arms", "Quick Bracers": "Arms", "Mystic Bracers": "Arms", "Blessed Bracers": "Arms",
+            // BODY CLOTHING & ARMOR
+            "Cotton Shirt": "Body", "Leather Vest": "Body", "Silk Robe": "Body", "Robe of the Mage": "Body", "Vest of Swiftness": "Body",
+            "Shadow Cloak": "Body", "Cloak of Invisibility": "Body", "Tunic of Wisdom": "Body", "Robe of Courage": "Body", "Lucky Tunic": "Body",
+            "Chain Mail": "Body", "Plate Armor": "Body", "Mithril Armor": "Body", "Dragon Scale Armor": "Body", "Ice Crystal Armor": "Body",
+            "Blessed Chain Mail": "Body", "Living Armor": "Body", "Wind Walker Armor": "Body", "Mage's Robes": "Body", "Hero's Plate": "Body",
+            // LEGS CLOTHING & ARMOR
+            "Cotton Pants": "Legs", "Leather Pants": "Legs", "Silk Trousers": "Legs", "Greaves of Might": "Legs", "Pants of Agility": "Legs",
+            "Leg Guards of Steel": "Legs", "Regenerative Greaves": "Legs", "Flame Leggings": "Legs", "Frost Pants": "Legs", "Anti-Venom Greaves": "Legs",
+            "Iron Greaves": "Legs", "Steel Greaves": "Legs", "Mithril Greaves": "Legs", "Flame Greaves": "Legs", "Frost Greaves": "Legs",
+            "Pure Greaves": "Legs", "Vital Greaves": "Legs", "Swift Greaves": "Legs", "Arcane Greaves": "Legs", "Fortunate Greaves": "Legs",
+            // FEET CLOTHING & ARMOR
+            "Cotton Shoes": "Feet", "Leather Boots": "Feet", "Silk Slippers": "Feet", "Boots of Speed": "Feet", "Stealth Boots": "Feet",
+            "Armored Boots": "Feet", "Healing Sandals": "Feet", "Fire Boots": "Feet", "Ice Boots": "Feet", "Poison Ward Boots": "Feet",
+            "Iron Boots": "Feet", "Steel Boots": "Feet", "Mithril Boots": "Feet", "Fire Boots": "Feet", "Ice Boots": "Feet",
+            "Clean Boots": "Feet", "Life Boots": "Feet", "Quick Boots": "Feet", "Mystic Boots": "Feet", "Blessed Boots": "Feet"
+        };
+
+        // Potion definitions
+        const temporaryPotions = [
+            "Strength Potion", "Intelligence Potion", "Skill Potion", "Stamina Potion",
+            "Charisma Potion", "Wisdom Potion", "Speed Potion", "Invisibility Potion"
+        ];
+
+        const permanentPotions = [
+            "Permanent Strength Potion", "Permanent Intelligence Potion", "Permanent Skill Potion",
+            "Permanent Stamina Potion", "Permanent Charisma Potion", "Permanent Wisdom Potion",
+            "Permanent Speed Potion", "Cure Disease Potion", "Banish Curse Potion",
+            "Cure Poison Potion", "Fatigue Relief Potion", "Banish Hunger Potion", "Banish Thirst Potion"
+        ];
+
+        // Map potions to their effects
+        const potionEffects = {
+            // Temporary potions (+10 stat for 1 hour)
+            "Strength Potion": { stat: "Strength", bonus: 10, duration: 60, type: "temporary" },
+            "Intelligence Potion": { stat: "Intelligence", bonus: 10, duration: 60, type: "temporary" },
+            "Skill Potion": { stat: "Skill", bonus: 10, duration: 60, type: "temporary" },
+            "Stamina Potion": { stat: "Stamina", bonus: 10, duration: 60, type: "temporary" },
+            "Charisma Potion": { stat: "Charisma", bonus: 10, duration: 60, type: "temporary" },
+            "Wisdom Potion": { stat: "Wisdom", bonus: 10, duration: 60, type: "temporary" },
+            "Speed Potion": { stat: "Speed", bonus: 10, duration: 60, type: "temporary" },
+            "Invisibility Potion": { effect: "invisibility", duration: 60, type: "temporary" },
+
+            // Permanent potions (+5 stat permanently)
+            "Permanent Strength Potion": { stat: "Strength", bonus: 5, type: "permanent" },
+            "Permanent Intelligence Potion": { stat: "Intelligence", bonus: 5, type: "permanent" },
+            "Permanent Skill Potion": { stat: "Skill", bonus: 5, type: "permanent" },
+            "Permanent Stamina Potion": { stat: "Stamina", bonus: 5, type: "permanent" },
+            "Permanent Charisma Potion": { stat: "Charisma", bonus: 5, type: "permanent" },
+            "Permanent Wisdom Potion": { stat: "Wisdom", bonus: 5, type: "permanent" },
+            "Permanent Speed Potion": { stat: "Speed", bonus: 5, type: "permanent" },
+
+            // Permanent cures
+            "Cure Disease Potion": { effect: "cure_disease", type: "permanent" },
+            "Banish Curse Potion": { effect: "banish_curse", type: "permanent" },
+            "Cure Poison Potion": { effect: "cure_poison", type: "permanent" },
+            "Fatigue Relief Potion": { effect: "relieve_fatigue", type: "permanent" },
+            "Banish Hunger Potion": { effect: "banish_hunger", type: "permanent" },
+            "Banish Thirst Potion": { effect: "banish_thirst", type: "permanent" }
+        };
+
+        // Check if an item is a potion
+        function isPotion(itemName) {
+            if (!itemName) return false;
+            return temporaryPotions.includes(itemName) || permanentPotions.includes(itemName);
+        }
+
+        // Check if an item is clothing (provides 0 defense, may have magical effects)
+        function isClothing(itemName) {
+            if (!itemName) return false;
+            return clothingItems.includes(itemName);
+        }
+
+        // Check if an item is armor (provides defense, may have magical effects)
+        function isArmor(itemName) {
+            if (!itemName) return false;
+            return armorItems.includes(itemName);
+        }
+
+        // Check if an item is equipment (clothing or armor)
+        function isEquipment(itemName) {
+            return isClothing(itemName) || isArmor(itemName);
+        }
+
+        // Armor defense values
+        const armorStats = {
+            // HEAD ARMOR
+            "Iron Helm": { defense: 3 }, "Steel Helm": { defense: 4 }, "Mithril Helm": { defense: 5 },
+            "Helm of Fire Protection": { defense: 4 }, "Frost Crown": { defense: 4 }, "Helm of Clarity": { defense: 4 },
+            "Crown of Regeneration": { defense: 4 }, "Speed Helm": { defense: 4 }, "Wise Helm": { defense: 4 }, "Lucky Helm": { defense: 4 },
+            // HANDS ARMOR
+            "Iron Gauntlets": { defense: 2 }, "Steel Gauntlets": { defense: 3 }, "Mithril Gauntlets": { defense: 4 },
+            "Flame Gauntlets": { defense: 3 }, "Ice Gauntlets": { defense: 3 }, "Pure Gauntlets": { defense: 3 },
+            "Vital Gauntlets": { defense: 3 }, "Swift Gauntlets": { defense: 3 }, "Arcane Gauntlets": { defense: 3 }, "Fortunate Gauntlets": { defense: 3 },
+            // ARMS ARMOR
+            "Iron Bracers": { defense: 2 }, "Steel Bracers": { defense: 3 }, "Mithril Bracers": { defense: 4 },
+            "Fire Bracers": { defense: 3 }, "Frost Bracers": { defense: 3 }, "Clean Bracers": { defense: 3 },
+            "Life Bracers": { defense: 3 }, "Quick Bracers": { defense: 3 }, "Mystic Bracers": { defense: 3 }, "Blessed Bracers": { defense: 3 },
+            // BODY ARMOR
+            "Chain Mail": { defense: 8 }, "Plate Armor": { defense: 10 }, "Mithril Armor": { defense: 12 },
+            "Dragon Scale Armor": { defense: 10 }, "Ice Crystal Armor": { defense: 10 }, "Blessed Chain Mail": { defense: 10 },
+            "Living Armor": { defense: 10 }, "Wind Walker Armor": { defense: 10 }, "Mage's Robes": { defense: 10 }, "Hero's Plate": { defense: 10 },
+            // LEGS ARMOR
+            "Iron Greaves": { defense: 4 }, "Steel Greaves": { defense: 5 }, "Mithril Greaves": { defense: 6 },
+            "Flame Greaves": { defense: 5 }, "Frost Greaves": { defense: 5 }, "Pure Greaves": { defense: 5 },
+            "Vital Greaves": { defense: 5 }, "Swift Greaves": { defense: 5 }, "Arcane Greaves": { defense: 5 }, "Fortunate Greaves": { defense: 5 },
+            // FEET ARMOR
+            "Iron Boots": { defense: 3 }, "Steel Boots": { defense: 4 }, "Mithril Boots": { defense: 5 },
+            "Fire Boots": { defense: 4 }, "Ice Boots": { defense: 4 }, "Clean Boots": { defense: 4 },
+            "Life Boots": { defense: 4 }, "Quick Boots": { defense: 4 }, "Mystic Boots": { defense: 4 }, "Blessed Boots": { defense: 4 }
+        };
 
         const lowTierWeapons = [
             "Sword", "Bow", "Dagger", "Axe", "Mace", 
@@ -596,19 +796,30 @@ window.game = {
                 const weapon = highTierWeapons[Math.floor(Math.random() * highTierWeapons.length)];
                 monster.equipment.push(weapon);
 
-                // Add a Clothing item
-                const clothing = clothingItems[Math.floor(Math.random() * clothingItems.length)];
-                monster.equipment.push(clothing);
+                // Add a Clothing or Armor item (50/50 chance)
+                if (Math.random() < 0.5) {
+                    const clothing = clothingItems[Math.floor(Math.random() * clothingItems.length)];
+                    monster.equipment.push(clothing);
+                } else {
+                    const armor = armorItems[Math.floor(Math.random() * armorItems.length)];
+                    monster.equipment.push(armor);
+                }
             } else {
                 // Lower level monsters: 30% chance of dropping lower level weapons/items
                 if (Math.random() < 0.30) {
-                    // 50/50 chance between weapon or clothing
+                    // 50/50 chance between weapon or clothing/armor
                     if (Math.random() < 0.5) {
                         const weapon = lowTierWeapons[Math.floor(Math.random() * lowTierWeapons.length)];
                         monster.equipment.push(weapon);
                     } else {
-                        const clothing = clothingItems[Math.floor(Math.random() * clothingItems.length)];
-                        monster.equipment.push(clothing);
+                        // 50/50 between clothing and armor
+                        if (Math.random() < 0.5) {
+                            const clothing = clothingItems[Math.floor(Math.random() * clothingItems.length)];
+                            monster.equipment.push(clothing);
+                        } else {
+                            const armor = armorItems[Math.floor(Math.random() * armorItems.length)];
+                            monster.equipment.push(armor);
+                        }
                     }
                 }
             }
@@ -649,11 +860,21 @@ window.game = {
             return bonuses;
         }
         
-        // Recalculate current stats from base stats + equipment
+        // Recalculate current stats from base stats + equipment + temporary effects
         function recalculateStats() {
             const bonuses = getEquipmentStatBonuses();
             for (const stat in player.baseStats) {
-                player.stats[stat] = Math.min(MAX_STAT, player.baseStats[stat] + bonuses[stat]);
+                let totalBonus = bonuses[stat] || 0;
+                
+                // Add temporary potion effects
+                if (player.temporaryEffects[stat] && player.temporaryEffects[stat].active) {
+                    const effect = potionEffects[`${stat} Potion`];
+                    if (effect) {
+                        totalBonus += effect.bonus;
+                    }
+                }
+                
+                player.stats[stat] = Math.min(MAX_STAT, player.baseStats[stat] + totalBonus);
             }
         }
         
@@ -806,6 +1027,23 @@ window.game = {
                 // Restore equipped weapons
                 player.primaryWeapon = playerStats.primaryWeapon || null;
                 player.secondaryWeapon = playerStats.secondaryWeapon || null;
+
+                // Restore equipped clothing
+                player.equippedClothing = playerStats.equippedClothing || {
+                    Head: null, Hands: null, Arms: null, Body: null, Legs: null, Feet: null
+                };
+
+                // Restore temporary effects
+                player.temporaryEffects = playerStats.temporaryEffects || {
+                    Strength: { active: false, duration: 0 },
+                    Intelligence: { active: false, duration: 0 },
+                    Skill: { active: false, duration: 0 },
+                    Stamina: { active: false, duration: 0 },
+                    Charisma: { active: false, duration: 0 },
+                    Wisdom: { active: false, duration: 0 },
+                    Speed: { active: false, duration: 0 },
+                    invisibility: { active: false, duration: 0 }
+                };
 
                 // Restore UI state
                 player.showInventory = playerStats.showInventory || false;
@@ -985,14 +1223,38 @@ window.game = {
                         html += `<div style="font-size: 0.8rem; color: #f88; margin-bottom: 5px;">(Two-Handed)</div>`;
                     }
                     html += `<div style="margin-top: 10px;">`;
-                    html += `<div style="color: #8f8;">P = Primary (Attack)</div>`;
-                    html += `<div style="color: #88f;">S = Secondary (Defense)</div>`;
+                    html += `<div>1. Primary (Attack)</div>`;
+                    html += `<div>2. Secondary (Defense)</div>`;
                     html += `<div style="color: #888; margin-top: 5px;">E = Cancel</div>`;
                     html += `</div>`;
                     // Show current weapons
                     html += `<div style="margin-top: 15px; font-size: 0.8rem; color: #666;">`;
                     html += `Current Primary: ${player.primaryWeapon || 'None'}<br>`;
                     html += `Current Secondary: ${player.secondaryWeapon || 'None'}`;
+                    html += `</div>`;
+                    invContainer.innerHTML = html;
+                } else if (player.showClothingEquipMode && player.clothingToEquip) {
+                    // Clothing Equip Mode - Choose body part
+                    const bodyPart = clothingBodyPartMap[player.clothingToEquip];
+                    let html = `<div style="margin-bottom: 10px; font-weight: bold; color: cyan;">Equip Clothing</div>`;
+                    html += `<div style="font-size: 1.1rem; margin: 10px 0;">${player.clothingToEquip}</div>`;
+                    html += `<div style="font-size: 0.9rem; color: #8f8; margin-bottom: 5px;">Fits: ${bodyPart}</div>`;
+                    html += `<div style="margin-top: 10px;">`;
+                    
+                    // Show available body parts
+                    bodyParts.forEach((part, index) => {
+                        const isFitting = part === bodyPart;
+                        const currentEquipped = player.equippedClothing[part];
+                        const color = isFitting ? '#8f8' : '#666';
+                        const label = `${index + 1}. ${part}`;
+                        if (currentEquipped) {
+                            html += `<div style="color: ${color};">${label} (${currentEquipped})</div>`;
+                        } else {
+                            html += `<div style="color: ${color};">${label} (Empty)</div>`;
+                        }
+                    });
+                    
+                    html += `<div style="color: #888; margin-top: 5px;">E = Cancel</div>`;
                     html += `</div>`;
                     invContainer.innerHTML = html;
                 } else if (player.showUseMode) {
@@ -1038,6 +1300,20 @@ window.game = {
                 return false;  // Needs further input (Primary/Secondary choice)
             }
             
+            // Check if item is clothing - trigger clothing equip mode
+            if (isClothing(item.name)) {
+                player.clothingToEquip = item.name;
+                player.showClothingEquipMode = true;
+                player.showUseMode = false;
+                return false;  // Needs further input (body part choice)
+            }
+            
+            // Check if item is a potion
+            if (isPotion(item.name)) {
+                usePotion(item);
+                return true;  // Potion is used immediately
+            }
+            
             if (item.name === 'Food' || item.name === 'Food Packet') {
                 // Restore some HP (cap at base stamina, not equipment-modified)
                 player.hitpoints = Math.min(player.hitpoints + 10, player.baseStats.Stamina);
@@ -1079,6 +1355,106 @@ window.game = {
             player.weaponToEquip = null;
             player.showWeaponEquipMode = false;
             updateHUD();
+        }
+        
+        // Equip clothing to body part
+        function equipClothing(bodyPart) {
+            if (!player.clothingToEquip) return;
+            
+            const clothingName = player.clothingToEquip;
+            const targetBodyPart = clothingBodyPartMap[clothingName];
+            
+            if (targetBodyPart === bodyPart) {
+                // If there's already clothing on this body part, it stays in inventory
+                player.equippedClothing[bodyPart] = clothingName;
+                
+                // Clear the equip mode
+                player.clothingToEquip = null;
+                player.showClothingEquipMode = false;
+                updateHUD();
+            } else {
+                // Invalid body part for this clothing
+                // Could show error message, but for now just cancel
+                player.clothingToEquip = null;
+                player.showClothingEquipMode = false;
+                updateHUD();
+            }
+        }
+
+        // Use potion function
+        function usePotion(item) {
+            const effect = potionEffects[item.name];
+            if (!effect) return;
+            
+            if (effect.type === "temporary") {
+                // Apply temporary effect
+                if (effect.stat) {
+                    // Stat boost
+                    player.temporaryEffects[effect.stat].active = true;
+                    player.temporaryEffects[effect.stat].duration = effect.duration;
+                } else if (effect.effect === "invisibility") {
+                    // Special effect
+                    player.temporaryEffects.invisibility.active = true;
+                    player.temporaryEffects.invisibility.duration = effect.duration;
+                }
+                
+                // Recalculate stats immediately
+                recalculateStats();
+                
+                // Show message
+                if (player.battleLog) {
+                    const durationText = `${Math.floor(effect.duration / 60)}:${(effect.duration % 60).toString().padStart(2, '0')}`;
+                    player.battleLog.push(`<span style="color: cyan;">You drink ${item.name}. Effect lasts 1 hour.</span>`);
+                }
+            } else if (effect.type === "permanent") {
+                if (effect.stat) {
+                    // Permanent stat boost
+                    player.baseStats[effect.stat] = Math.min(MAX_STAT, player.baseStats[effect.stat] + effect.bonus);
+                    recalculateStats();
+                    
+                    // Show message
+                    if (player.battleLog) {
+                        player.battleLog.push(`<span style="color: lime;">You drink ${item.name}. ${effect.stat} permanently increased by ${effect.bonus}!</span>`);
+                    }
+                } else if (effect.effect) {
+                    // Permanent cure/effect
+                    if (effect.effect === "cure_disease") {
+                        // Implement disease cure logic here
+                        if (player.battleLog) {
+                            player.battleLog.push(`<span style="color: lime;">You drink ${item.name}. All diseases are cured!</span>`);
+                        }
+                    } else if (effect.effect === "banish_curse") {
+                        // Implement curse removal logic here
+                        if (player.battleLog) {
+                            player.battleLog.push(`<span style="color: lime;">You drink ${item.name}. All curses are banished!</span>`);
+                        }
+                    } else if (effect.effect === "cure_poison") {
+                        // Implement poison cure logic here
+                        if (player.battleLog) {
+                            player.battleLog.push(`<span style="color: lime;">You drink ${item.name}. All poisons are cured!</span>`);
+                        }
+                    } else if (effect.effect === "relieve_fatigue") {
+                        // Restore stamina to max
+                        player.hitpoints = player.baseStats.Stamina;
+                        if (player.battleLog) {
+                            player.battleLog.push(`<span style="color: lime;">You drink ${item.name}. Fatigue is relieved!</span>`);
+                        }
+                    } else if (effect.effect === "banish_hunger") {
+                        // Implement hunger removal logic here
+                        if (player.battleLog) {
+                            player.battleLog.push(`<span style="color: lime;">You drink ${item.name}. Hunger is banished!</span>`);
+                        }
+                    } else if (effect.effect === "banish_thirst") {
+                        // Implement thirst removal logic here
+                        if (player.battleLog) {
+                            player.battleLog.push(`<span style="color: lime;">You drink ${item.name}. Thirst is banished!</span>`);
+                        }
+                    }
+                }
+            }
+            
+            // Consume the potion
+            item.count--;
         }
 
         // Create monster encounter overlay
@@ -1142,7 +1518,14 @@ window.game = {
             // Very rough estimation based on lists
             if (highTierWeapons.includes(name)) return { attack: 30, defense: 5 };
             if (lowTierWeapons.includes(name)) return { attack: 10, defense: 2 };
-            if (clothingItems.includes(name)) return { attack: 0, defense: 5 };
+            
+            // Check for armor defense values
+            if (armorStats[name]) {
+                return { attack: 0, defense: armorStats[name].defense };
+            }
+            
+            // Clothing provides 0 defense (but may have magical effects)
+            if (clothingItems.includes(name)) return { attack: 0, defense: 0 };
             if (name.includes("Shield")) return { attack: 2, defense: 15 };
             return { attack: 0, defense: 0 };
         }
@@ -1170,16 +1553,14 @@ window.game = {
                 }
             }
             
-            // Add defense from armor/clothing in inventory (non-weapon equipped items)
-            player.inventory.forEach(invItem => {
-                if (invItem.count > 0 && invItem.equipped) {
-                    // Only add defense from non-weapon items (clothing/armor)
-                    if (!isWeapon(invItem.name)) {
-                        const stats = getItemStats(invItem.name);
-                        defense += stats.defense;
-                    }
+            // Add defense from equipped clothing
+            for (const bodyPart in player.equippedClothing) {
+                const equippedClothing = player.equippedClothing[bodyPart];
+                if (equippedClothing) {
+                    const clothingStats = getItemStats(equippedClothing);
+                    defense += clothingStats.defense;
                 }
-            });
+            }
             
             return {
                 attack: attack,
@@ -1368,14 +1749,35 @@ window.game = {
             updateHUD();
         }
 
-        // Random encounter check - 1% chance per second
+        // Game timer for temporary effects (1 game minute = 1 real second)
+        let gameTime = 0;
         setInterval(() => {
-            if (!player.inBattle && !isPaused) {
-                if (Math.random() < 0.01) { // 1% chance
-                    startBattle();
+            gameTime++;
+            
+            // Check for random monster encounter (10% chance every second)
+            // Don't trigger encounters when any interaction menu is open
+            if (!player.inBattle && !isPaused && !isInteractionMenuOpen() && Math.random() < 0.10) {
+                startBattle();
+            }
+            
+            // Update temporary potion effects
+            let effectsExpired = false;
+            for (const effect in player.temporaryEffects) {
+                if (player.temporaryEffects[effect].active) {
+                    player.temporaryEffects[effect].duration--;
+                    if (player.temporaryEffects[effect].duration <= 0) {
+                        player.temporaryEffects[effect].active = false;
+                        effectsExpired = true;
+                    }
                 }
             }
-        }, 1000);
+            
+            // Recalculate stats if effects expired
+            if (effectsExpired) {
+                recalculateStats();
+                updateHUD();
+            }
+        }, 1000); // Update every second (1 game minute)
 
         function updateCompass() {
             // Only show compass if player has one
@@ -1510,26 +1912,29 @@ window.game = {
         document.addEventListener('keydown', (e) => {
             keys[e.code] = true;
 
-            const step = Math.PI / 2;
+            // Block movement/turning when interaction menu is open
+            if (!isInteractionMenuOpen()) {
+                const step = Math.PI / 2;
 
-            if (e.code === 'KeyA' || e.code === 'ArrowLeft') {
-                yaw += step;
-            }
-            if (e.code === 'KeyD' || e.code === 'ArrowRight') {
-                yaw -= step;
-            }
+                if (e.code === 'KeyA' || e.code === 'ArrowLeft') {
+                    yaw += step;
+                }
+                if (e.code === 'KeyD' || e.code === 'ArrowRight') {
+                    yaw -= step;
+                }
 
-            yaw = Math.round(yaw / step) * step;
+                yaw = Math.round(yaw / step) * step;
 
-            if (e.code === 'KeyA' || e.code === 'ArrowLeft' || e.code === 'KeyD' || e.code === 'ArrowRight') {
-                const tile = worldToTile(camera.position.x, camera.position.z);
-                const centerX = (tile.tx - MAP_WIDTH / 2) * TILE_SIZE + TILE_SIZE / 2;
-                const centerZ = (tile.ty - MAP_HEIGHT / 2) * TILE_SIZE + TILE_SIZE / 2;
+                if (e.code === 'KeyA' || e.code === 'ArrowLeft' || e.code === 'KeyD' || e.code === 'ArrowRight') {
+                    const tile = worldToTile(camera.position.x, camera.position.z);
+                    const centerX = (tile.tx - MAP_WIDTH / 2) * TILE_SIZE + TILE_SIZE / 2;
+                    const centerZ = (tile.ty - MAP_HEIGHT / 2) * TILE_SIZE + TILE_SIZE / 2;
 
-                if (Math.abs(Math.sin(yaw)) > 0.5) {
-                    camera.position.z = centerZ;
-                } else {
-                    camera.position.x = centerX;
+                    if (Math.abs(Math.sin(yaw)) > 0.5) {
+                        camera.position.z = centerZ;
+                    } else {
+                        camera.position.x = centerX;
+                    }
                 }
             }
 
@@ -1559,6 +1964,8 @@ window.game = {
                 player.showUseMode = false;
                 player.showWeaponEquipMode = false;
                 player.weaponToEquip = null;
+                player.showClothingEquipMode = false;
+                player.clothingToEquip = null;
                 updateHUD();
             }
 
@@ -1569,6 +1976,8 @@ window.game = {
                 player.showGetMode = false;
                 player.showWeaponEquipMode = false;
                 player.weaponToEquip = null;
+                player.showClothingEquipMode = false;
+                player.clothingToEquip = null;
                 if (usableItems.length > 0) {
                     player.showUseMode = !player.showUseMode;
                     player.useItemIndex = 0;
@@ -1582,6 +1991,8 @@ window.game = {
                 player.showGetMode = false;
                 player.showWeaponEquipMode = false;
                 player.weaponToEquip = null;
+                player.showClothingEquipMode = false;
+                player.clothingToEquip = null;
                 updateHUD();
             }
 
@@ -1594,6 +2005,8 @@ window.game = {
                 player.showLoseMode = false;
                 player.showWeaponEquipMode = false;
                 player.weaponToEquip = null;
+                player.showClothingEquipMode = false;
+                player.clothingToEquip = null;
                 if (itemsHere.length > 0) {
                     player.showGetMode = !player.showGetMode;
                     player.showNothingToGrab = false;
@@ -1688,13 +2101,13 @@ window.game = {
                 updateHUD();
             }
             
-            // Weapon Equip Mode - Primary (P key)
-            if (player.showWeaponEquipMode && e.code === 'KeyP') {
+            // Weapon Equip Mode - Primary (1 key)
+            if (player.showWeaponEquipMode && e.code === 'Digit1') {
                 equipWeapon('primary');
             }
             
-            // Weapon Equip Mode - Secondary (S key)
-            if (player.showWeaponEquipMode && e.code === 'KeyS') {
+            // Weapon Equip Mode - Secondary (2 key)
+            if (player.showWeaponEquipMode && e.code === 'Digit2') {
                 equipWeapon('secondary');
             }
             
@@ -1702,6 +2115,22 @@ window.game = {
             if (player.showWeaponEquipMode && e.code === 'KeyE') {
                 player.weaponToEquip = null;
                 player.showWeaponEquipMode = false;
+                updateHUD();
+            }
+            
+            // Clothing Equip Mode - Body parts (1-6 keys)
+            if (player.showClothingEquipMode && e.code.startsWith('Digit')) {
+                const digit = parseInt(e.code.replace('Digit', ''));
+                if (digit >= 1 && digit <= bodyParts.length) {
+                    const bodyPart = bodyParts[digit - 1];
+                    equipClothing(bodyPart);
+                }
+            }
+            
+            // Clothing Equip Mode - Cancel (E key)
+            if (player.showClothingEquipMode && e.code === 'KeyE') {
+                player.clothingToEquip = null;
+                player.showClothingEquipMode = false;
                 updateHUD();
             }
 
@@ -1772,7 +2201,8 @@ window.game = {
         function animate() {
             requestAnimationFrame(animate);
 
-            if (isPaused) {
+            // Pause game when paused or interaction menu is open
+            if (isPaused || isInteractionMenuOpen()) {
                 renderer.render(scene, camera);
                 return;
             }
@@ -1892,6 +2322,8 @@ window.game = {
             baseStats: player.baseStats,  // Include base stats for proper save/load
             primaryWeapon: player.primaryWeapon,
             secondaryWeapon: player.secondaryWeapon,
+            equippedClothing: player.equippedClothing,
+            temporaryEffects: player.temporaryEffects,
             groundItems: player.groundItems,
             inventory: player.inventory,
             showInventory: player.showInventory,

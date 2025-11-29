@@ -1,0 +1,135 @@
+POTIONS SYSTEM
+==============
+
+This document outlines all available potions in Alternate Reality Dungeon. Potions are consumable items that can be found in dungeons or purchased from merchants.
+
+TEMPORARY POTIONS
+=================
+
+These potions provide temporary stat boosts lasting 1 hour (approximately 60 game turns). Effects automatically wear off after the duration expires.
+
+Strength Potion
+---------------
+Effect: +10 Strength for 1 hour
+Description: A reddish potion that makes muscles bulge and veins stand out. Temporarily increases physical power and damage output.
+
+Intelligence Potion
+-------------------
+Effect: +10 Intelligence for 1 hour
+Description: A bright blue potion that sharpens the mind. Temporarily enhances reasoning, memory, and problem-solving abilities.
+
+Skill Potion
+------------
+Effect: +10 Skill for 1 hour
+Description: A golden potion that improves coordination. Temporarily enhances weapon proficiency and combat accuracy.
+
+Stamina Potion
+--------------
+Effect: +10 Stamina for 1 hour
+Description: A thick green potion that boosts endurance. Temporarily increases hit points and fatigue resistance.
+
+Charisma Potion
+---------------
+Effect: +10 Charisma for 1 hour
+Description: A sparkling pink potion that enhances presence. Temporarily improves social interactions and persuasion.
+
+Wisdom Potion
+-------------
+Effect: +10 Wisdom for 1 hour
+Description: A purple potion that grants insight. Temporarily enhances judgment, perception, and magical intuition.
+
+Speed Potion
+------------
+Effect: +10 Speed for 1 hour
+Description: A clear bubbling potion that quickens reflexes. Temporarily increases movement speed and reaction time.
+
+Invisibility Potion
+-------------------
+Effect: Grants invisibility for 1 hour
+Description: A shimmering grey potion that bends light around the drinker. Temporarily makes the character invisible to enemies and NPCs.
+
+PERMANENT POTIONS
+=================
+
+These potions provide lasting effects that remain until cured by other means or removed by specific effects.
+
+Permanent Strength Potion
+-------------------------
+Effect: +5 permanent Strength
+Description: A deep crimson potion that permanently enhances muscle mass and physical power.
+
+Permanent Intelligence Potion
+-----------------------------
+Effect: +5 permanent Intelligence
+Description: A royal blue potion that permanently sharpens the mind and intellect.
+
+Permanent Skill Potion
+----------------------
+Effect: +5 permanent Skill
+Description: A lustrous gold potion that permanently improves coordination and weapon mastery.
+
+Permanent Stamina Potion
+------------------------
+Effect: +5 permanent Stamina
+Description: A rich emerald potion that permanently boosts health and endurance.
+
+Permanent Charisma Potion
+-------------------------
+Effect: +5 permanent Charisma
+Description: A brilliant rose potion that permanently enhances presence and social abilities.
+
+Permanent Wisdom Potion
+-----------------------
+Effect: +5 permanent Wisdom
+Description: A majestic violet potion that permanently grants insight and perception.
+
+Permanent Speed Potion
+----------------------
+Effect: +5 permanent Speed
+Description: A crystalline potion that permanently quickens reflexes and movement.
+
+Cure Disease Potion
+-------------------
+Effect: Cures all diseases
+Description: A cleansing yellow potion that eliminates all disease effects permanently.
+
+Banish Curse Potion
+-------------------
+Effect: Removes all curses
+Description: A purifying white potion that breaks all curse effects permanently.
+
+Cure Poison Potion
+------------------
+Effect: Cures all poisons
+Description: An antidote green potion that neutralizes all poison effects permanently.
+
+Fatigue Relief Potion
+---------------------
+Effect: Restores full energy and removes fatigue
+Description: A revitalizing orange potion that eliminates exhaustion and restores maximum stamina.
+
+Banish Hunger Potion
+--------------------
+Effect: Eliminates hunger permanently
+Description: A satisfying brown potion that permanently satisfies nutritional needs.
+
+Banish Thirst Potion
+--------------------
+Effect: Eliminates thirst permanently
+Description: A quenching blue potion that permanently satisfies hydration needs.
+
+USAGE NOTES
+===========
+
+- Temporary potions stack with equipment bonuses but not with other temporary potions of the same type
+- Permanent stat potions can exceed normal stat caps but cannot go above 255
+- Multiple permanent potions of the same type can be consumed for cumulative effects
+- Invisibility does not affect combat visibility (enemies can still target the invisible character)
+- All potions are consumed upon use (one-time use items)
+- Potion effects are applied immediately when consumed
+- Temporary effects are tracked by game time and wear off after 1 hour
+
+IMPLEMENTATION DETAILS
+======================
+
+Potions are integrated into the game's item system and can be used via the inventory (U key). Temporary potion effects are tracked in the player object and automatically removed when their duration expires. Permanent effects modify base stats directly.

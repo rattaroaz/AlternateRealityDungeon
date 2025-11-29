@@ -1,36 +1,43 @@
 {
   "State": {
-    "Name": "tester",
+    "Name": "Adventurer",
     "Level": 1,
-    "Hitpoints": 255,
-    "Experience": 160,
+    "Hitpoints": 13,
+    "Experience": 63,
     "Stats": {
       "Name": "Adventurer",
-      "Stamina": 255,
-      "Charisma": 255,
-      "Strength": 255,
-      "Intelligence": 255,
-      "Wisdom": 255,
-      "Skill": 255,
-      "Speed": 255
+      "Stamina": 19,
+      "Charisma": 21,
+      "Strength": 12,
+      "Intelligence": 6,
+      "Wisdom": 12,
+      "Skill": 13,
+      "Speed": 20
     },
     "BaseStats": {
       "Name": "Adventurer",
-      "Stamina": 255,
-      "Charisma": 255,
-      "Strength": 255,
-      "Intelligence": 255,
-      "Wisdom": 255,
-      "Skill": 255,
-      "Speed": 255
+      "Stamina": 19,
+      "Charisma": 21,
+      "Strength": 12,
+      "Intelligence": 6,
+      "Wisdom": 12,
+      "Skill": 13,
+      "Speed": 20
     },
-    "PrimaryWeapon": null,
+    "PrimaryWeapon": "Axe",
     "SecondaryWeapon": null,
+    "EquippedClothing": {
+      "Head": null,
+      "Hands": null,
+      "Arms": null,
+      "Body": null,
+      "Legs": null,
+      "Feet": null
+    },
     "GroundItems": {
-      "32,40": [],
-      "33,25": [],
-      "32,43": [],
-      "31,27": []
+      "31,27": [],
+      "31,26": [],
+      "32,34": []
     },
     "Inventory": [
       {
@@ -59,7 +66,7 @@
         "Equipped": false
       },
       {
-        "Name": "Leggings",
+        "Name": "Axe",
         "Count": 1,
         "Equipped": false
       }
@@ -69,15 +76,15 @@
     "ShowGetMode": false,
     "GetItemIndex": 0,
     "ShowUseMode": false,
-    "UseItemIndex": 0
+    "UseItemIndex": 2
   },
   "Camera": {
-    "X": -4,
+    "X": 0,
     "Y": 1.6,
-    "Z": -18.100000000000005,
-    "Yaw": 25.132741228718345
+    "Z": 9.759999999999941,
+    "Yaw": -3.141592653589793
   },
-  "SavedAt": "2025-11-29T16:49:57.5160708Z",
+  "SavedAt": "2025-11-29T19:10:33.6307767Z",
   "MapId": "fe59e8de-1e03-42c2-b3e4-809de8e11489",
   "MapLevels": [
     [

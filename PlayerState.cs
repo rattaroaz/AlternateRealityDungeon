@@ -37,6 +37,10 @@ namespace AlternateRealityDungeon
         public PlayerStats BaseStats { get; set; } = new PlayerStats();  // Base stats before equipment bonuses
         public string? PrimaryWeapon { get; set; }    // Primary weapon for attack
         public string? SecondaryWeapon { get; set; }  // Secondary weapon for defense only
+        public Dictionary<string, string?> EquippedClothing { get; set; } = new Dictionary<string, string?>()
+        {
+            { "Head", null }, { "Hands", null }, { "Arms", null }, { "Body", null }, { "Legs", null }, { "Feet", null }
+        };
         public Dictionary<string, List<string>> GroundItems { get; set; } = new Dictionary<string, List<string>>();
         public List<InventoryItem> Inventory { get; set; } = new List<InventoryItem>();
         public bool ShowInventory { get; set; }

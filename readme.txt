@@ -23,7 +23,7 @@ Character Progression
 ---------------------
 - Start with randomized stats (Stamina, Charisma, Strength, Intelligence, Wisdom, Skill, Speed)
 - Level up at 1000 XP, then 2000, 4000, 8000, etc.
-- Each level gain: +3-6 points to all stats (capped at 99)
+- Each level gain: +3-6 points to all stats (capped at 255)
 - Base stats track permanent progression, current stats include equipment bonuses
 
 Weapon System
@@ -33,10 +33,34 @@ Weapon System
 - Two-handed weapons (bows, spears, staffs, hammers, large swords): Require both hands
 - Skill penalty: Using a secondary weapon with a two-handed primary reduces skill by 50%
 
+Clothing & Armor System
+-----------------------
+- Body parts: Head, Hands, Arms, Body, Legs, Feet (6 total)
+- Each body part can only have 1 piece of equipment equipped at a time
+- Clothing provides 0 physical defense but may have magical effects (60 total clothing items)
+- Armor provides physical protection with defense values and may also have magical effects (60 total armor items)
+- 7 out of 10 items per body part have magical properties for both clothing and armor
+- Magical effects include: Fire/Cold/Poison Resistance, Regeneration, Speed/Strength/Skill boosts, Stealth, Invisibility, Intelligence boost, Fear resistance, Experience boost, Mana regeneration, Blood rage
+
+Potion System
+-------------
+- Temporary potions: +10 stat boost for 1 hour (Strength, Intelligence, Skill, Stamina, Charisma, Wisdom, Speed, Invisibility)
+- Permanent potions: +5 permanent stat boost (same stats as temporary)
+- Cure potions: Cure disease, banish curse, cure poison, relieve fatigue, banish hunger, banish thirst
+- Potions are consumed upon use and can be found in dungeons or purchased
+- Temporary effects automatically wear off after 1 hour
+- Permanent effects remain until cured by other means
+
 Equipment & Items
 -----------------
 - Weapons: Swords, bows, daggers, axes, maces, spears, hammers, staffs, crossbows, shields
-- Armor: Various clothing items for defense
+- Clothing: 60 different clothing items (10 per body part: Head, Hands, Arms, Body, Legs, Feet)
+  - Regular clothing provides 0 protection but may have magical effects
+  - 7 out of 10 clothing types per body part have magical properties
+- Armor: 60 different armor items (10 per body part with defense values)
+  - Armor provides physical protection and may also have magical effects
+  - 7 out of 10 armor types per body part have magical properties
+- Potions: Temporary stat potions, permanent stat potions, cure potions
 - Consumables: Food, torches, water flasks
 - Compass and timepiece (always equipped)
 
@@ -44,7 +68,7 @@ Combat
 ------
 - Turn-based battles with multiple action choices
 - Attack, defend, flee, and use items during combat
-- Monster encounters trigger randomly while exploring
+- Random monster encounters trigger 10% of the time every second while exploring
 - Stats determine attack, defense, skill, and speed in battles
 
 DUNGEON DESIGN
@@ -101,10 +125,12 @@ Game Interface
 Inventory Management
 --------------------
 - Use (U) mode: Browse inventory, select items to use
-- When using weapons: Choose Primary (P) or Secondary (S) slot
+- When using weapons: Choose Primary (1) or Secondary (2) slot
+- When using clothing: Choose body part (1-6) to equip to
 - Primary weapons: Attack-focused
 - Secondary weapons: Defense-focused only
-- Two-handed weapons show penalty warning
+- Clothing: Fits specific body parts, provides defense
+- Two-handed weapons show penalty warning when using with secondary
 
 Combat
 ------
@@ -118,11 +144,27 @@ When using a weapon:
 1. Press U to enter Use mode
 2. Select the weapon
 3. Choose equip slot:
-   - P: Primary (attack bonus)
-   - S: Secondary (defense bonus only)
+   - 1: Primary (attack bonus)
+   - 2: Secondary (defense bonus only)
    - E: Cancel
 
 Two-handed weapons (bows, spears, staffs, hammers, large swords) will show a warning and apply 50% skill reduction when used with a secondary weapon.
+
+Clothing Equip System
+---------------------
+When using clothing:
+1. Press U to enter Use mode
+2. Select the clothing item
+3. Choose body part (1-6):
+   - 1: Head
+   - 2: Hands
+   - 3: Arms
+   - 4: Body
+   - 5: Legs
+   - 6: Feet
+   - E: Cancel
+
+Each body part can only have 1 piece of clothing equipped. Clothing provides defense bonuses but different pieces fit different body parts.
 
 GAME PROGRESSION
 ================
@@ -134,13 +176,13 @@ Leveling System
 - Each subsequent level requires double the previous XP
 - Level 2: 2000 XP, Level 3: 4000 XP, Level 4: 8000 XP, etc.
 - Level up grants +3-6 points to all base stats
-- Stats cap at 99 (equipment can temporarily exceed this)
+- Stats cap at 255 (equipment can temporarily exceed this)
 
 Stat Maximums
 -------------
-- Base stats: Hard cap at 99
-- Current stats: Can exceed 99 with equipment
-- If equipment pushes stat over 99, it stays capped until equipment is removed
+- Base stats: Hard cap at 255
+- Current stats: Can exceed 255 with equipment
+- If equipment pushes stat over 255, it stays capped until equipment is removed
 
 FILE STRUCTURE
 ==============
@@ -198,6 +240,8 @@ Current Features (✓)
 ✓ Leveling system (doubling XP requirements)
 ✓ Inventory management
 ✓ Primary/secondary weapon system with two-handed penalties
+✓ Clothing/armor system with 120 equipment items (60 clothing, 60 armor) and magical effects
+✓ Potion system with temporary and permanent effects
 ✓ Save/load game functionality
 
 Planned Features (todo.txt)

@@ -1,0 +1,221 @@
+CLOTHING & ARMOR SYSTEM
+======================
+
+This document outlines all clothing and armor available in Alternate Reality Dungeon. Clothing provides style and limited magical effects but no physical protection. Armor provides physical protection and may also have magical properties.
+
+BODY PARTS
+==========
+
+The game features 6 body parts that can be equipped with clothing or armor:
+- Head (helmets, hats, hoods)
+- Hands (gloves, gauntlets)
+- Arms (sleeves, bracers)
+- Body (shirts, armor, robes)
+- Legs (pants, greaves)
+- Feet (boots, shoes)
+
+CLOTHING TYPES
+==============
+
+Clothing provides 0 physical protection but 7 out of 10 types per body part offer magical benefits.
+
+HEAD CLOTHING
+-------------
+1. Woolen Hat (Regular) - Basic warmth
+2. Leather Helm (Regular) - Basic protection
+3. Silk Hood (Regular) - Elegant but fragile
+4. Wizard's Cap (Magical: Mana Regeneration) - Restores mana over time
+5. Crown of Speed (Magical: Speed Boost) - Increases movement speed
+6. Mask of Stealth (Magical: Stealth) - Harder to detect
+7. Hood of Shadows (Magical: Invisibility) - Brief invisibility bursts
+8. Circlet of Wisdom (Magical: Intelligence Boost) - Enhances mental acuity
+9. Helm of Courage (Magical: Fear Resistance) - Immune to fear effects
+10. Tiara of Luck (Magical: Experience Boost) - Gain more experience from combat
+
+HANDS CLOTHING
+--------------
+1. Cotton Gloves (Regular) - Basic hand covering
+2. Leather Gloves (Regular) - Durable hand wear
+3. Silk Gloves (Regular) - Delicate but comfortable
+4. Gauntlets of Strength (Magical: Strength Boost) - Increases physical power
+5. Gloves of Dexterity (Magical: Skill Boost) - Enhances precision
+6. Bracers of Defense (Magical: Defense Boost) - Improves protection
+7. Gloves of Healing (Magical: Regeneration) - Slowly heals wounds
+8. Cursed Gauntlets (Magical: Blood Rage) - Deal more damage when wounded
+9. Gloves of Fire (Magical: Fire Resistance) - Resist fire damage
+10. Frost Bracers (Magical: Cold Resistance) - Resist cold damage
+
+ARMS CLOTHING
+-------------
+1. Linen Sleeves (Regular) - Simple arm covering
+2. Leather Sleeves (Regular) - Protective arm wear
+3. Silk Sleeves (Regular) - Flowing and elegant
+4. Bracers of Power (Magical: Strength Boost) - Amplifies arm strength
+5. Sleeves of Accuracy (Magical: Skill Boost) - Improves aim and precision
+6. Arm Guards of Protection (Magical: Defense Boost) - Enhanced arm defense
+7. Healing Bracers (Magical: Regeneration) - Regenerates health
+8. Flame Sleeves (Magical: Fire Resistance) - Immune to fire damage
+9. Ice Bracers (Magical: Cold Resistance) - Immune to cold damage
+10. Poisoner's Sleeves (Magical: Poison Resistance) - Resist poison effects
+
+BODY CLOTHING
+-------------
+1. Cotton Shirt (Regular) - Basic torso covering
+2. Leather Vest (Regular) - Sturdy body wear
+3. Silk Robe (Regular) - Flowing garment
+4. Robe of the Mage (Magical: Mana Regeneration) - Restores magical energy
+5. Vest of Swiftness (Magical: Speed Boost) - Increases movement speed
+6. Shadow Cloak (Magical: Stealth) - Conceals the wearer
+7. Cloak of Invisibility (Magical: Invisibility) - Grants temporary invisibility
+8. Tunic of Wisdom (Magical: Intelligence Boost) - Enhances mental powers
+9. Robe of Courage (Magical: Fear Resistance) - Protects against fear
+10. Lucky Tunic (Magical: Experience Boost) - Gains bonus experience
+
+LEGS CLOTHING
+-------------
+1. Cotton Pants (Regular) - Basic leg covering
+2. Leather Pants (Regular) - Durable leg wear
+3. Silk Trousers (Regular) - Elegant leg garment
+4. Greaves of Might (Magical: Strength Boost) - Strengthens legs
+5. Pants of Agility (Magical: Skill Boost) - Improves leg coordination
+6. Leg Guards of Steel (Magical: Defense Boost) - Protects legs well
+7. Regenerative Greaves (Magical: Regeneration) - Heals leg wounds
+8. Flame Leggings (Magical: Fire Resistance) - Fire protection for legs
+9. Frost Pants (Magical: Cold Resistance) - Cold protection for legs
+10. Anti-Venom Greaves (Magical: Poison Resistance) - Poison resistance
+
+FEET CLOTHING
+-------------
+1. Cotton Shoes (Regular) - Basic foot covering
+2. Leather Boots (Regular) - Sturdy footwear
+3. Silk Slippers (Regular) - Comfortable but delicate
+4. Boots of Speed (Magical: Speed Boost) - Greatly increases movement
+5. Stealth Boots (Magical: Stealth) - Silent movement
+6. Armored Boots (Magical: Defense Boost) - Heavy foot protection
+7. Healing Sandals (Magical: Regeneration) - Regenerates foot health
+8. Fire Boots (Magical: Fire Resistance) - Walk through fire unharmed
+9. Ice Boots (Magical: Cold Resistance) - Walk on ice and snow
+10. Poison Ward Boots (Magical: Poison Resistance) - Immune to poisoned floors
+
+ARMOR TYPES
+===========
+
+Armor provides physical protection but may also have magical properties. Unlike clothing, armor always provides defense bonuses.
+
+HEAD ARMOR
+----------
+1. Iron Helm (Regular) - Defense: 3
+2. Steel Helm (Regular) - Defense: 4
+3. Mithril Helm (Regular) - Defense: 5
+4. Helm of Fire Protection (Magical: Fire Resistance) - Defense: 4
+5. Frost Crown (Magical: Cold Resistance) - Defense: 4
+6. Helm of Clarity (Magical: Poison Resistance) - Defense: 4
+7. Crown of Regeneration (Magical: Regeneration) - Defense: 4
+8. Speed Helm (Magical: Speed Boost) - Defense: 4
+9. Wise Helm (Magical: Intelligence Boost) - Defense: 4
+10. Lucky Helm (Magical: Experience Boost) - Defense: 4
+
+HANDS ARMOR
+-----------
+1. Iron Gauntlets (Regular) - Defense: 2
+2. Steel Gauntlets (Regular) - Defense: 3
+3. Mithril Gauntlets (Regular) - Defense: 4
+4. Flame Gauntlets (Magical: Fire Resistance) - Defense: 3
+5. Ice Gauntlets (Magical: Cold Resistance) - Defense: 3
+6. Pure Gauntlets (Magical: Poison Resistance) - Defense: 3
+7. Vital Gauntlets (Magical: Regeneration) - Defense: 3
+8. Swift Gauntlets (Magical: Speed Boost) - Defense: 3
+9. Arcane Gauntlets (Magical: Intelligence Boost) - Defense: 3
+10. Fortunate Gauntlets (Magical: Experience Boost) - Defense: 3
+
+ARMS ARMOR
+----------
+1. Iron Bracers (Regular) - Defense: 2
+2. Steel Bracers (Regular) - Defense: 3
+3. Mithril Bracers (Regular) - Defense: 4
+4. Fire Bracers (Magical: Fire Resistance) - Defense: 3
+5. Frost Bracers (Magical: Cold Resistance) - Defense: 3
+6. Clean Bracers (Magical: Poison Resistance) - Defense: 3
+7. Life Bracers (Magical: Regeneration) - Defense: 3
+8. Quick Bracers (Magical: Speed Boost) - Defense: 3
+9. Mystic Bracers (Magical: Intelligence Boost) - Defense: 3
+10. Blessed Bracers (Magical: Experience Boost) - Defense: 3
+
+BODY ARMOR
+----------
+1. Chain Mail (Regular) - Defense: 8
+2. Plate Armor (Regular) - Defense: 10
+3. Mithril Armor (Regular) - Defense: 12
+4. Dragon Scale Armor (Magical: Fire Resistance) - Defense: 10
+5. Ice Crystal Armor (Magical: Cold Resistance) - Defense: 10
+6. Blessed Chain Mail (Magical: Poison Resistance) - Defense: 10
+7. Living Armor (Magical: Regeneration) - Defense: 10
+8. Wind Walker Armor (Magical: Speed Boost) - Defense: 10
+9. Mage's Robes (Magical: Intelligence Boost) - Defense: 10
+10. Hero's Plate (Magical: Experience Boost) - Defense: 10
+
+LEGS ARMOR
+----------
+1. Iron Greaves (Regular) - Defense: 4
+2. Steel Greaves (Regular) - Defense: 5
+3. Mithril Greaves (Regular) - Defense: 6
+4. Flame Greaves (Magical: Fire Resistance) - Defense: 5
+5. Frost Greaves (Magical: Cold Resistance) - Defense: 5
+6. Pure Greaves (Magical: Poison Resistance) - Defense: 5
+7. Vital Greaves (Magical: Regeneration) - Defense: 5
+8. Swift Greaves (Magical: Speed Boost) - Defense: 5
+9. Arcane Greaves (Magical: Intelligence Boost) - Defense: 5
+10. Fortunate Greaves (Magical: Experience Boost) - Defense: 5
+
+FEET ARMOR
+----------
+1. Iron Boots (Regular) - Defense: 3
+2. Steel Boots (Regular) - Defense: 4
+3. Mithril Boots (Regular) - Defense: 5
+4. Fire Boots (Magical: Fire Resistance) - Defense: 4
+5. Ice Boots (Magical: Cold Resistance) - Defense: 4
+6. Clean Boots (Magical: Poison Resistance) - Defense: 4
+7. Life Boots (Magical: Regeneration) - Defense: 4
+8. Quick Boots (Magical: Speed Boost) - Defense: 4
+9. Mystic Boots (Magical: Intelligence Boost) - Defense: 4
+10. Blessed Boots (Magical: Experience Boost) - Defense: 4
+
+MAGICAL EFFECTS
+===============
+
+Fire Resistance: Reduces fire damage by 50%
+Cold Resistance: Reduces cold damage by 50%
+Poison Resistance: Reduces poison damage and prevents poisoning
+Regeneration: Slowly restores health over time
+Speed Boost: Increases movement speed
+Strength Boost: Increases physical damage and carrying capacity
+Skill Boost: Improves accuracy and combat precision
+Defense Boost: Increases physical defense
+Stealth: Harder for enemies to detect you
+Invisibility: Temporarily become invisible to enemies
+Intelligence Boost: Increases spell power and learning speed
+Fear Resistance: Immune to fear and intimidation effects
+Experience Boost: Gain 25% more experience from combat
+Mana Regeneration: Restores magical energy over time
+Blood Rage: Deal extra damage when health is low
+
+EQUIPMENT RULES
+===============
+
+- Only one item can be equipped per body part at a time
+- Clothing provides 0 physical defense but may have magical effects
+- Armor provides physical defense and may also have magical effects
+- Magical effects stack if multiple items provide the same effect
+- Items can be found in dungeons or purchased from merchants
+- Equipment affects combat stats and special abilities
+- Some magical effects are passive, others activate in specific situations
+
+IMPLEMENTATION NOTES
+===================
+
+- Clothing items are stored in the clothingItems array
+- Armor items are stored in the armorItems array
+- Magical effects are tracked separately from physical stats
+- Combat calculations include armor defense bonuses
+- Magical effects are applied through various game mechanics
+- Save/load functionality preserves all equipped items and effects
