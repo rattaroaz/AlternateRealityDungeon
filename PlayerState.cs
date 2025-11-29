@@ -40,6 +40,8 @@ namespace AlternateRealityDungeon
         public bool ShowLoseMode { get; set; }
         public bool ShowGetMode { get; set; }
         public int GetItemIndex { get; set; }
+        public bool ShowUseMode { get; set; }
+        public int UseItemIndex { get; set; }
     }
 
     // Map data passed along with loaded games

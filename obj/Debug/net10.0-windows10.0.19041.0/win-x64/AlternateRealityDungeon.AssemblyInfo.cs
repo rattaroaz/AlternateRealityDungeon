@@ -17,7 +17,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("AlternateRealityDungeon")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0+8142312ebcbad7c00c609b80f0d5afa6cd9e5a1d")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0+37a47bd2c7947991e0e941a04cfaabade9c99243")]
 [assembly: System.Reflection.AssemblyProductAttribute("AlternateRealityDungeon")]
 [assembly: System.Reflection.AssemblyTitleAttribute("AlternateRealityDungeon")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

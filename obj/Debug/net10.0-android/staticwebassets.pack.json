@@ -25,6 +25,10 @@
       "PackagePath": "staticwebassets\\js\\game.js"
     },
     {
+      "Id": "c:\\Users\\kimri\\OneDrive\\Desktop\\cloned repos\\AlternateRealityDungeon\\AlternateRealityDungeon\\wwwroot\\js\\mapeditor.js",
+      "PackagePath": "staticwebassets\\js\\mapeditor.js"
+    },
+    {
       "Id": "obj\\Debug\\net10.0-android\\staticwebassets\\msbuild.AlternateRealityDungeon.Microsoft.AspNetCore.StaticWebAssetEndpoints.props",
       "PackagePath": "build\\Microsoft.AspNetCore.StaticWebAssetEndpoints.props"
     },

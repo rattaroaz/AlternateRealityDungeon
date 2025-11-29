@@ -518,19 +518,76 @@ window.game = {
             { name: 'Death Knight', level: 20, hitpoints: 160, attack: 75, defense: 50, exp: 500, gold: 250 }
         ];
 
+        const clothingItems = [
+            "Woolen Hat", "Leather Helm", "Gloves", "Sleeves", 
+            "Leather Armor", "Cloak", "Pants", "Leggings", 
+            "Leather Boots", "Shoes"
+        ];
+
+        const lowTierWeapons = [
+            "Sword", "Bow", "Dagger", "Axe", "Mace", 
+            "Spear", "Hammer", "Staff", "Crossbow", "Shield"
+        ];
+
+        const highTierWeapons = [
+            "Flame Sword", "Ice Dagger", "Thunder Axe", "Earth Mace", "Water Spear",
+            "Light Hammer", "Shadow Staff", "Phoenix Bow", "Frost Crossbow", "Holy Shield",
+            "Dragon Blade", "Void Dagger", "Storm Axe", "Crystal Mace", "Serpent Spear",
+            "Celestial Hammer", "Necrotic Staff", "Inferno Bow", "Glacier Crossbow", 
+            "Divine Shield", "Abyssal Blade", "Eternal Dagger", "Tempest Dagger", 
+            "Volcanic Axe", "Mystic Mace", "Tidal Spear", "Radiant Hammer", "Cursed Staff", 
+            "Ethereal Bow", "Soul Crossbow", "Guardian Shield", "Chaos Blade"
+        ];
+
         // Get random monster based on player level
         function getRandomMonster(playerLevel) {
             const minLevel = Math.max(1, playerLevel - 2);
             const maxLevel = playerLevel + 2;
             const candidates = monsterList.filter(m => m.level >= minLevel && m.level <= maxLevel);
-            if (candidates.length === 0) return monsterList[0];
-            return { ...candidates[Math.floor(Math.random() * candidates.length)] }; // Clone the monster
+            let monster = candidates.length > 0 
+                ? { ...candidates[Math.floor(Math.random() * candidates.length)] }
+                : { ...monsterList[0] };
+            
+            monster.equipment = [];
+
+            // Strong monsters (Level 11+) always have equipment
+            if (monster.level >= 11) {
+                // Add a High Tier Weapon (or Low Tier if unlucky? No, user said "strong monsters... use weapons")
+                // Let's give them High Tier weapons to match their strength
+                const weapon = highTierWeapons[Math.floor(Math.random() * highTierWeapons.length)];
+                monster.equipment.push(weapon);
+
+                // Add a Clothing item
+                const clothing = clothingItems[Math.floor(Math.random() * clothingItems.length)];
+                monster.equipment.push(clothing);
+            } else {
+                // Lower level monsters: 30% chance of dropping lower level weapons/items
+                if (Math.random() < 0.30) {
+                    // 50/50 chance between weapon or clothing
+                    if (Math.random() < 0.5) {
+                        const weapon = lowTierWeapons[Math.floor(Math.random() * lowTierWeapons.length)];
+                        monster.equipment.push(weapon);
+                    } else {
+                        const clothing = clothingItems[Math.floor(Math.random() * clothingItems.length)];
+                        monster.equipment.push(clothing);
+                    }
+                }
+            }
+            
+            return monster;
         }
 
         // Store player reference for getGameState access
         window.game._player = player;
         window.game._getCurrentLevel = function() { return currentLevel; };
         window.game._setCurrentLevel = function(lvl) { changeLevel(lvl); };
+        window.game._setPaused = function(paused) { 
+            isPaused = paused; 
+            const overlay = document.getElementById('pause-overlay');
+            if (overlay) {
+                overlay.style.display = isPaused ? 'flex' : 'none';
+            }
+        };
 
         // Initialize player state
         if (playerStats && typeof playerStats === 'object') {
@@ -570,6 +627,8 @@ window.game = {
                 player.showLoseMode = playerStats.showLoseMode || false;
                 player.showGetMode = playerStats.showGetMode || false;
                 player.getItemIndex = playerStats.getItemIndex || 0;
+                player.showUseMode = playerStats.showUseMode || false;
+                player.useItemIndex = playerStats.useItemIndex || 0;
                 
                 // Restore dungeon level
                 const savedDungeonLevel = playerStats.dungeonLevel || playerStats.DungeonLevel || 0;
@@ -725,6 +784,19 @@ window.game = {
                          html += `<div>(Empty)</div>`;
                     }
                     invContainer.innerHTML = html;
+                } else if (player.showUseMode) {
+                    // Use Items View
+                    const usableItems = player.inventory.filter(i => i.count > 0);
+                    if (usableItems.length > 0 && player.useItemIndex < usableItems.length) {
+                        const currentItem = usableItems[player.useItemIndex];
+                        let html = `<div style="margin-bottom: 10px; font-weight: bold; color: cyan;">Use?</div>`;
+                        html += `<div style="font-size: 1.1rem; margin: 10px 0;">${currentItem.name} (${currentItem.count})</div>`;
+                        html += `<div style="margin-top: 10px; color: #aaa;">Yes, No, End</div>`;
+                        html += `<div style="margin-top: 5px; font-size: 0.8rem; color: #666;">(Item ${player.useItemIndex + 1} of ${usableItems.length})</div>`;
+                        invContainer.innerHTML = html;
+                    } else {
+                        invContainer.innerHTML = `<div style="display: flex; align-items: center; justify-content: center; height: 100%; font-weight: bold; color: #888;">No items to use.</div>`;
+                    }
                 } else {
                     // Standard View (Food, Torches, Flasks counts)
                     // Helper to find count
@@ -745,11 +817,287 @@ window.game = {
         }
         updateHUD();
 
+        // Item usage function
+        function useItem(item) {
+            if (item.name === 'Food' || item.name === 'Food Packet') {
+                // Restore some HP
+                player.hitpoints = Math.min(player.hitpoints + 10, player.stats.Stamina);
+                item.count--;
+            } else if (item.name === 'Water Flask' || item.name === 'Flasks') {
+                // Restore some HP
+                player.hitpoints = Math.min(player.hitpoints + 5, player.stats.Stamina);
+                item.count--;
+            } else if (item.name === 'Unlit Torch') {
+                // Convert to lit torch
+                item.name = 'Lit Torch';
+                // Could add light effect, but for now just rename
+            } else if (item.name === 'Lit Torch') {
+                // Already lit, maybe extinguish
+                item.name = 'Burnt Stick';
+            } else {
+                // Default: Do nothing (item cannot be used or has no use effect)
+                // Do not consume item
+            }
+            // If count reaches 0, could remove from inventory, but for now keep it
+        }
+
         // Create monster encounter overlay
         const monsterOverlay = document.createElement('div');
         monsterOverlay.id = 'monster-overlay';
         monsterOverlay.style.cssText = 'position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 35; color: white; font-family: monospace;';
         container.appendChild(monsterOverlay);
+
+        // Win battle logic
+        function winBattle() {
+            if (!player.inBattle || !player.currentMonster) return;
+
+            const monster = player.currentMonster;
+            
+            // Award EXP
+            player.experience += monster.exp;
+            
+            // Drop Items
+            const tile = worldToTile(camera.position.x, camera.position.z);
+            const tileKey = `${tile.tx},${tile.ty}`;
+            
+            if (!player.groundItems[tileKey]) {
+                player.groundItems[tileKey] = [];
+            }
+
+            // Drop equipment
+            if (monster.equipment && monster.equipment.length > 0) {
+                monster.equipment.forEach(item => {
+                    player.groundItems[tileKey].push(item);
+                });
+            }
+            
+            // Clean up
+            player.inBattle = false;
+            player.currentMonster = null;
+            player.battleLog = [];
+            isPaused = false;
+            
+            // Hide overlay
+            monsterOverlay.style.display = 'none';
+            
+            updateHUD();
+        }
+
+        function loseGame() {
+             player.inBattle = false;
+             player.currentMonster = null;
+             player.battleLog = [];
+             // For now, just respawn or something. Let's just reset HP to 1 and move them?
+             // Simple "Game Over" reload for now
+             alert("You have died.");
+             location.reload();
+        }
+
+        // Helper: Get simple stats for an item name (since we don't have full item DB in JS)
+        function getItemStats(name) {
+            if (!name) return { attack: 0, defense: 0 };
+            // Very rough estimation based on lists
+            if (highTierWeapons.includes(name)) return { attack: 30, defense: 5 };
+            if (lowTierWeapons.includes(name)) return { attack: 10, defense: 2 };
+            if (clothingItems.includes(name)) return { attack: 0, defense: 5 };
+            if (name.includes("Shield")) return { attack: 2, defense: 15 };
+            return { attack: 0, defense: 0 };
+        }
+
+        // Helper: Get total player combat stats
+        function getPlayerCombatStats() {
+            let attack = player.stats.Strength; // Base attack from strength
+            let defense = Math.floor(player.stats.Strength / 2); // Base defense
+            
+            // Add stats from inventory (assuming best weapon/armor is used automatically or just sum for now)
+            // For simplicity, let's just sum "attack" from weapons and "defense" from clothes in inventory
+            // This is a "Combat Framework" using stats available.
+            
+            player.inventory.forEach(invItem => {
+                if (invItem.count > 0) {
+                    const stats = getItemStats(invItem.name);
+                    // Only count weapons for attack? Or just add up?
+                    // Let's find max weapon attack and sum armor defense to be more realistic
+                }
+            });
+            
+            // Simplified: Find best weapon and best armor
+            let maxWeaponAttack = 0;
+            let totalDefense = defense;
+            
+            player.inventory.forEach(invItem => {
+                if (invItem.count > 0) {
+                    const stats = getItemStats(invItem.name);
+                    if (stats.attack > maxWeaponAttack) maxWeaponAttack = stats.attack;
+                    totalDefense += stats.defense;
+                }
+            });
+            
+            return {
+                attack: attack + maxWeaponAttack,
+                defense: totalDefense,
+                skill: player.stats.Skill,
+                speed: player.stats.Speed
+            };
+        }
+
+        function updateBattleOverlay() {
+            if (!player.inBattle || !player.currentMonster) return;
+            const monster = player.currentMonster;
+            
+            let equipStr = "";
+            if (monster.equipment && monster.equipment.length > 0) {
+                equipStr = `<div style="color: cyan; margin-top: 5px; font-size: 0.9rem;">Wielding: ${monster.equipment.join(", ")}</div>`;
+            }
+
+            let logHtml = "";
+            if (player.battleLog && player.battleLog.length > 0) {
+                 // Show last 4 entries
+                 const recent = player.battleLog.slice(-4);
+                 logHtml = `<div style="margin-top: 15px; font-size: 0.9rem; text-align: left; width: 80%; background: rgba(0,0,0,0.5); padding: 5px;">
+                    ${recent.map(l => `<div>${l}</div>`).join('')}
+                 </div>`;
+            }
+
+            monsterOverlay.innerHTML = `
+                <div style="font-size: 2rem; color: red; margin-bottom: 20px;">ENCOUNTER!</div>
+                <div style="font-size: 1.5rem; color: gold; margin-bottom: 10px;">${monster.name}</div>
+                <div style="margin-bottom: 5px;">Level: ${monster.level}</div>
+                <div style="margin-bottom: 5px;">HP: ${monster.hitpoints}</div>
+                <div style="margin-bottom: 5px;">Attack: ${monster.attack}</div>
+                <div style="margin-bottom: 5px;">Defense: ${monster.defense}</div>
+                ${equipStr}
+                ${logHtml}
+                <div style="margin-top: 20px; color: #aaa;">
+                    <div>1. Attack</div>
+                    <div>2. Charge (-Hit, +Dmg)</div>
+                    <div>3. Aimed (+Hit, +Dmg, Slow)</div>
+                    <div>4. Transact</div>
+                    <div>5. Pass</div>
+                    <div>6. Run</div>
+                </div>
+            `;
+        }
+
+        function combatLog(msg) {
+            if (!player.battleLog) player.battleLog = [];
+            player.battleLog.push(msg);
+            updateBattleOverlay();
+        }
+
+        function executeMonsterTurn() {
+            const monster = player.currentMonster;
+            if (!monster || monster.hitpoints <= 0) return;
+
+            // Simple monster AI: Attack
+            // Hit chance: Base 70% + (MonsterLvl*2 - PlayerSpeed)
+            // Note: Speed is ~10-20. Level 1-20.
+            const hitChance = 70 + (monster.level * 2 - player.stats.Speed);
+            const roll = Math.random() * 100;
+            
+            if (roll < hitChance) {
+                // Hit
+                const pStats = getPlayerCombatStats();
+                let dmg = Math.max(1, monster.attack - (pStats.defense / 2));
+                dmg = Math.floor(dmg * (0.8 + Math.random() * 0.4)); // +/- 20% variance
+                
+                player.hitpoints -= dmg;
+                combatLog(`<span style="color: #f88;">${monster.name} hits you for ${dmg} damage!</span>`);
+                
+                if (player.hitpoints <= 0) {
+                    setTimeout(loseGame, 1000);
+                }
+            } else {
+                combatLog(`<span style="color: #8f8;">${monster.name} missed you!</span>`);
+            }
+            updateBattleOverlay();
+            updateHUD();
+            player.waitingForTurn = false;
+        }
+
+        function executePlayerAction(action) {
+            if (player.waitingForTurn) return; // Prevent spam
+            
+            const monster = player.currentMonster;
+            const pStats = getPlayerCombatStats();
+            
+            // Base Hit Chance: 70% + (PlayerSkill - MonsterLvl*2)
+            let baseHit = 70 + (pStats.skill - monster.level * 2);
+            let damageMult = 1.0;
+            
+            if (action === 1) { // Attack
+                // Standard
+            } else if (action === 2) { // Charge
+                baseHit -= 20;
+                damageMult = 1.5;
+            } else if (action === 3) { // Aimed
+                if (Math.random() < 0.3) {
+                    combatLog(`<span style="color: #fe8;">You wait for an opening...</span>`);
+                    player.waitingForTurn = true;
+                    setTimeout(executeMonsterTurn, 800);
+                    updateBattleOverlay();
+                    return;
+                }
+                baseHit += 30;
+                damageMult = 1.3;
+            } else if (action === 4) { // Transact
+                 // Charisma Check
+                 const chance = 30 + (player.stats.Charisma - monster.level) * 5;
+                 if (Math.random() * 100 < chance) {
+                     combatLog(`<span style="color: cyan;">You calmed the ${monster.name}.</span>`);
+                     setTimeout(winBattle, 1000);
+                     return;
+                 } else {
+                     combatLog("Transact failed.");
+                     player.waitingForTurn = true;
+                     setTimeout(executeMonsterTurn, 800);
+                     return;
+                 }
+            } else if (action === 6) { // Run
+                // Speed Check
+                const chance = 50 + (player.stats.Speed - monster.level * 2) * 5;
+                if (Math.random() * 100 < chance) {
+                    player.inBattle = false;
+                    player.currentMonster = null;
+                    monsterOverlay.style.display = 'none';
+                    isPaused = false;
+                    combatLog("You ran away!");
+                    updateHUD();
+                    return;
+                } else {
+                    combatLog("Failed to run!");
+                    player.waitingForTurn = true;
+                    setTimeout(executeMonsterTurn, 800);
+                    return;
+                }
+            } else {
+                // Pass
+            }
+
+            if (action >= 1 && action <= 3) {
+                const roll = Math.random() * 100;
+                if (roll < baseHit) {
+                    // Hit
+                    let dmg = Math.max(1, (pStats.attack - monster.defense / 2));
+                    dmg = Math.floor(dmg * damageMult * (0.8 + Math.random() * 0.4));
+                    
+                    monster.hitpoints -= dmg;
+                    combatLog(`<span style="color: #ff0;">You hit ${monster.name} for ${dmg} damage!</span>`);
+                    
+                    if (monster.hitpoints <= 0) {
+                        combatLog(`<span style="color: lime;">You defeated ${monster.name}!</span>`);
+                        setTimeout(winBattle, 1000);
+                        return;
+                    }
+                } else {
+                    combatLog(`<span style="color: #aaa;">You missed ${monster.name}.</span>`);
+                }
+            }
+            
+            player.waitingForTurn = true;
+            setTimeout(executeMonsterTurn, 800);
+            updateBattleOverlay();
+        }
 
         // Start a battle encounter
         function startBattle() {
@@ -758,19 +1106,11 @@ window.game = {
             const monster = getRandomMonster(player.level);
             player.currentMonster = monster;
             player.inBattle = true;
-            player.battleOption = 0;
+            player.battleLog = []; // Reset log
+            player.waitingForTurn = false;
             isPaused = true;
             
-            // Show monster overlay
-            monsterOverlay.innerHTML = `
-                <div style="font-size: 2rem; color: red; margin-bottom: 20px;">ENCOUNTER!</div>
-                <div style="font-size: 1.5rem; color: gold; margin-bottom: 10px;">${monster.name}</div>
-                <div style="margin-bottom: 5px;">Level: ${monster.level}</div>
-                <div style="margin-bottom: 5px;">HP: ${monster.hitpoints}</div>
-                <div style="margin-bottom: 5px;">Attack: ${monster.attack}</div>
-                <div style="margin-bottom: 5px;">Defense: ${monster.defense}</div>
-                <div style="margin-top: 20px; color: #aaa;">Choose an action (1-6)</div>
-            `;
+            updateBattleOverlay();
             monsterOverlay.style.display = 'flex';
             
             // Hide pause overlay if visible
@@ -895,6 +1235,12 @@ window.game = {
         const keys = {};
         let isPaused = false;
         let lastTileKey = null; // Track current tile for ground items updates
+        let saveRequestPending = false; // Debounce for save requests
+        
+        // Expose save pending reset for Blazor to call
+        window.game._resetSavePending = function() {
+            saveRequestPending = false;
+        };
 
         if (cameraState && typeof cameraState === 'object') {
             // Blazor JS interop sends properties in camelCase, so check for both cases
@@ -962,6 +1308,19 @@ window.game = {
                 player.showInventory = !player.showInventory;
                 player.showLoseMode = false; // Mutually exclusive
                 player.showGetMode = false;
+                player.showUseMode = false;
+                updateHUD();
+            }
+
+            if (e.code === 'KeyU') {
+                const usableItems = player.inventory.filter(i => i.count > 0);
+                player.showInventory = false;
+                player.showLoseMode = false;
+                player.showGetMode = false;
+                if (usableItems.length > 0) {
+                    player.showUseMode = !player.showUseMode;
+                    player.useItemIndex = 0;
+                }
                 updateHUD();
             }
 
@@ -1044,14 +1403,41 @@ window.game = {
                 updateHUD();
             }
 
+            // Use Mode - Yes (Y key)
+            if (player.showUseMode && e.code === 'KeyY') {
+                const usableItems = player.inventory.filter(i => i.count > 0);
+                if (usableItems.length > 0 && player.useItemIndex < usableItems.length) {
+                    const item = usableItems[player.useItemIndex];
+                    // Use the item according to its property
+                    useItem(item);
+                    updateHUD();
+                }
+            }
+
+            // Use Mode - No (N key)
+            if (player.showUseMode && e.code === 'KeyN') {
+                const usableItems = player.inventory.filter(i => i.count > 0);
+                player.useItemIndex++;
+                if (player.useItemIndex >= usableItems.length) {
+                    player.showUseMode = false;
+                    player.useItemIndex = 0;
+                }
+                updateHUD();
+            }
+
+            // Use Mode - End (E key)
+            if (player.showUseMode && e.code === 'KeyE') {
+                player.showUseMode = false;
+                player.useItemIndex = 0;
+                updateHUD();
+            }
+
             // Battle Mode - Select option (Keys 1-6)
             if (player.inBattle && e.code.startsWith('Digit')) {
                 const digit = parseInt(e.code.replace('Digit', ''));
                 if (digit >= 1 && digit <= 6) {
-                    player.battleOption = digit;
-                    updateHUD();
-                    // Battle is paused - player has selected an option
-                    // Future: implement battle logic here
+                    // Map keys to actions
+                    executePlayerAction(digit);
                 }
             }
 
@@ -1076,6 +1462,10 @@ window.game = {
             }
 
             if (e.code === 'KeyQ' && dotNetHelper) {
+                // Debounce to prevent race conditions with rapid presses
+                if (saveRequestPending) return;
+                saveRequestPending = true;
+                
                 const payload = {
                     X: camera.position.x,
                     Y: camera.position.y,
@@ -1083,7 +1473,11 @@ window.game = {
                     Yaw: yaw
                 };
 
-                dotNetHelper.invokeMethodAsync('OnSaveRequested', payload);
+                dotNetHelper.invokeMethodAsync('OnSaveRequested', payload)
+                    .finally(() => {
+                        // Reset after a short delay to allow Blazor to update state
+                        setTimeout(() => { saveRequestPending = false; }, 500);
+                    });
             }
         });
 
@@ -1093,10 +1487,6 @@ window.game = {
 
         document.addEventListener('mousemove', (e) => {
             // Mouse look disabled; turning is handled via discrete key presses.
-        });
-
-        container.addEventListener('click', () => {
-            container.requestPointerLock();
         });
 
         // Resize handler
@@ -1128,6 +1518,10 @@ window.game = {
                 if (player.showGetMode) {
                     player.showGetMode = false;
                     player.getItemIndex = 0;
+                }
+                if (player.showUseMode) {
+                    player.showUseMode = false;
+                    player.useItemIndex = 0;
                 }
                 updateHUD();
             }
@@ -1228,6 +1622,8 @@ window.game = {
             showLoseMode: player.showLoseMode,
             showGetMode: player.showGetMode,
             getItemIndex: player.getItemIndex,
+            showUseMode: player.showUseMode,
+            useItemIndex: player.useItemIndex,
             dungeonLevel: this._getCurrentLevel ? this._getCurrentLevel() : 0
         });
     }
