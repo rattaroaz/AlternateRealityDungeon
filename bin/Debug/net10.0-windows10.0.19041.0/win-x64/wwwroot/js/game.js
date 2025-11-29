@@ -448,12 +448,24 @@ window.game = {
         }
 
         // Player Stats
+        const MAX_STAT = 99;  // Maximum value for any stat
+        const BASE_XP_THRESHOLD = 1000;  // XP needed for level 1
+        
         const player = {
             name: 'Adventurer',
-            level: 1,
+            level: 0,  // Start at level 0, level up to 1 at 1000 XP
             hitpoints: 0,
             experience: 0,
             stats: {
+                Stamina: 0,
+                Charisma: 0,
+                Strength: 0,
+                Intelligence: 0,
+                Wisdom: 0,
+                Skill: 0,
+                Speed: 0
+            },
+            baseStats: {  // Base stats before equipment bonuses
                 Stamina: 0,
                 Charisma: 0,
                 Strength: 0,
@@ -470,11 +482,15 @@ window.game = {
                 { name: 'Torches', count: 0 },
                 { name: 'Flasks', count: 0 }
             ],
+            primaryWeapon: null,    // Primary weapon used for attack
+            secondaryWeapon: null,  // Secondary weapon used for defense only
             showInventory: false,
             showLoseMode: false,
             showGetMode: false,
             showNothingToGrab: false,
             getItemIndex: 0,
+            showWeaponEquipMode: false,  // Show primary/secondary choice for weapon
+            weaponToEquip: null,         // The weapon being equipped
             // Battle state
             inBattle: false,
             currentMonster: null,
@@ -538,6 +554,29 @@ window.game = {
             "Volcanic Axe", "Mystic Mace", "Tidal Spear", "Radiant Hammer", "Cursed Staff", 
             "Ethereal Bow", "Soul Crossbow", "Guardian Shield", "Chaos Blade"
         ];
+        
+        // Two-handed weapons require both hands - using secondary with these causes 50% skill penalty
+        const twoHandedWeapons = [
+            "Bow", "Crossbow", "Staff", "Spear", "Hammer",
+            "Phoenix Bow", "Frost Crossbow", "Inferno Bow", "Ethereal Bow", "Soul Crossbow",
+            "Shadow Staff", "Necrotic Staff", "Cursed Staff",
+            "Water Spear", "Serpent Spear", "Tidal Spear",
+            "Light Hammer", "Celestial Hammer", "Radiant Hammer",
+            "Dragon Blade", "Abyssal Blade", "Chaos Blade"  // Large two-handed swords
+        ];
+        
+        // Check if an item is a weapon
+        function isWeapon(itemName) {
+            if (!itemName) return false;
+            return lowTierWeapons.some(w => itemName.includes(w) || itemName === w) ||
+                   highTierWeapons.includes(itemName);
+        }
+        
+        // Check if a weapon requires two hands
+        function isTwoHanded(itemName) {
+            if (!itemName) return false;
+            return twoHandedWeapons.some(w => itemName.includes(w) || itemName === w);
+        }
 
         // Get random monster based on player level
         function getRandomMonster(playerLevel) {
@@ -577,6 +616,129 @@ window.game = {
             return monster;
         }
 
+        // Calculate XP needed for a specific level (level 1 = 1000, level 2 = 2000, level 3 = 4000, etc.)
+        function getXpThresholdForLevel(targetLevel) {
+            if (targetLevel <= 0) return 0;
+            return BASE_XP_THRESHOLD * Math.pow(2, targetLevel - 1);
+        }
+        
+        // Calculate total XP needed to reach a level (cumulative)
+        function getTotalXpForLevel(targetLevel) {
+            if (targetLevel <= 0) return 0;
+            // Sum of geometric series: 1000 * (2^n - 1) where n = targetLevel
+            return BASE_XP_THRESHOLD * (Math.pow(2, targetLevel) - 1);
+        }
+        
+        // Get XP progress towards next level
+        function getXpProgress() {
+            const currentLevelXp = getTotalXpForLevel(player.level);
+            const nextLevelXp = getTotalXpForLevel(player.level + 1);
+            const xpIntoLevel = player.experience - currentLevelXp;
+            const xpNeeded = nextLevelXp - currentLevelXp;
+            return { current: xpIntoLevel, needed: xpNeeded, percent: Math.floor((xpIntoLevel / xpNeeded) * 100) };
+        }
+        
+        // Calculate equipment stat bonuses (for future use when equipment affects stats)
+        function getEquipmentStatBonuses() {
+            const bonuses = {
+                Stamina: 0, Charisma: 0, Strength: 0,
+                Intelligence: 0, Wisdom: 0, Skill: 0, Speed: 0
+            };
+            // Equipment bonuses can be added here in the future
+            // For now, equipment only affects attack/defense in combat
+            return bonuses;
+        }
+        
+        // Recalculate current stats from base stats + equipment
+        function recalculateStats() {
+            const bonuses = getEquipmentStatBonuses();
+            for (const stat in player.baseStats) {
+                player.stats[stat] = Math.min(MAX_STAT, player.baseStats[stat] + bonuses[stat]);
+            }
+        }
+        
+        // Level up function - increases all stats by 3-6 points
+        function levelUp() {
+            player.level++;
+            
+            const statNames = Object.keys(player.baseStats);
+            const increases = {};
+            
+            for (const stat of statNames) {
+                const baseStat = player.baseStats[stat];
+                const currentStat = player.stats[stat];
+                const bonuses = getEquipmentStatBonuses();
+                const equipBonus = bonuses[stat] || 0;
+                
+                // If base stat is maxed, no changes occur
+                if (baseStat >= MAX_STAT) {
+                    increases[stat] = 0;
+                    continue;
+                }
+                
+                // Random increase of 3-6
+                const increase = Math.floor(Math.random() * 4) + 3;
+                
+                // Increase base stat (cap at MAX_STAT)
+                const newBaseStat = Math.min(MAX_STAT, baseStat + increase);
+                player.baseStats[stat] = newBaseStat;
+                increases[stat] = newBaseStat - baseStat;
+                
+                // If stat was maxed due to equipment, keep current stat unchanged but base increased
+                if (currentStat >= MAX_STAT) {
+                    // Current stat stays at max, base was already increased above
+                } else {
+                    // Recalculate current stat
+                    player.stats[stat] = Math.min(MAX_STAT, newBaseStat + equipBonus);
+                }
+            }
+            
+            // Increase max HP based on new stamina
+            const oldMaxHp = player.hitpoints;
+            player.hitpoints = Math.max(player.hitpoints, player.baseStats.Stamina);
+            
+            return increases;
+        }
+        
+        // Check for level up and process it
+        function checkLevelUp() {
+            const xpForNextLevel = getTotalXpForLevel(player.level + 1);
+            let leveledUp = false;
+            let totalIncreases = {};
+            
+            while (player.experience >= xpForNextLevel) {
+                const increases = levelUp();
+                leveledUp = true;
+                
+                // Accumulate increases for display
+                for (const stat in increases) {
+                    totalIncreases[stat] = (totalIncreases[stat] || 0) + increases[stat];
+                }
+                
+                // Check if we can level up again
+                if (player.experience < getTotalXpForLevel(player.level + 1)) {
+                    break;
+                }
+            }
+            
+            if (leveledUp) {
+                // Show level up message
+                const statGains = Object.entries(totalIncreases)
+                    .filter(([_, v]) => v > 0)
+                    .map(([k, v]) => `${k.substring(0, 3).toUpperCase()}+${v}`)
+                    .join(', ');
+                
+                if (player.battleLog) {
+                    player.battleLog.push(`<span style="color: gold; font-weight: bold;">LEVEL UP! You are now level ${player.level}!</span>`);
+                    if (statGains) {
+                        player.battleLog.push(`<span style="color: cyan;">${statGains}</span>`);
+                    }
+                }
+            }
+            
+            return leveledUp;
+        }
+
         // Store player reference for getGameState access
         window.game._player = player;
         window.game._getCurrentLevel = function() { return currentLevel; };
@@ -595,7 +757,7 @@ window.game = {
             if (playerStats.name && playerStats.stats && playerStats.inventory) {
                 // Full game state restoration
                 player.name = playerStats.name;
-                player.level = playerStats.level || 1;
+                player.level = playerStats.level || 0;
                 player.hitpoints = playerStats.hitpoints || 0;
                 player.experience = playerStats.experience || 0;
 
@@ -615,12 +777,35 @@ window.game = {
                         player.stats[stat] = value;
                     }
                 }
+                
+                // Restore base stats (or copy from stats if not present)
+                for (let stat in player.baseStats) {
+                    const camelKey = stat.charAt(0).toLowerCase() + stat.slice(1);
+                    let value = undefined;
+                    if (playerStats.baseStats) {
+                        if (typeof playerStats.baseStats[stat] === 'number') {
+                            value = playerStats.baseStats[stat];
+                        } else if (typeof playerStats.baseStats[camelKey] === 'number') {
+                            value = playerStats.baseStats[camelKey];
+                        }
+                    }
+                    // If no baseStats in save, use current stats as base
+                    if (typeof value === 'number') {
+                        player.baseStats[stat] = value;
+                    } else {
+                        player.baseStats[stat] = player.stats[stat];
+                    }
+                }
 
                 // Restore ground items
                 player.groundItems = playerStats.groundItems || {};
 
                 // Restore inventory
                 player.inventory = playerStats.inventory || [];
+                
+                // Restore equipped weapons
+                player.primaryWeapon = playerStats.primaryWeapon || null;
+                player.secondaryWeapon = playerStats.secondaryWeapon || null;
 
                 // Restore UI state
                 player.showInventory = playerStats.showInventory || false;
@@ -656,24 +841,22 @@ window.game = {
                     }
                     if (typeof value === 'number') {
                         player.stats[stat] = value;
+                        player.baseStats[stat] = value;  // Set base stats equal to initial stats
                     }
                 }
             }
         } else {
             // Random stats for completely new games
             for (let stat in player.stats) {
-                player.stats[stat] = Math.floor(Math.random() * (21 - 8 + 1)) + 8;
+                const randomValue = Math.floor(Math.random() * (21 - 8 + 1)) + 8;
+                player.stats[stat] = randomValue;
+                player.baseStats[stat] = randomValue;  // Set base stats equal to initial stats
             }
         }
 
         // Set hitpoints if not already set (for new games)
         if (player.hitpoints === 0) {
-            player.hitpoints = player.stats.Stamina;
-        }
-        
-        // Ensure experience is set
-        if (player.experience === 0 && player.level > 1) {
-            // Could implement experience calculation here if needed
+            player.hitpoints = player.baseStats.Stamina;
         }
 
         function updateHUD() {
@@ -722,17 +905,27 @@ window.game = {
             // 2. Update Stats Overlay (Top Left)
             const overlay = document.getElementById('stats-overlay');
             if (overlay) {
+                const xpProgress = getXpProgress();
+                const nextLevelXp = getTotalXpForLevel(player.level + 1);
+                const pStats = getPlayerCombatStats();
+                // Show skill with penalty indicator if applicable
+                let skillDisplay = player.stats.Skill;
+                if (player.primaryWeapon && player.secondaryWeapon && isTwoHanded(player.primaryWeapon)) {
+                    skillDisplay = `<span style="color: #f88;">${pStats.skill}</span>`;
+                }
                 overlay.innerHTML = `
                     <strong>Floor: ${currentLevel + 1}/${NUM_LEVELS}</strong><br>
-                    <strong>Char Lvl: ${player.level}</strong><br>
-                    <strong>HP: ${player.hitpoints} | EXP: ${player.experience}</strong><br>
+                    <strong>Lvl: ${player.level}</strong> | <strong>HP: ${player.hitpoints}</strong><br>
+                    <strong>XP: ${player.experience}/${nextLevelXp}</strong><br>
                     STA: ${player.stats.Stamina}<br>
                     CHR: ${player.stats.Charisma}<br>
                     STR: ${player.stats.Strength}<br>
                     INT: ${player.stats.Intelligence}<br>
                     WIS: ${player.stats.Wisdom}<br>
-                    SKL: ${player.stats.Skill}<br>
-                    SPD: ${player.stats.Speed}
+                    SKL: ${skillDisplay}<br>
+                    SPD: ${player.stats.Speed}<br>
+                    <span style="color: #8f8;">Pri: ${player.primaryWeapon || 'None'}</span><br>
+                    <span style="color: #88f;">Sec: ${player.secondaryWeapon || 'None'}</span>
                 `;
             }
             
@@ -784,6 +977,24 @@ window.game = {
                          html += `<div>(Empty)</div>`;
                     }
                     invContainer.innerHTML = html;
+                } else if (player.showWeaponEquipMode && player.weaponToEquip) {
+                    // Weapon Equip Mode - Choose Primary or Secondary
+                    let html = `<div style="margin-bottom: 10px; font-weight: bold; color: orange;">Equip Weapon</div>`;
+                    html += `<div style="font-size: 1.1rem; margin: 10px 0;">${player.weaponToEquip}</div>`;
+                    if (isTwoHanded(player.weaponToEquip)) {
+                        html += `<div style="font-size: 0.8rem; color: #f88; margin-bottom: 5px;">(Two-Handed)</div>`;
+                    }
+                    html += `<div style="margin-top: 10px;">`;
+                    html += `<div style="color: #8f8;">P = Primary (Attack)</div>`;
+                    html += `<div style="color: #88f;">S = Secondary (Defense)</div>`;
+                    html += `<div style="color: #888; margin-top: 5px;">E = Cancel</div>`;
+                    html += `</div>`;
+                    // Show current weapons
+                    html += `<div style="margin-top: 15px; font-size: 0.8rem; color: #666;">`;
+                    html += `Current Primary: ${player.primaryWeapon || 'None'}<br>`;
+                    html += `Current Secondary: ${player.secondaryWeapon || 'None'}`;
+                    html += `</div>`;
+                    invContainer.innerHTML = html;
                 } else if (player.showUseMode) {
                     // Use Items View
                     const usableItems = player.inventory.filter(i => i.count > 0);
@@ -817,15 +1028,23 @@ window.game = {
         }
         updateHUD();
 
-        // Item usage function
+        // Item usage function - returns true if item was used immediately, false if needs more input
         function useItem(item) {
+            // Check if item is a weapon - trigger weapon equip mode
+            if (isWeapon(item.name)) {
+                player.weaponToEquip = item.name;
+                player.showWeaponEquipMode = true;
+                player.showUseMode = false;
+                return false;  // Needs further input (Primary/Secondary choice)
+            }
+            
             if (item.name === 'Food' || item.name === 'Food Packet') {
-                // Restore some HP
-                player.hitpoints = Math.min(player.hitpoints + 10, player.stats.Stamina);
+                // Restore some HP (cap at base stamina, not equipment-modified)
+                player.hitpoints = Math.min(player.hitpoints + 10, player.baseStats.Stamina);
                 item.count--;
             } else if (item.name === 'Water Flask' || item.name === 'Flasks') {
                 // Restore some HP
-                player.hitpoints = Math.min(player.hitpoints + 5, player.stats.Stamina);
+                player.hitpoints = Math.min(player.hitpoints + 5, player.baseStats.Stamina);
                 item.count--;
             } else if (item.name === 'Unlit Torch') {
                 // Convert to lit torch
@@ -839,6 +1058,27 @@ window.game = {
                 // Do not consume item
             }
             // If count reaches 0, could remove from inventory, but for now keep it
+            return true;
+        }
+        
+        // Equip weapon to primary or secondary slot
+        function equipWeapon(slot) {
+            if (!player.weaponToEquip) return;
+            
+            const weaponName = player.weaponToEquip;
+            
+            if (slot === 'primary') {
+                // If there's already a primary weapon, it stays in inventory
+                player.primaryWeapon = weaponName;
+            } else if (slot === 'secondary') {
+                // If there's already a secondary weapon, it stays in inventory
+                player.secondaryWeapon = weaponName;
+            }
+            
+            // Clear the equip mode
+            player.weaponToEquip = null;
+            player.showWeaponEquipMode = false;
+            updateHUD();
         }
 
         // Create monster encounter overlay
@@ -855,6 +1095,9 @@ window.game = {
             
             // Award EXP
             player.experience += monster.exp;
+            
+            // Check for level up
+            checkLevelUp();
             
             // Drop Items
             const tile = worldToTile(camera.position.x, camera.position.z);
@@ -908,35 +1151,40 @@ window.game = {
         function getPlayerCombatStats() {
             let attack = player.stats.Strength; // Base attack from strength
             let defense = Math.floor(player.stats.Strength / 2); // Base defense
+            let skill = player.stats.Skill;
             
-            // Add stats from inventory (assuming best weapon/armor is used automatically or just sum for now)
-            // For simplicity, let's just sum "attack" from weapons and "defense" from clothes in inventory
-            // This is a "Combat Framework" using stats available.
+            // Primary weapon adds attack
+            if (player.primaryWeapon) {
+                const primaryStats = getItemStats(player.primaryWeapon);
+                attack += primaryStats.attack;
+            }
             
-            player.inventory.forEach(invItem => {
-                if (invItem.count > 0) {
-                    const stats = getItemStats(invItem.name);
-                    // Only count weapons for attack? Or just add up?
-                    // Let's find max weapon attack and sum armor defense to be more realistic
+            // Secondary weapon adds defense only
+            if (player.secondaryWeapon) {
+                const secondaryStats = getItemStats(player.secondaryWeapon);
+                defense += secondaryStats.defense;
+                
+                // If primary is two-handed and we have a secondary, skill drops by 50%
+                if (player.primaryWeapon && isTwoHanded(player.primaryWeapon)) {
+                    skill = Math.floor(skill * 0.5);
                 }
-            });
+            }
             
-            // Simplified: Find best weapon and best armor
-            let maxWeaponAttack = 0;
-            let totalDefense = defense;
-            
+            // Add defense from armor/clothing in inventory (non-weapon equipped items)
             player.inventory.forEach(invItem => {
-                if (invItem.count > 0) {
-                    const stats = getItemStats(invItem.name);
-                    if (stats.attack > maxWeaponAttack) maxWeaponAttack = stats.attack;
-                    totalDefense += stats.defense;
+                if (invItem.count > 0 && invItem.equipped) {
+                    // Only add defense from non-weapon items (clothing/armor)
+                    if (!isWeapon(invItem.name)) {
+                        const stats = getItemStats(invItem.name);
+                        defense += stats.defense;
+                    }
                 }
             });
             
             return {
-                attack: attack + maxWeaponAttack,
-                defense: totalDefense,
-                skill: player.stats.Skill,
+                attack: attack,
+                defense: defense,
+                skill: skill,
                 speed: player.stats.Speed
             };
         }
@@ -1309,6 +1557,8 @@ window.game = {
                 player.showLoseMode = false; // Mutually exclusive
                 player.showGetMode = false;
                 player.showUseMode = false;
+                player.showWeaponEquipMode = false;
+                player.weaponToEquip = null;
                 updateHUD();
             }
 
@@ -1317,6 +1567,8 @@ window.game = {
                 player.showInventory = false;
                 player.showLoseMode = false;
                 player.showGetMode = false;
+                player.showWeaponEquipMode = false;
+                player.weaponToEquip = null;
                 if (usableItems.length > 0) {
                     player.showUseMode = !player.showUseMode;
                     player.useItemIndex = 0;
@@ -1328,6 +1580,8 @@ window.game = {
                 player.showLoseMode = !player.showLoseMode;
                 player.showInventory = false; // Mutually exclusive
                 player.showGetMode = false;
+                player.showWeaponEquipMode = false;
+                player.weaponToEquip = null;
                 updateHUD();
             }
 
@@ -1338,6 +1592,8 @@ window.game = {
                 const itemsHere = player.groundItems[tileKey] || [];
                 player.showInventory = false;
                 player.showLoseMode = false;
+                player.showWeaponEquipMode = false;
+                player.weaponToEquip = null;
                 if (itemsHere.length > 0) {
                     player.showGetMode = !player.showGetMode;
                     player.showNothingToGrab = false;
@@ -1429,6 +1685,23 @@ window.game = {
             if (player.showUseMode && e.code === 'KeyE') {
                 player.showUseMode = false;
                 player.useItemIndex = 0;
+                updateHUD();
+            }
+            
+            // Weapon Equip Mode - Primary (P key)
+            if (player.showWeaponEquipMode && e.code === 'KeyP') {
+                equipWeapon('primary');
+            }
+            
+            // Weapon Equip Mode - Secondary (S key)
+            if (player.showWeaponEquipMode && e.code === 'KeyS') {
+                equipWeapon('secondary');
+            }
+            
+            // Weapon Equip Mode - Cancel (E key)
+            if (player.showWeaponEquipMode && e.code === 'KeyE') {
+                player.weaponToEquip = null;
+                player.showWeaponEquipMode = false;
                 updateHUD();
             }
 
@@ -1616,6 +1889,9 @@ window.game = {
             hitpoints: player.hitpoints,
             experience: player.experience,
             stats: player.stats,
+            baseStats: player.baseStats,  // Include base stats for proper save/load
+            primaryWeapon: player.primaryWeapon,
+            secondaryWeapon: player.secondaryWeapon,
             groundItems: player.groundItems,
             inventory: player.inventory,
             showInventory: player.showInventory,

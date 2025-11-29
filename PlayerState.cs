@@ -30,10 +30,13 @@ namespace AlternateRealityDungeon
     public class GameState
     {
         public string Name { get; set; } = "Adventurer";
-        public int Level { get; set; } = 1;
+        public int Level { get; set; } = 0;  // Start at level 0, level up to 1 at 1000 XP
         public int Hitpoints { get; set; }
         public int Experience { get; set; }
         public PlayerStats Stats { get; set; } = new PlayerStats();
+        public PlayerStats BaseStats { get; set; } = new PlayerStats();  // Base stats before equipment bonuses
+        public string? PrimaryWeapon { get; set; }    // Primary weapon for attack
+        public string? SecondaryWeapon { get; set; }  // Secondary weapon for defense only
         public Dictionary<string, List<string>> GroundItems { get; set; } = new Dictionary<string, List<string>>();
         public List<InventoryItem> Inventory { get; set; } = new List<InventoryItem>();
         public bool ShowInventory { get; set; }

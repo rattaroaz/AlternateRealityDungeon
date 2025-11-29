@@ -3,7 +3,7 @@
     "Name": "tester",
     "Level": 1,
     "Hitpoints": 255,
-    "Experience": 120,
+    "Experience": 160,
     "Stats": {
       "Name": "Adventurer",
       "Stamina": 255,
@@ -14,11 +14,23 @@
       "Skill": 255,
       "Speed": 255
     },
+    "BaseStats": {
+      "Name": "Adventurer",
+      "Stamina": 255,
+      "Charisma": 255,
+      "Strength": 255,
+      "Intelligence": 255,
+      "Wisdom": 255,
+      "Skill": 255,
+      "Speed": 255
+    },
+    "PrimaryWeapon": null,
+    "SecondaryWeapon": null,
     "GroundItems": {
-      "31,19": [],
       "32,40": [],
       "33,25": [],
-      "32,43": []
+      "32,43": [],
+      "31,27": []
     },
     "Inventory": [
       {
@@ -45,6 +57,11 @@
         "Name": "Flasks",
         "Count": 0,
         "Equipped": false
+      },
+      {
+        "Name": "Leggings",
+        "Count": 1,
+        "Equipped": false
       }
     ],
     "ShowInventory": false,
@@ -57,10 +74,10 @@
   "Camera": {
     "X": -4,
     "Y": 1.6,
-    "Z": -16,
-    "Yaw": 18.84955592153876
+    "Z": -18.100000000000005,
+    "Yaw": 25.132741228718345
   },
-  "SavedAt": "2025-11-29T07:56:13.2910085Z",
+  "SavedAt": "2025-11-29T16:49:57.5160708Z",
   "MapId": "fe59e8de-1e03-42c2-b3e4-809de8e11489",
   "MapLevels": [
     [
