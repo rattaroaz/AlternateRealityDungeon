@@ -63,8 +63,38 @@
                         <span style="display: inline-block; width: 16px; height: 16px; background: #FFD700; margin-right: 8px; vertical-align: middle;"></span>
                         Player Start
                     </button>
+                    <button @onclick="SelectSpecialRoomTool" 
+                            style="background: @(IsSpecialRoomTool() ? "#666" : "#333"); padding: 8px; text-align: left;">
+                        <span style="display: inline-block; width: 16px; height: 16px; background: #9932CC; margin-right: 8px; vertical-align: middle;"></span>
+                        Special Room (Guild)
+                    </button>
                 </div>
             </div>
+
+            @if (IsSpecialRoomTool())
+            {
+                <div>
+                    <h3 style="margin: 0 0 10px 0; color: #aaa;">Entrance Direction</h3>
+                    <div style="display: flex; flex-direction: column; gap: 5px;">
+                        <button @onclick="() => SetEntrance(EntranceDirection.North)" 
+                                style="background: @(selectedEntrance == EntranceDirection.North ? "#666" : "#333"); padding: 8px; text-align: left;">
+                            ↑ North
+                        </button>
+                        <button @onclick="() => SetEntrance(EntranceDirection.East)" 
+                                style="background: @(selectedEntrance == EntranceDirection.East ? "#666" : "#333"); padding: 8px; text-align: left;">
+                            → East
+                        </button>
+                        <button @onclick="() => SetEntrance(EntranceDirection.South)" 
+                                style="background: @(selectedEntrance == EntranceDirection.South ? "#666" : "#333"); padding: 8px; text-align: left;">
+                            ↓ South
+                        </button>
+                        <button @onclick="() => SetEntrance(EntranceDirection.West)" 
+                                style="background: @(selectedEntrance == EntranceDirection.West ? "#666" : "#333"); padding: 8px; text-align: left;">
+                            ← West
+                        </button>
+                    </div>
+                </div>
+            }
 
             <div>
                 <h3 style="margin: 0 0 10px 0; color: #aaa;">Brush Size</h3>
@@ -106,6 +136,11 @@
                                     @if (playerStartX == tileX && playerStartY == tileY && currentLevel == 0)
                                     {
                                         <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 6px; height: 6px; background: gold; border-radius: 50%;"></div>
+                                    }
+                                    @if (IsSpecialRoomTile(tile))
+                                    {
+                                        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 4px; height: 4px; background: #FF00FF; border-radius: 50%;"></div>
+                                        <div style="position: absolute; @GetEntranceIndicatorStyle(tile)"></div>
                                     }
                                 </div>
                             }
@@ -209,7 +244,8 @@
     private const int TileDisplaySize = 10;
     private const int NumLevels = 4;
 
-    private enum TileType { Wall = 1, Floor = 0, StairsDown = 2, StairsUp = 3, PlayerStart = 4 }
+    private enum TileType { Wall = 1, Floor = 0, StairsDown = 2, StairsUp = 3, PlayerStart = 4, SpecialRoomN = 5, SpecialRoomE = 6, SpecialRoomS = 7, SpecialRoomW = 8 }
+    private enum EntranceDirection { North, East, South, West }
 
     private int[,,] mapData = new int[NumLevels, MapHeight, MapWidth];
     private int currentLevel = 0;
@@ -222,6 +258,7 @@
     private int hoverY = 0;
     private int playerStartX = 32;
     private int playerStartY = 32;
+    private EntranceDirection selectedEntrance = EntranceDirection.North;
     
     // Map management
     private string mapName = "Untitled";
@@ -380,8 +417,54 @@
             1 => "#8B4513", // Wall
             2 => "#8B0000", // Stairs Down
             3 => "#006400", // Stairs Up
+            5 => "#8B4513", // Special Room (North entrance) - shows as wall
+            6 => "#8B4513", // Special Room (East entrance) - shows as wall
+            7 => "#8B4513", // Special Room (South entrance) - shows as wall
+            8 => "#8B4513", // Special Room (West entrance) - shows as wall
             _ => "#444444"
         };
+    }
+
+    private bool IsSpecialRoomTile(int tile)
+    {
+        return tile >= 5 && tile <= 8;
+    }
+
+    private string GetEntranceIndicatorStyle(int tile)
+    {
+        // Show a small line on the edge indicating entrance direction
+        return tile switch
+        {
+            5 => "top: 0; left: 50%; transform: translateX(-50%); width: 4px; height: 2px; background: #FF00FF;", // North
+            6 => "right: 0; top: 50%; transform: translateY(-50%); width: 2px; height: 4px; background: #FF00FF;", // East
+            7 => "bottom: 0; left: 50%; transform: translateX(-50%); width: 4px; height: 2px; background: #FF00FF;", // South
+            8 => "left: 0; top: 50%; transform: translateY(-50%); width: 2px; height: 4px; background: #FF00FF;", // West
+            _ => ""
+        };
+    }
+
+    private bool IsSpecialRoomTool()
+    {
+        return selectedTool == TileType.SpecialRoomN || selectedTool == TileType.SpecialRoomE || 
+               selectedTool == TileType.SpecialRoomS || selectedTool == TileType.SpecialRoomW;
+    }
+
+    private void SelectSpecialRoomTool()
+    {
+        selectedTool = selectedEntrance switch
+        {
+            EntranceDirection.North => TileType.SpecialRoomN,
+            EntranceDirection.East => TileType.SpecialRoomE,
+            EntranceDirection.South => TileType.SpecialRoomS,
+            EntranceDirection.West => TileType.SpecialRoomW,
+            _ => TileType.SpecialRoomN
+        };
+    }
+
+    private void SetEntrance(EntranceDirection dir)
+    {
+        selectedEntrance = dir;
+        SelectSpecialRoomTool(); // Update the tool to match new direction
     }
 
     private void SelectLevel(int level)

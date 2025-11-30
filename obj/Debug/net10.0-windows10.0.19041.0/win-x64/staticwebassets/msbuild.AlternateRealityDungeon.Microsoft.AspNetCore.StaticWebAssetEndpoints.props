@@ -39,14 +39,14 @@
     <StaticWebAssetEndpoint Include="js/game.js">
       <AssetFile>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\js\game.js'))</AssetFile>
       <Selectors><![CDATA[[]]]></Selectors>
-      <EndpointProperties><![CDATA[[{"Name":"integrity","Value":"sha256-K1Qs9zAgTRqEp52pBUfaCEIUZJ7RA\u002BLpiMOnQ\u002BrQivk="}]]]></EndpointProperties>
-      <ResponseHeaders><![CDATA[[{"Name":"Cache-Control","Value":"no-cache"},{"Name":"Content-Length","Value":"115321"},{"Name":"Content-Type","Value":"text/javascript"},{"Name":"ETag","Value":"\u0022K1Qs9zAgTRqEp52pBUfaCEIUZJ7RA\u002BLpiMOnQ\u002BrQivk=\u0022"},{"Name":"Last-Modified","Value":"Sat, 29 Nov 2025 19:20:25 GMT"}]]]></ResponseHeaders>
+      <EndpointProperties><![CDATA[[{"Name":"integrity","Value":"sha256-sSBwZf6ae2tFpLYYQkURmVI8Qo3fXhlcJ8M4sJyaj3M="}]]]></EndpointProperties>
+      <ResponseHeaders><![CDATA[[{"Name":"Cache-Control","Value":"no-cache"},{"Name":"Content-Length","Value":"123543"},{"Name":"Content-Type","Value":"text/javascript"},{"Name":"ETag","Value":"\u0022sSBwZf6ae2tFpLYYQkURmVI8Qo3fXhlcJ8M4sJyaj3M=\u0022"},{"Name":"Last-Modified","Value":"Sun, 30 Nov 2025 23:05:49 GMT"}]]]></ResponseHeaders>
     </StaticWebAssetEndpoint>
-    <StaticWebAssetEndpoint Include="js/game.l04megq1ly.js">
+    <StaticWebAssetEndpoint Include="js/game.pu253cf8w7.js">
       <AssetFile>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\js\game.js'))</AssetFile>
       <Selectors><![CDATA[[]]]></Selectors>
-      <EndpointProperties><![CDATA[[{"Name":"fingerprint","Value":"l04megq1ly"},{"Name":"integrity","Value":"sha256-K1Qs9zAgTRqEp52pBUfaCEIUZJ7RA\u002BLpiMOnQ\u002BrQivk="},{"Name":"label","Value":"js/game.js"}]]]></EndpointProperties>
-      <ResponseHeaders><![CDATA[[{"Name":"Cache-Control","Value":"max-age=31536000, immutable"},{"Name":"Content-Length","Value":"115321"},{"Name":"Content-Type","Value":"text/javascript"},{"Name":"ETag","Value":"\u0022K1Qs9zAgTRqEp52pBUfaCEIUZJ7RA\u002BLpiMOnQ\u002BrQivk=\u0022"},{"Name":"Last-Modified","Value":"Sat, 29 Nov 2025 19:20:25 GMT"}]]]></ResponseHeaders>
+      <EndpointProperties><![CDATA[[{"Name":"fingerprint","Value":"pu253cf8w7"},{"Name":"integrity","Value":"sha256-sSBwZf6ae2tFpLYYQkURmVI8Qo3fXhlcJ8M4sJyaj3M="},{"Name":"label","Value":"js/game.js"}]]]></EndpointProperties>
+      <ResponseHeaders><![CDATA[[{"Name":"Cache-Control","Value":"max-age=31536000, immutable"},{"Name":"Content-Length","Value":"123543"},{"Name":"Content-Type","Value":"text/javascript"},{"Name":"ETag","Value":"\u0022sSBwZf6ae2tFpLYYQkURmVI8Qo3fXhlcJ8M4sJyaj3M=\u0022"},{"Name":"Last-Modified","Value":"Sun, 30 Nov 2025 23:05:49 GMT"}]]]></ResponseHeaders>
     </StaticWebAssetEndpoint>
     <StaticWebAssetEndpoint Include="js/mapeditor.838jatjbin.js">
       <AssetFile>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\js\mapeditor.js'))</AssetFile>

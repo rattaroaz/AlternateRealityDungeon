@@ -2,8 +2,8 @@
   "State": {
     "Name": "Adventurer",
     "Level": 1,
-    "Hitpoints": 13,
-    "Experience": 63,
+    "Hitpoints": 8,
+    "Experience": 151,
     "Stats": {
       "Name": "Adventurer",
       "Stamina": 19,
@@ -24,7 +24,7 @@
       "Skill": 13,
       "Speed": 20
     },
-    "PrimaryWeapon": "Axe",
+    "PrimaryWeapon": null,
     "SecondaryWeapon": null,
     "EquippedClothing": {
       "Head": null,
@@ -37,7 +37,8 @@
     "GroundItems": {
       "31,27": [],
       "31,26": [],
-      "32,34": []
+      "32,34": [],
+      "32,42": []
     },
     "Inventory": [
       {
@@ -69,6 +70,16 @@
         "Name": "Axe",
         "Count": 1,
         "Equipped": false
+      },
+      {
+        "Name": "Leg Guards of Steel",
+        "Count": 1,
+        "Equipped": false
+      },
+      {
+        "Name": "Sword",
+        "Count": 1,
+        "Equipped": false
       }
     ],
     "ShowInventory": false,
@@ -76,15 +87,15 @@
     "ShowGetMode": false,
     "GetItemIndex": 0,
     "ShowUseMode": false,
-    "UseItemIndex": 2
+    "UseItemIndex": 0
   },
   "Camera": {
     "X": 0,
     "Y": 1.6,
-    "Z": 9.759999999999941,
-    "Yaw": -3.141592653589793
+    "Z": 38.619999999999976,
+    "Yaw": -6.283185307179586
   },
-  "SavedAt": "2025-11-29T19:10:33.6307767Z",
+  "SavedAt": "2025-11-30T22:39:04.1418714Z",
   "MapId": "fe59e8de-1e03-42c2-b3e4-809de8e11489",
   "MapLevels": [
     [

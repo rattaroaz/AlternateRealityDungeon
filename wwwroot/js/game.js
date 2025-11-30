@@ -80,6 +80,11 @@ window.game = {
         const FLOOR = 0;
         const STAIRS_DOWN = 2;
         const STAIRS_UP = 3;
+        // Special rooms (guilds, shops, etc.) with entrance direction
+        const SPECIAL_ROOM_N = 5; // Entrance from North
+        const SPECIAL_ROOM_E = 6; // Entrance from East
+        const SPECIAL_ROOM_S = 7; // Entrance from South
+        const SPECIAL_ROOM_W = 8; // Entrance from West
         
         // All dungeon levels [level][y][x]
         const dungeonLevels = [];
@@ -341,6 +346,10 @@ window.game = {
         const stairsUpMaterial = new THREE.MeshStandardMaterial({ color: 0x006400, roughness: 0.5 }); // Dark green for up
         const stairGeometry = new THREE.BoxGeometry(TILE_SIZE * 0.8, 0.3, TILE_SIZE * 0.8);
         
+        // Special room materials (door frame on wall)
+        const doorFrameMaterial = new THREE.MeshStandardMaterial({ color: 0x4a2810, roughness: 0.6, metalness: 0.2 }); // Dark wood color
+        const doorMaterial = new THREE.MeshStandardMaterial({ color: 0x8B008B, roughness: 0.3, metalness: 0.1 }); // Dark magenta for door
+        
         // Track dungeon meshes for level switching
         let dungeonMeshes = [];
         
@@ -378,6 +387,51 @@ window.game = {
             dungeonMeshes.push(arrowMesh);
         }
         
+        function addSpecialRoomTile(tx, ty, entranceDir) {
+            const worldX = (tx - MAP_WIDTH / 2) * TILE_SIZE + TILE_SIZE / 2;
+            const worldZ = (ty - MAP_HEIGHT / 2) * TILE_SIZE + TILE_SIZE / 2;
+            
+            // Add wall (special rooms are inside walls)
+            const wallMesh = new THREE.Mesh(wallGeometry, wallMaterial);
+            wallMesh.position.set(worldX, wallHeight / 2, worldZ);
+            scene.add(wallMesh);
+            dungeonMeshes.push(wallMesh);
+            
+            // Add door frame on the entrance side
+            const frameWidth = TILE_SIZE * 0.7;
+            const frameHeight = wallHeight * 0.85;
+            const frameDepth = 0.3;
+            const frameGeo = new THREE.BoxGeometry(frameWidth, frameHeight, frameDepth);
+            const doorGeo = new THREE.BoxGeometry(frameWidth * 0.8, frameHeight * 0.9, 0.1);
+            
+            const frameMesh = new THREE.Mesh(frameGeo, doorFrameMaterial);
+            const doorMesh = new THREE.Mesh(doorGeo, doorMaterial);
+            
+            // Position door based on entrance direction
+            if (entranceDir === 'N') {
+                frameMesh.position.set(worldX, frameHeight / 2, worldZ - TILE_SIZE / 2 + frameDepth / 2);
+                doorMesh.position.set(worldX, frameHeight / 2, worldZ - TILE_SIZE / 2 + 0.05);
+            } else if (entranceDir === 'S') {
+                frameMesh.position.set(worldX, frameHeight / 2, worldZ + TILE_SIZE / 2 - frameDepth / 2);
+                doorMesh.position.set(worldX, frameHeight / 2, worldZ + TILE_SIZE / 2 - 0.05);
+            } else if (entranceDir === 'E') {
+                frameMesh.rotation.y = Math.PI / 2;
+                doorMesh.rotation.y = Math.PI / 2;
+                frameMesh.position.set(worldX + TILE_SIZE / 2 - frameDepth / 2, frameHeight / 2, worldZ);
+                doorMesh.position.set(worldX + TILE_SIZE / 2 - 0.05, frameHeight / 2, worldZ);
+            } else if (entranceDir === 'W') {
+                frameMesh.rotation.y = Math.PI / 2;
+                doorMesh.rotation.y = Math.PI / 2;
+                frameMesh.position.set(worldX - TILE_SIZE / 2 + frameDepth / 2, frameHeight / 2, worldZ);
+                doorMesh.position.set(worldX - TILE_SIZE / 2 + 0.05, frameHeight / 2, worldZ);
+            }
+            
+            scene.add(frameMesh);
+            scene.add(doorMesh);
+            dungeonMeshes.push(frameMesh);
+            dungeonMeshes.push(doorMesh);
+        }
+        
         function buildLevel(level) {
             // Clear existing meshes
             for (const mesh of dungeonMeshes) {
@@ -396,6 +450,14 @@ window.game = {
                         addStairTile(x, y, true);
                     } else if (tile === STAIRS_UP) {
                         addStairTile(x, y, false);
+                    } else if (tile === SPECIAL_ROOM_N) {
+                        addSpecialRoomTile(x, y, 'N');
+                    } else if (tile === SPECIAL_ROOM_E) {
+                        addSpecialRoomTile(x, y, 'E');
+                    } else if (tile === SPECIAL_ROOM_S) {
+                        addSpecialRoomTile(x, y, 'S');
+                    } else if (tile === SPECIAL_ROOM_W) {
+                        addSpecialRoomTile(x, y, 'W');
                     }
                 }
             }
@@ -417,6 +479,24 @@ window.game = {
             }
             const tile = dungeonLevels[currentLevel][ty][tx];
             return tile === FLOOR || tile === STAIRS_DOWN || tile === STAIRS_UP;
+        }
+        
+        function isSpecialRoom(tx, ty) {
+            if (tx < 0 || tx >= MAP_WIDTH || ty < 0 || ty >= MAP_HEIGHT) {
+                return false;
+            }
+            const tile = dungeonLevels[currentLevel][ty][tx];
+            return tile === SPECIAL_ROOM_N || tile === SPECIAL_ROOM_E || 
+                   tile === SPECIAL_ROOM_S || tile === SPECIAL_ROOM_W;
+        }
+        
+        function getSpecialRoomEntrance(tx, ty) {
+            const tile = dungeonLevels[currentLevel][ty][tx];
+            if (tile === SPECIAL_ROOM_N) return 'N';
+            if (tile === SPECIAL_ROOM_E) return 'E';
+            if (tile === SPECIAL_ROOM_S) return 'S';
+            if (tile === SPECIAL_ROOM_W) return 'W';
+            return null;
         }
         
         function getTileType(tx, ty) {
@@ -514,13 +594,17 @@ window.game = {
             // Battle state
             inBattle: false,
             currentMonster: null,
-            battleOption: 0
+            battleOption: 0,
+            // Special room state
+            inSpecialRoom: false,
+            currentSpecialRoom: null // { tx, ty, entrance }
         };
 
         // Helper function to check if any interaction menu is open
         function isInteractionMenuOpen() {
             return player.showInventory || player.showLoseMode || player.showGetMode || 
-                   player.showUseMode || player.showWeaponEquipMode || player.showClothingEquipMode;
+                   player.showUseMode || player.showWeaponEquipMode || player.showClothingEquipMode ||
+                   player.inSpecialRoom;
         }
 
         // Monster definitions (simplified for JS)
@@ -1300,12 +1384,15 @@ window.game = {
                 return false;  // Needs further input (Primary/Secondary choice)
             }
             
-            // Check if item is clothing - trigger clothing equip mode
-            if (isClothing(item.name)) {
-                player.clothingToEquip = item.name;
-                player.showClothingEquipMode = true;
-                player.showUseMode = false;
-                return false;  // Needs further input (body part choice)
+            // Check if item is clothing or armor - auto-equip to appropriate body part
+            if (isClothing(item.name) || isArmor(item.name)) {
+                const bodyPart = clothingBodyPartMap[item.name];
+                if (bodyPart) {
+                    player.equippedClothing[bodyPart] = item.name;
+                    player.showUseMode = false;
+                    updateHUD();
+                }
+                return true;  // Equipment equipped immediately
             }
             
             // Check if item is a potion
@@ -1462,6 +1549,33 @@ window.game = {
         monsterOverlay.id = 'monster-overlay';
         monsterOverlay.style.cssText = 'position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 35; color: white; font-family: monospace;';
         container.appendChild(monsterOverlay);
+        
+        // Create special room overlay
+        const specialRoomOverlay = document.createElement('div');
+        specialRoomOverlay.id = 'special-room-overlay';
+        specialRoomOverlay.style.cssText = 'position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: #000; display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 36; color: white; font-family: monospace;';
+        container.appendChild(specialRoomOverlay);
+        
+        function enterSpecialRoom(tx, ty, entrance) {
+            player.inSpecialRoom = true;
+            player.currentSpecialRoom = { tx, ty, entrance };
+            isPaused = true;
+            
+            // For now, all rooms show "Nothing is here"
+            // Future: lookup room content based on coordinates
+            specialRoomOverlay.innerHTML = `
+                <div style="font-size: 2rem; color: #888; margin-bottom: 40px;">Nothing is here</div>
+                <div style="font-size: 1rem; color: #666;">Press Space Bar to exit</div>
+            `;
+            specialRoomOverlay.style.display = 'flex';
+        }
+        
+        function exitSpecialRoom() {
+            player.inSpecialRoom = false;
+            player.currentSpecialRoom = null;
+            isPaused = false;
+            specialRoomOverlay.style.display = 'none';
+        }
 
         // Win battle logic
         function winBattle() {
@@ -1602,7 +1716,7 @@ window.game = {
                     <div>2. Charge (-Hit, +Dmg)</div>
                     <div>3. Aimed (+Hit, +Dmg, Slow)</div>
                     <div>4. Transact</div>
-                    <div>5. Pass</div>
+                    <div>5. Switch Weapon [${player.primaryWeapon || 'Bare Hands'}]</div>
                     <div>6. Run</div>
                 </div>
             `;
@@ -1682,6 +1796,16 @@ window.game = {
                      setTimeout(executeMonsterTurn, 800);
                      return;
                  }
+            } else if (action === 5) { // Switch Weapon
+                // Swap primary and secondary weapons
+                const temp = player.primaryWeapon;
+                player.primaryWeapon = player.secondaryWeapon;
+                player.secondaryWeapon = temp;
+                const newWeapon = player.primaryWeapon || 'Bare Hands';
+                combatLog(`<span style="color: #8ff;">Switched to ${newWeapon}!</span>`);
+                updateBattleOverlay();
+                updateHUD();
+                return; // Switching weapon doesn't end turn
             } else if (action === 6) { // Run
                 // Speed Check
                 const chance = 50 + (player.stats.Speed - monster.level * 2) * 5;
@@ -1911,6 +2035,12 @@ window.game = {
 
         document.addEventListener('keydown', (e) => {
             keys[e.code] = true;
+            
+            // Exit special room with Space Bar
+            if (e.code === 'Space' && player.inSpecialRoom) {
+                exitSpecialRoom();
+                return;
+            }
 
             // Block movement/turning when interaction menu is open
             if (!isInteractionMenuOpen()) {
@@ -2268,6 +2398,23 @@ window.game = {
                         // Facing mostly along Z axis
                         camera.position.x = centerX;
                         camera.position.z = nextPos.z;
+                    }
+                } else if (isSpecialRoom(collisionTile.tx, collisionTile.ty)) {
+                    // Check if player is approaching from the correct entrance direction
+                    const entrance = getSpecialRoomEntrance(collisionTile.tx, collisionTile.ty);
+                    const playerTile = worldToTile(camera.position.x, camera.position.z);
+                    let validApproach = false;
+                    
+                    // Check approach direction matches entrance
+                    if (entrance === 'N' && playerTile.ty < collisionTile.ty) validApproach = true; // Coming from North
+                    else if (entrance === 'S' && playerTile.ty > collisionTile.ty) validApproach = true; // Coming from South
+                    else if (entrance === 'E' && playerTile.tx > collisionTile.tx) validApproach = true; // Coming from East
+                    else if (entrance === 'W' && playerTile.tx < collisionTile.tx) validApproach = true; // Coming from West
+                    
+                    if (validApproach) {
+                        enterSpecialRoom(collisionTile.tx, collisionTile.ty, entrance);
+                    } else {
+                        triggerHitFlash(); // Can't enter from this side
                     }
                 } else {
                     triggerHitFlash();
