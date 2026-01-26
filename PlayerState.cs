@@ -61,6 +61,9 @@ namespace AlternateRealityDungeon
         public int PlayerStartX { get; set; } = 32;
         public int PlayerStartY { get; set; } = 32;
         public int[][][] Levels { get; set; } = Array.Empty<int[][]>();
+        // Edge-based walls
+        public bool[][][] HWalls { get; set; } = Array.Empty<bool[][]>();
+        public bool[][][] VWalls { get; set; } = Array.Empty<bool[][]>();
     }
 
     public class PlayerState
@@ -77,6 +80,12 @@ namespace AlternateRealityDungeon
 
         public void SetStats(PlayerStats stats)
         {
+            GameLogger.LogInfo("PlayerState", "Player stats updated", new { 
+                name = stats.Name, 
+                stamina = stats.Stamina, 
+                strength = stats.Strength,
+                intelligence = stats.Intelligence 
+            });
             Stats = stats;
         }
 
@@ -87,11 +96,40 @@ namespace AlternateRealityDungeon
 
         public void SetLoadedGameState(GameState gameState)
         {
+            if (gameState != null)
+            {
+                GameLogger.LogInfo("PlayerState", "Game state loaded", new { 
+                    name = gameState.Name, 
+                    level = gameState.Level, 
+                    hitpoints = gameState.Hitpoints,
+                    experience = gameState.Experience,
+                    inventoryCount = gameState.Inventory.Count
+                });
+            }
+            else
+            {
+                GameLogger.LogInfo("PlayerState", "Game state cleared");
+            }
             LoadedGameState = gameState;
         }
         
         public void SetCurrentMapData(LoadedMapData? mapData)
         {
+            if (mapData != null)
+            {
+                GameLogger.LogInfo("PlayerState", "Map data set", new { 
+                    id = mapData.Id, 
+                    width = mapData.Width, 
+                    height = mapData.Height,
+                    numLevels = mapData.NumLevels,
+                    playerStartX = mapData.PlayerStartX,
+                    playerStartY = mapData.PlayerStartY
+                });
+            }
+            else
+            {
+                GameLogger.LogInfo("PlayerState", "Map data cleared");
+            }
             CurrentMapData = mapData;
         }
 

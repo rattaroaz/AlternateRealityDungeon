@@ -56,6 +56,10 @@ public class MapStorageService
         public int PlayerStartX { get; set; } = 32;
         public int PlayerStartY { get; set; } = 32;
         public int[][][] Levels { get; set; } = Array.Empty<int[][]>();
+        // Edge-based walls: HWalls[level][y][x] = horizontal wall on top edge of cell
+        // VWalls[level][y][x] = vertical wall on left edge of cell
+        public bool[][][] HWalls { get; set; } = Array.Empty<bool[][]>();
+        public bool[][][] VWalls { get; set; } = Array.Empty<bool[][]>();
     }
 
     public class MapCollection
@@ -183,20 +187,46 @@ public class MapStorageService
             NumLevels = NumLevels,
             PlayerStartX = 32,
             PlayerStartY = 32,
-            Levels = new int[NumLevels][][]
+            Levels = new int[NumLevels][][],
+            HWalls = new bool[NumLevels][][],
+            VWalls = new bool[NumLevels][][]
         };
 
         var random = new Random();
 
         for (int level = 0; level < NumLevels; level++)
         {
+            // Initialize tile data as floor
             map.Levels[level] = new int[MapHeight][];
             for (int y = 0; y < MapHeight; y++)
             {
                 map.Levels[level][y] = new int[MapWidth];
                 for (int x = 0; x < MapWidth; x++)
                 {
-                    map.Levels[level][y][x] = 1; // Wall
+                    map.Levels[level][y][x] = 0; // Floor
+                }
+            }
+            
+            // Initialize edge-based walls
+            map.HWalls[level] = new bool[MapHeight + 1][];
+            for (int y = 0; y <= MapHeight; y++)
+            {
+                map.HWalls[level][y] = new bool[MapWidth];
+                for (int x = 0; x < MapWidth; x++)
+                {
+                    // Perimeter walls on top and bottom
+                    map.HWalls[level][y][x] = (y == 0 || y == MapHeight);
+                }
+            }
+            
+            map.VWalls[level] = new bool[MapHeight][];
+            for (int y = 0; y < MapHeight; y++)
+            {
+                map.VWalls[level][y] = new bool[MapWidth + 1];
+                for (int x = 0; x <= MapWidth; x++)
+                {
+                    // Perimeter walls on left and right
+                    map.VWalls[level][y][x] = (x == 0 || x == MapWidth);
                 }
             }
 

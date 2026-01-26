@@ -1,4 +1,4 @@
-<api type="debug" assembly-name="Microsoft.Maui" mvid="0698ff38e8a049c6a96a1cc88069840d">
+<api type="debug" assembly-name="Microsoft.Maui" mvid="f620211f8943420688d27f0b3cca5ecf">
   <java-to-managed>
     <entry java-name="crc6488302ad6e9e4df1a/ImageLoaderResultCallback" managed-name="Microsoft.Maui.ImageLoaderResultCallback, Microsoft.Maui" managed-type-token-id="33554598" />
     <entry java-name="crc6488302ad6e9e4df1a/ImageLoaderCallback" managed-name="Microsoft.Maui.ImageLoaderCallback, Microsoft.Maui" managed-type-token-id="33554599" />

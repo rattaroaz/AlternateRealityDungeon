@@ -1,4 +1,4 @@
-<api type="debug" assembly-name="Microsoft.Maui.Controls" mvid="06ebfd75fc92439c9b0fb8210c391ea5">
+<api type="debug" assembly-name="Microsoft.Maui.Controls" mvid="d8df4bd83df44b9cb28778a193738700">
   <java-to-managed>
     <entry java-name="crc64f728827fec74e9c3/TapWindowTracker_GestureListener" managed-name="Microsoft.Maui.Controls.TapWindowTracker+GestureListener, Microsoft.Maui.Controls" managed-type-token-id="33555615" />
     <entry java-name="crc64f728827fec74e9c3/Toolbar_Container" managed-name="Microsoft.Maui.Controls.Toolbar+Container, Microsoft.Maui.Controls" managed-type-token-id="33555823" />

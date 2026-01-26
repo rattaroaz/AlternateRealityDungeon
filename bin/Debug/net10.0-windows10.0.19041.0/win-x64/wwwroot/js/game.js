@@ -1,8 +1,12 @@
 window.game = {
     _player: null, // Reference to current player state for saving
+    _dotNetHelper: null, // Reference to .NET helper for logging
     initGame: function (containerId, playerStats, dotNetHelper, cameraState, mapData) {
         const container = document.getElementById(containerId);
         if (!container) return;
+
+        // Store dotNetHelper globally for logging
+        window.game._dotNetHelper = dotNetHelper;
 
         // Scene
         const scene = new THREE.Scene();
@@ -39,6 +43,20 @@ window.game = {
         
         // Flag to track if we're using a custom map
         const useCustomMap = mapData && mapData.levels && mapData.levels.length > 0;
+        
+        // Debug: Log map data received
+        if (mapData) {
+            console.log('Map data received:', {
+                hasLevels: !!mapData.levels,
+                levelsCount: mapData.levels ? mapData.levels.length : 0,
+                hasHWalls: !!mapData.hWalls,
+                hWallsCount: mapData.hWalls ? mapData.hWalls.length : 0,
+                hasVWalls: !!mapData.vWalls,
+                vWallsCount: mapData.vWalls ? mapData.vWalls.length : 0
+            });
+        } else {
+            console.log('No map data received, will generate procedurally');
+        }
 
         const planeGeometry = new THREE.PlaneGeometry(MAP_WIDTH * TILE_SIZE, MAP_HEIGHT * TILE_SIZE);
         const planeMaterial = new THREE.MeshStandardMaterial({ color: 0x444444 });
@@ -68,12 +86,32 @@ window.game = {
             scene.add(treeGroup);
         }
 
-        // Add random trees (disabled in dungeon)
-        // for (let i = 0; i < 50; i++) {
-        //     const x = (Math.random() - 0.5) * 80;
-        //     const z = (Math.random() - 0.5) * 80;
-        //     createTree(x, z);
-        // }
+        // JavaScript logging system - accumulates logs for .NET to fetch
+        window.gameLogBuffer = window.gameLogBuffer || [];
+        
+        function logToFile(message) {
+            // Log to console
+            console.log(message);
+            
+            // Add to log buffer for .NET to fetch
+            const timestamp = new Date().toISOString();
+            window.gameLogBuffer.push(`[${timestamp}] ${message}`);
+            
+            // Keep buffer size manageable (max 100 entries)
+            if (window.gameLogBuffer.length > 100) {
+                window.gameLogBuffer.shift();
+            }
+        }
+        
+        // Method for .NET to call to get and clear logs
+        window.game.getAndClearLogs = function() {
+            const logs = window.gameLogBuffer.slice();
+            window.gameLogBuffer = [];
+            return logs;
+        };
+        
+        // Make logToFile available globally
+        window.logToFile = logToFile;
 
         // Dungeon layout - Multi-level
         const WALL = 1;
@@ -91,16 +129,41 @@ window.game = {
         // Stair positions for each level: { down: [{x,y}, {x,y}], up: [{x,y}, {x,y}] }
         const stairPositions = [];
         
+        // Edge-based walls: hWalls[level][y][x] = horizontal wall on top edge of cell (x,y)
+        // vWalls[level][y][x] = vertical wall on left edge of cell (x,y)
+        const hWalls = [];
+        const vWalls = [];
+        
+        // Check if we have edge-based wall data
+        const useEdgeWalls = mapData && mapData.hWalls && mapData.vWalls && 
+                            mapData.hWalls.length > 0 && mapData.vWalls.length > 0;
+        
         // Initialize all levels
         for (let level = 0; level < NUM_LEVELS; level++) {
             dungeonLevels[level] = [];
             for (let y = 0; y < MAP_HEIGHT; y++) {
                 dungeonLevels[level][y] = [];
                 for (let x = 0; x < MAP_WIDTH; x++) {
-                    dungeonLevels[level][y][x] = WALL;
+                    dungeonLevels[level][y][x] = useEdgeWalls ? FLOOR : WALL;
                 }
             }
             stairPositions[level] = { down: [], up: [] };
+            
+            // Initialize edge-based walls with perimeter
+            hWalls[level] = [];
+            for (let y = 0; y <= MAP_HEIGHT; y++) {
+                hWalls[level][y] = [];
+                for (let x = 0; x < MAP_WIDTH; x++) {
+                    hWalls[level][y][x] = (y === 0 || y === MAP_HEIGHT);
+                }
+            }
+            vWalls[level] = [];
+            for (let y = 0; y < MAP_HEIGHT; y++) {
+                vWalls[level][y] = [];
+                for (let x = 0; x <= MAP_WIDTH; x++) {
+                    vWalls[level][y][x] = (x === 0 || x === MAP_WIDTH);
+                }
+            }
         }
         
         // Room generation for each level
@@ -223,6 +286,44 @@ window.game = {
                     }
                 }
             }
+            
+            // Load edge-based walls if present
+            if (useEdgeWalls) {
+                console.log('Loading edge-based walls. mapData.hWalls.length:', mapData.hWalls.length, 'mapData.vWalls.length:', mapData.vWalls.length);
+                for (let level = 0; level < NUM_LEVELS; level++) {
+                    // Check if this level's data exists in mapData
+                    if (level < mapData.hWalls.length && mapData.hWalls[level]) {
+                        // Load horizontal walls
+                        for (let y = 0; y <= MAP_HEIGHT; y++) {
+                            if (y < mapData.hWalls[level].length && mapData.hWalls[level][y]) {
+                                for (let x = 0; x < MAP_WIDTH && x < mapData.hWalls[level][y].length; x++) {
+                                    hWalls[level][y][x] = mapData.hWalls[level][y][x];
+                                }
+                            }
+                        }
+                        console.log('Loaded hWalls for level', level);
+                    } else {
+                        console.warn('No hWalls data for level', level);
+                    }
+                    
+                    // Check if this level's vWalls data exists
+                    if (level < mapData.vWalls.length && mapData.vWalls[level]) {
+                        // Load vertical walls
+                        for (let y = 0; y < MAP_HEIGHT; y++) {
+                            if (y < mapData.vWalls[level].length && mapData.vWalls[level][y]) {
+                                for (let x = 0; x <= MAP_WIDTH && x < mapData.vWalls[level][y].length; x++) {
+                                    vWalls[level][y][x] = mapData.vWalls[level][y][x];
+                                }
+                            }
+                        }
+                        console.log('Loaded vWalls for level', level);
+                    } else {
+                        console.warn('No vWalls data for level', level);
+                    }
+                }
+                console.log('Loaded edge-based walls from editor for all levels');
+            }
+            
             console.log('Loaded custom map from editor');
         } else {
             // Generate all levels procedurally
@@ -340,6 +441,17 @@ window.game = {
         const wallGeometry = new THREE.BoxGeometry(TILE_SIZE, wallHeight, TILE_SIZE);
         const wallEdgeGeometry = new THREE.EdgesGeometry(wallGeometry);
         const wallEdgeMaterial = new THREE.LineBasicMaterial({ color: 0xFF6666 });
+        
+        // Edge wall geometry (thin walls on cell edges)
+        const WALL_THICKNESS = 0.3;
+        const hEdgeWallGeometry = new THREE.BoxGeometry(TILE_SIZE, wallHeight, WALL_THICKNESS); // Horizontal wall (runs along X axis)
+        const vEdgeWallGeometry = new THREE.BoxGeometry(WALL_THICKNESS, wallHeight, TILE_SIZE); // Vertical wall (runs along Z axis)
+        const edgeWallMaterial = new THREE.MeshStandardMaterial({
+            color: 0xB8860B, // Dark yellow/gold color matching editor
+            roughness: 0.7,
+            metalness: 0.1,
+            side: THREE.DoubleSide
+        });
 
         // Stair materials
         const stairsDownMaterial = new THREE.MeshStandardMaterial({ color: 0x8B0000, roughness: 0.5 }); // Dark red for down
@@ -352,6 +464,26 @@ window.game = {
         
         // Track dungeon meshes for level switching
         let dungeonMeshes = [];
+        
+        // Add horizontal edge wall (on top edge of cell tx, ty)
+        function addHEdgeWall(tx, ty) {
+            const mesh = new THREE.Mesh(hEdgeWallGeometry, edgeWallMaterial);
+            const worldX = (tx - MAP_WIDTH / 2) * TILE_SIZE + TILE_SIZE / 2;
+            const worldZ = (ty - MAP_HEIGHT / 2) * TILE_SIZE; // Top edge of cell
+            mesh.position.set(worldX, wallHeight / 2, worldZ);
+            scene.add(mesh);
+            dungeonMeshes.push(mesh);
+        }
+        
+        // Add vertical edge wall (on left edge of cell tx, ty)
+        function addVEdgeWall(tx, ty) {
+            const mesh = new THREE.Mesh(vEdgeWallGeometry, edgeWallMaterial);
+            const worldX = (tx - MAP_WIDTH / 2) * TILE_SIZE; // Left edge of cell
+            const worldZ = (ty - MAP_HEIGHT / 2) * TILE_SIZE + TILE_SIZE / 2;
+            mesh.position.set(worldX, wallHeight / 2, worldZ);
+            scene.add(mesh);
+            dungeonMeshes.push(mesh);
+        }
         
         function addWallTile(tx, ty) {
             const mesh = new THREE.Mesh(wallGeometry, wallMaterial);
@@ -441,10 +573,12 @@ window.game = {
             dungeonMeshes = [];
             
             const map = dungeonLevels[level];
+            
+            // Render tiles (stairs, special rooms, and tile-based walls if not using edge walls)
             for (let y = 0; y < MAP_HEIGHT; y++) {
                 for (let x = 0; x < MAP_WIDTH; x++) {
                     const tile = map[y][x];
-                    if (tile === WALL) {
+                    if (tile === WALL && !useEdgeWalls) {
                         addWallTile(x, y);
                     } else if (tile === STAIRS_DOWN) {
                         addStairTile(x, y, true);
@@ -458,6 +592,26 @@ window.game = {
                         addSpecialRoomTile(x, y, 'S');
                     } else if (tile === SPECIAL_ROOM_W) {
                         addSpecialRoomTile(x, y, 'W');
+                    }
+                }
+            }
+            
+            // Render edge-based walls if using edge walls
+            if (useEdgeWalls) {
+                // Horizontal walls
+                for (let y = 0; y <= MAP_HEIGHT; y++) {
+                    for (let x = 0; x < MAP_WIDTH; x++) {
+                        if (hWalls[level][y] && hWalls[level][y][x]) {
+                            addHEdgeWall(x, y);
+                        }
+                    }
+                }
+                // Vertical walls
+                for (let y = 0; y < MAP_HEIGHT; y++) {
+                    for (let x = 0; x <= MAP_WIDTH; x++) {
+                        if (vWalls[level][y] && vWalls[level][y][x]) {
+                            addVEdgeWall(x, y);
+                        }
                     }
                 }
             }
@@ -478,7 +632,95 @@ window.game = {
                 return false;
             }
             const tile = dungeonLevels[currentLevel][ty][tx];
+            // With edge-based walls, ALL tiles are walkable - walls are edges, not tile types
+            // Only special rooms block based on tile type
+            if (useEdgeWalls) {
+                // Special rooms are not walkable (must enter through proper entrance)
+                if (tile === SPECIAL_ROOM_N || tile === SPECIAL_ROOM_E || 
+                    tile === SPECIAL_ROOM_S || tile === SPECIAL_ROOM_W) {
+                    return false;
+                }
+                // All other tiles are walkable when using edge-based walls
+                return true;
+            }
             return tile === FLOOR || tile === STAIRS_DOWN || tile === STAIRS_UP;
+        }
+        
+        // Check if there's a wall edge between two adjacent cells
+        function hasWallBetween(fromTx, fromTy, toTx, toTy) {
+            if (!useEdgeWalls) return false;
+            
+            const dx = toTx - fromTx;
+            const dy = toTy - fromTy;
+            
+            // Moving north (negative Y in map coords)
+            if (dy < 0) {
+                // Check horizontal wall on top of fromTx, fromTy (which is same as bottom of toTx, toTy)
+                if (fromTy >= 0 && fromTy <= MAP_HEIGHT && fromTx >= 0 && fromTx < MAP_WIDTH) {
+                    return hWalls[currentLevel][fromTy] && hWalls[currentLevel][fromTy][fromTx];
+                }
+                return true;
+            }
+            // Moving south (positive Y)
+            if (dy > 0) {
+                // Check horizontal wall on bottom of fromTx, fromTy (which is top of toTx, toTy)
+                if (toTy >= 0 && toTy <= MAP_HEIGHT && toTx >= 0 && toTx < MAP_WIDTH) {
+                    return hWalls[currentLevel][toTy] && hWalls[currentLevel][toTy][toTx];
+                }
+                return true;
+            }
+            // Moving west (negative X)
+            if (dx < 0) {
+                // Check vertical wall on left of fromTx, fromTy
+                if (fromTy >= 0 && fromTy < MAP_HEIGHT && fromTx >= 0 && fromTx <= MAP_WIDTH) {
+                    return vWalls[currentLevel][fromTy] && vWalls[currentLevel][fromTy][fromTx];
+                }
+                return true;
+            }
+            // Moving east (positive X)
+            if (dx > 0) {
+                // Check vertical wall on right of fromTx, fromTy (which is left of toTx, toTy)
+                if (toTy >= 0 && toTy < MAP_HEIGHT && toTx >= 0 && toTx <= MAP_WIDTH) {
+                    return vWalls[currentLevel][toTy] && vWalls[currentLevel][toTy][toTx];
+                }
+                return true;
+            }
+            
+            return false;
+        }
+        
+        // Check wall collision at a world position with buffer
+        function checkEdgeWallCollision(worldX, worldZ, buffer) {
+            if (!useEdgeWalls) return false;
+            
+            const { tx, ty } = worldToTile(worldX, worldZ);
+            if (tx < 0 || tx >= MAP_WIDTH || ty < 0 || ty >= MAP_HEIGHT) return true;
+            
+            // Get position within tile (0 to TILE_SIZE)
+            const tileStartX = (tx - MAP_WIDTH / 2) * TILE_SIZE;
+            const tileStartZ = (ty - MAP_HEIGHT / 2) * TILE_SIZE;
+            const localX = worldX - tileStartX;
+            const localZ = worldZ - tileStartZ;
+            
+            // Check if too close to an edge that has a wall
+            // Top edge (low Z within tile)
+            if (localZ < buffer && ty >= 0 && hWalls[currentLevel][ty] && hWalls[currentLevel][ty][tx]) {
+                return true;
+            }
+            // Bottom edge (high Z within tile)
+            if (localZ > TILE_SIZE - buffer && ty + 1 <= MAP_HEIGHT && hWalls[currentLevel][ty + 1] && hWalls[currentLevel][ty + 1][tx]) {
+                return true;
+            }
+            // Left edge (low X within tile)
+            if (localX < buffer && tx >= 0 && vWalls[currentLevel][ty] && vWalls[currentLevel][ty][tx]) {
+                return true;
+            }
+            // Right edge (high X within tile)
+            if (localX > TILE_SIZE - buffer && tx + 1 <= MAP_WIDTH && vWalls[currentLevel][ty] && vWalls[currentLevel][ty][tx + 1]) {
+                return true;
+            }
+            
+            return false;
         }
         
         function isSpecialRoom(tx, ty) {
@@ -506,11 +748,91 @@ window.game = {
             return dungeonLevels[currentLevel][ty][tx];
         }
         
+        // Clear walls around a tile to ensure player can move (used at stairs)
+        function clearWallsAroundTile(tx, ty) {
+            if (!useEdgeWalls) return;
+            if (tx < 0 || tx >= MAP_WIDTH || ty < 0 || ty >= MAP_HEIGHT) return;
+            
+            // Clear horizontal walls (top and bottom of tile)
+            if (hWalls[currentLevel][ty]) hWalls[currentLevel][ty][tx] = false;
+            if (ty + 1 <= MAP_HEIGHT && hWalls[currentLevel][ty + 1]) hWalls[currentLevel][ty + 1][tx] = false;
+            
+            // Clear vertical walls (left and right of tile)
+            if (vWalls[currentLevel][ty]) vWalls[currentLevel][ty][tx] = false;
+            if (tx + 1 <= MAP_WIDTH && vWalls[currentLevel][ty]) vWalls[currentLevel][ty][tx + 1] = false;
+            
+            console.log('Cleared walls around tile', tx, ty, 'on level', currentLevel);
+        }
+        
+        // Convert wall tiles around a position to floor tiles (used at stairs to ensure movement)
+        function clearAreaAroundStairs(tx, ty) {
+            // Convert tiles in a 7x7 area (radius 3) around the stairs to floor tiles
+            const radius = 3;
+            for (let dy = -radius; dy <= radius; dy++) {
+                for (let dx = -radius; dx <= radius; dx++) {
+                    const nx = tx + dx;
+                    const ny = ty + dy;
+                    
+                    // Check bounds
+                    if (nx < 0 || nx >= MAP_WIDTH || ny < 0 || ny >= MAP_HEIGHT) continue;
+                    
+                    // Only convert WALL tiles to FLOOR, leave stairs and special rooms alone
+                    if (dungeonLevels[currentLevel][ny][nx] === WALL) {
+                        dungeonLevels[currentLevel][ny][nx] = FLOOR;
+                        logToFile(`[STAIR] Converted wall at (${nx}, ${ny}) to floor on level ${currentLevel}`);
+                    }
+                }
+            }
+            
+            // Also clear wall segments around the expanded area
+            for (let dy = -radius; dy <= radius; dy++) {
+                for (let dx = -radius; dx <= radius; dx++) {
+                    clearWallsAroundTile(tx + dx, ty + dy);
+                }
+            }
+        }
+        
         // Level transition
         function changeLevel(newLevel) {
-            if (newLevel < 0 || newLevel >= NUM_LEVELS) return;
+            if (newLevel < 0 || newLevel >= NUM_LEVELS) {
+                logToFile(`[STAIR] Invalid level change: ${currentLevel} -> ${newLevel}`);
+                return;
+            }
+            
+            const oldLevel = currentLevel;
+            const playerTile = worldToTile(camera.position.x, camera.position.z);
+            
+            logToFile(`[STAIR] LEVEL TRANSITION: ${oldLevel} -> ${newLevel}`);
+            logToFile(`[STAIR] Player position before change: (${camera.position.x.toFixed(2)}, ${camera.position.z.toFixed(2)})`);
+            logToFile(`[STAIR] Player tile before change: (${playerTile.tx}, ${playerTile.ty})`);
+            
             currentLevel = newLevel;
+            
             buildLevel(currentLevel);
+            
+            // Log wall count for debugging
+            let wallCount = 0;
+            for (let y = 0; y <= MAP_HEIGHT; y++) {
+                for (let x = 0; x < MAP_WIDTH; x++) {
+                    if (hWalls[currentLevel][y] && hWalls[currentLevel][y][x]) wallCount++;
+                }
+            }
+            for (let y = 0; y < MAP_HEIGHT; y++) {
+                for (let x = 0; x <= MAP_WIDTH; x++) {
+                    if (vWalls[currentLevel][y] && vWalls[currentLevel][y][x]) wallCount++;
+                }
+            }
+            logToFile(`[STAIR] Level ${currentLevel} has ${wallCount} wall segments`);
+            logToFile(`[STAIR] Player position after change: (${camera.position.x.toFixed(2)}, ${camera.position.z.toFixed(2)})`);
+            
+            // Check if player position is walkable
+            const newTile = worldToTile(camera.position.x, camera.position.z);
+            const tileType = getTileType(newTile.tx, newTile.ty);
+            const isWalkableCheck = tileType === FLOOR || tileType === STAIRS_DOWN || tileType === STAIRS_UP;
+            
+            logToFile(`[STAIR] Player tile after change: (${newTile.tx}, ${newTile.ty})`);
+            logToFile(`[STAIR] Tile type: ${tileType}, isWalkable: ${isWalkableCheck}`);
+            
             updateHUD();
         }
 
@@ -1878,9 +2200,10 @@ window.game = {
         setInterval(() => {
             gameTime++;
             
-            // Check for random monster encounter (10% chance every second)
+            // Check for random monster encounter (DISABLED)
             // Don't trigger encounters when any interaction menu is open
-            if (!player.inBattle && !isPaused && !isInteractionMenuOpen() && Math.random() < 0.10) {
+            // MONSTER ENCOUNTERS DISABLED FOR DEBUGGING
+            if (false && !player.inBattle && !isPaused && !isInteractionMenuOpen() && Math.random() < 0.10) {
                 startBattle();
             }
             
@@ -2080,10 +2403,18 @@ window.game = {
             if (e.code === 'Enter' || e.code === 'NumpadEnter') {
                 const tile = worldToTile(camera.position.x, camera.position.z);
                 const tileType = getTileType(tile.tx, tile.ty);
+                
+                // Log stair usage
+                logToFile(`[STAIR] Player attempting to use stairs at tile (${tile.tx}, ${tile.ty}) with type ${tileType} on level ${currentLevel}`);
+                
                 if (tileType === STAIRS_DOWN && currentLevel < NUM_LEVELS - 1) {
+                    logToFile(`[STAIR] Going DOWN from level ${currentLevel} to ${currentLevel + 1}`);
                     changeLevel(currentLevel + 1);
                 } else if (tileType === STAIRS_UP && currentLevel > 0) {
+                    logToFile(`[STAIR] Going UP from level ${currentLevel} to ${currentLevel - 1}`);
                     changeLevel(currentLevel - 1);
+                } else {
+                    logToFile(`[STAIR] Cannot use stairs - type: ${tileType}, currentLevel: ${currentLevel}`);
                 }
             }
 
@@ -2385,7 +2716,10 @@ window.game = {
 
                 const collisionTile = worldToTile(collisionPos.x, collisionPos.z);
 
-                if (isWalkable(collisionTile.tx, collisionTile.ty)) {
+                // Check for edge wall collision first (if using edge walls)
+                const edgeCollision = checkEdgeWallCollision(collisionPos.x, collisionPos.z, playerRadius);
+                
+                if (isWalkable(collisionTile.tx, collisionTile.ty) && !edgeCollision) {
                     const centerX = (stepTile.tx - MAP_WIDTH / 2) * TILE_SIZE + TILE_SIZE / 2;
                     const centerZ = (stepTile.ty - MAP_HEIGHT / 2) * TILE_SIZE + TILE_SIZE / 2;
 
@@ -2399,6 +2733,9 @@ window.game = {
                         camera.position.x = centerX;
                         camera.position.z = nextPos.z;
                     }
+                    
+                    // Log successful movement
+                    logToFile(`[MOVE] Movement successful: (${camera.position.x.toFixed(2)}, ${camera.position.z.toFixed(2)})`);
                 } else if (isSpecialRoom(collisionTile.tx, collisionTile.ty)) {
                     // Check if player is approaching from the correct entrance direction
                     const entrance = getSpecialRoomEntrance(collisionTile.tx, collisionTile.ty);
@@ -2414,9 +2751,24 @@ window.game = {
                     if (validApproach) {
                         enterSpecialRoom(collisionTile.tx, collisionTile.ty, entrance);
                     } else {
+                        logToFile(`[MOVE] BLOCKED: Wrong entrance direction for special room`);
                         triggerHitFlash(); // Can't enter from this side
                     }
                 } else {
+                    // Log movement blocking with details
+                    const tileType = getTileType(collisionTile.tx, collisionTile.ty);
+                    let blockReason = 'Unknown';
+                    if (!isWalkable(collisionTile.tx, collisionTile.ty)) {
+                        blockReason = `Tile not walkable (type: ${tileType})`;
+                    } else if (edgeCollision) {
+                        blockReason = 'Edge wall collision';
+                    }
+                    
+                    logToFile(`[MOVE] BLOCKED: ${blockReason}`);
+                    logToFile(`[MOVE] Position: (${camera.position.x.toFixed(2)}, ${camera.position.z.toFixed(2)})`);
+                    logToFile(`[MOVE] Target tile: (${collisionTile.tx}, ${collisionTile.ty}), type: ${tileType}`);
+                    logToFile(`[MOVE] Edge collision: ${edgeCollision}`);
+                    
                     triggerHitFlash();
                 }
             }

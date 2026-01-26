@@ -9,9 +9,9 @@
     ".NETCoreApp,Version=v10.0/win-x64": {
       "AlternateRealityDungeon/1.0": {
         "dependencies": {
-          "Microsoft.AspNetCore.Components.WebView.Maui": "10.0.0",
+          "Microsoft.AspNetCore.Components.WebView.Maui": "10.0.1",
           "Microsoft.Extensions.Logging.Debug": "10.0.0",
-          "Microsoft.Maui.Controls": "10.0.0",
+          "Microsoft.Maui.Controls": "10.0.1",
           "Microsoft.Web.WebView2.Core.Projection": "1.0.3179.45",
           "runtimepack.Microsoft.Windows.SDK.NET.Ref": "10.0.19041.57"
         },
@@ -99,7 +99,7 @@
           }
         }
       },
-      "Microsoft.AspNetCore.Components.WebView.Maui/10.0.0": {
+      "Microsoft.AspNetCore.Components.WebView.Maui/10.0.1": {
         "dependencies": {
           "Microsoft.AspNetCore.Authorization": "10.0.0",
           "Microsoft.AspNetCore.Components.WebView": "10.0.0",
@@ -108,7 +108,7 @@
         "runtime": {
           "lib/net10.0-windows10.0.19041/Microsoft.AspNetCore.Components.WebView.Maui.dll": {
             "assemblyVersion": "10.0.0.0",
-            "fileVersion": "10.0.25.52904"
+            "fileVersion": "10.0.125.57106"
           }
         }
       },
@@ -414,24 +414,24 @@
           }
         }
       },
-      "Microsoft.Maui.Controls/10.0.0": {
+      "Microsoft.Maui.Controls/10.0.1": {
         "dependencies": {
-          "Microsoft.Maui.Controls.Core": "10.0.0",
-          "Microsoft.Maui.Controls.Xaml": "10.0.0"
+          "Microsoft.Maui.Controls.Core": "10.0.1",
+          "Microsoft.Maui.Controls.Xaml": "10.0.1"
         }
       },
-      "Microsoft.Maui.Controls.Core/10.0.0": {
+      "Microsoft.Maui.Controls.Core/10.0.1": {
         "dependencies": {
           "Microsoft.Extensions.Configuration": "10.0.0",
           "Microsoft.Extensions.DependencyInjection": "10.0.0",
           "Microsoft.Extensions.Logging": "10.0.0",
           "Microsoft.Extensions.Logging.Abstractions": "10.0.0",
-          "Microsoft.Maui.Core": "10.0.0"
+          "Microsoft.Maui.Core": "10.0.1"
         },
         "runtime": {
           "lib/net10.0-windows10.0.19041/Microsoft.Maui.Controls.dll": {
             "assemblyVersion": "10.0.0.0",
-            "fileVersion": "10.0.25.52904"
+            "fileVersion": "10.0.125.57106"
           }
         },
         "resources": {
@@ -539,20 +539,20 @@
           }
         }
       },
-      "Microsoft.Maui.Controls.Xaml/10.0.0": {
+      "Microsoft.Maui.Controls.Xaml/10.0.1": {
         "dependencies": {
           "Microsoft.Extensions.Configuration": "10.0.0",
-          "Microsoft.Maui.Controls.Core": "10.0.0",
-          "Microsoft.Maui.Core": "10.0.0"
+          "Microsoft.Maui.Controls.Core": "10.0.1",
+          "Microsoft.Maui.Core": "10.0.1"
         },
         "runtime": {
           "lib/net10.0-windows10.0.19041/Microsoft.Maui.Controls.Xaml.dll": {
             "assemblyVersion": "10.0.0.0",
-            "fileVersion": "10.0.25.52904"
+            "fileVersion": "10.0.125.57106"
           }
         }
       },
-      "Microsoft.Maui.Core/10.0.0": {
+      "Microsoft.Maui.Core/10.0.1": {
         "dependencies": {
           "Microsoft.Extensions.Configuration": "10.0.0",
           "Microsoft.Extensions.DependencyInjection": "10.0.0",
@@ -560,32 +560,32 @@
           "Microsoft.Extensions.Logging": "10.0.0",
           "Microsoft.Extensions.Logging.Abstractions": "10.0.0",
           "Microsoft.Graphics.Win2D": "1.3.2",
-          "Microsoft.Maui.Essentials": "10.0.0",
-          "Microsoft.Maui.Graphics": "10.0.0",
-          "Microsoft.Maui.Graphics.Win2D.WinUI.Desktop": "10.0.0",
+          "Microsoft.Maui.Essentials": "10.0.1",
+          "Microsoft.Maui.Graphics": "10.0.1",
+          "Microsoft.Maui.Graphics.Win2D.WinUI.Desktop": "10.0.1",
           "Microsoft.Web.WebView2": "1.0.3179.45",
           "Microsoft.WindowsAppSDK": "1.7.250909003"
         },
         "runtime": {
           "lib/net10.0-windows10.0.19041/Microsoft.Maui.dll": {
             "assemblyVersion": "10.0.0.0",
-            "fileVersion": "10.0.25.52904"
+            "fileVersion": "10.0.125.57106"
           }
         }
       },
-      "Microsoft.Maui.Essentials/10.0.0": {
+      "Microsoft.Maui.Essentials/10.0.1": {
         "dependencies": {
-          "Microsoft.Maui.Graphics": "10.0.0",
+          "Microsoft.Maui.Graphics": "10.0.1",
           "Microsoft.Web.WebView2": "1.0.3179.45"
         },
         "runtime": {
           "lib/net10.0-windows10.0.19041/Microsoft.Maui.Essentials.dll": {
             "assemblyVersion": "10.0.0.0",
-            "fileVersion": "10.0.25.52904"
+            "fileVersion": "10.0.125.57106"
           }
         }
       },
-      "Microsoft.Maui.Graphics/10.0.0": {
+      "Microsoft.Maui.Graphics/10.0.1": {
         "dependencies": {
           "Microsoft.Graphics.Win2D": "1.3.2",
           "Microsoft.IO.RecyclableMemoryStream": "3.0.1",
@@ -594,19 +594,19 @@
         "runtime": {
           "lib/net10.0-windows10.0.19041/Microsoft.Maui.Graphics.dll": {
             "assemblyVersion": "10.0.0.0",
-            "fileVersion": "10.0.25.52904"
+            "fileVersion": "10.0.125.57106"
           }
         }
       },
-      "Microsoft.Maui.Graphics.Win2D.WinUI.Desktop/10.0.0": {
+      "Microsoft.Maui.Graphics.Win2D.WinUI.Desktop/10.0.1": {
         "dependencies": {
           "Microsoft.Graphics.Win2D": "1.3.2",
-          "Microsoft.Maui.Graphics": "10.0.0"
+          "Microsoft.Maui.Graphics": "10.0.1"
         },
         "runtime": {
           "lib/net10.0-windows10.0.19041/Microsoft.Maui.Graphics.Win2D.WinUI.Desktop.dll": {
             "assemblyVersion": "10.0.0.0",
-            "fileVersion": "10.0.25.52904"
+            "fileVersion": "10.0.125.57106"
           }
         }
       },
@@ -788,12 +788,12 @@
       "path": "microsoft.aspnetcore.components.webview/10.0.0",
       "hashPath": "microsoft.aspnetcore.components.webview.10.0.0.nupkg.sha512"
     },
-    "Microsoft.AspNetCore.Components.WebView.Maui/10.0.0": {
+    "Microsoft.AspNetCore.Components.WebView.Maui/10.0.1": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-H5JLK1wLhObJLhRxxIIJBPvIREZJk0JB43+zVsHC5CnVBUK7NuZ9wCuWbIDrnZTouLnRfq+f0xWbc0KtagZsTA==",
-      "path": "microsoft.aspnetcore.components.webview.maui/10.0.0",
-      "hashPath": "microsoft.aspnetcore.components.webview.maui.10.0.0.nupkg.sha512"
+      "sha512": "sha512-TiF0R8gvgY5dP2SsnznxWGiYjcf/+J7DWBSA4AouyW5hkZqYx0DcuMgQZW+Ng1R5/QoaveDwgMhuxStKnKz8VQ==",
+      "path": "microsoft.aspnetcore.components.webview.maui/10.0.1",
+      "hashPath": "microsoft.aspnetcore.components.webview.maui.10.0.1.nupkg.sha512"
     },
     "Microsoft.AspNetCore.Metadata/10.0.0": {
       "type": "package",
@@ -977,54 +977,54 @@
       "path": "microsoft.jsinterop/10.0.0",
       "hashPath": "microsoft.jsinterop.10.0.0.nupkg.sha512"
     },
-    "Microsoft.Maui.Controls/10.0.0": {
+    "Microsoft.Maui.Controls/10.0.1": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-NP0HDpggHYNMTnzqlXAxospQyR6gu4GHzYEIFcAB1/Dmu0BodfvlPrNA2wYwTGE9ERERc9OjXRZUTYZDEYDNAA==",
-      "path": "microsoft.maui.controls/10.0.0",
-      "hashPath": "microsoft.maui.controls.10.0.0.nupkg.sha512"
+      "sha512": "sha512-u9pTenkUr5G9YM/KPCoPSpt7cSgS68IMK5Ker2xWDQU0Qdyjt0J0tN/paLkB19Lzt3DpdBWwMu7/coZy+rajlg==",
+      "path": "microsoft.maui.controls/10.0.1",
+      "hashPath": "microsoft.maui.controls.10.0.1.nupkg.sha512"
     },
-    "Microsoft.Maui.Controls.Core/10.0.0": {
+    "Microsoft.Maui.Controls.Core/10.0.1": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-gzEDoTscHaxuJQ5A8BXjWDMOVsAF6zh4AWsSrLB0Q+1F8EWHB/R7YwHIjqBf9bZLroJBpot9lBLHXdyNwlSCvg==",
-      "path": "microsoft.maui.controls.core/10.0.0",
-      "hashPath": "microsoft.maui.controls.core.10.0.0.nupkg.sha512"
+      "sha512": "sha512-PGEP7je96JxwIiqH6wPido7B4yM/7qkqCIWNW1Fz6lp6iAdhe56mKfwNq1ahfr4Rjb5C7TPXU8oTgwPKilezCQ==",
+      "path": "microsoft.maui.controls.core/10.0.1",
+      "hashPath": "microsoft.maui.controls.core.10.0.1.nupkg.sha512"
     },
-    "Microsoft.Maui.Controls.Xaml/10.0.0": {
+    "Microsoft.Maui.Controls.Xaml/10.0.1": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-oLOGV0OWETnEl0iKLodBqDFT06Se+y7aP5HWhDyNcdW9wDhOz0wuOf1Jamj0HiBpP7fL7JT5N6o+hxdH1BtKtA==",
-      "path": "microsoft.maui.controls.xaml/10.0.0",
-      "hashPath": "microsoft.maui.controls.xaml.10.0.0.nupkg.sha512"
+      "sha512": "sha512-8z5REKP8MHbHwY2Rz9XIWqrMsImVGAjYQYXFa0QMLRO+tGXWguj85Igl7Q6fARe1rbIdNy8Off9N9470WJ64vw==",
+      "path": "microsoft.maui.controls.xaml/10.0.1",
+      "hashPath": "microsoft.maui.controls.xaml.10.0.1.nupkg.sha512"
     },
-    "Microsoft.Maui.Core/10.0.0": {
+    "Microsoft.Maui.Core/10.0.1": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-HkUxRS2qJyBgvtb5Pop8WQJCx4TkTjz9Ug+IIFasUbWpNHImERx4IbAG/S8iWi4cGYnc8xvNLVzXHrbHcCdfuw==",
-      "path": "microsoft.maui.core/10.0.0",
-      "hashPath": "microsoft.maui.core.10.0.0.nupkg.sha512"
+      "sha512": "sha512-gADO5xRQtjNj7Cvp/mrvyN5OPc2dBP69EegrseCrJTlF34QiNhzPYrSP6ukmRECbQO7/M1lQhzD6ejGkWGvfjQ==",
+      "path": "microsoft.maui.core/10.0.1",
+      "hashPath": "microsoft.maui.core.10.0.1.nupkg.sha512"
     },
-    "Microsoft.Maui.Essentials/10.0.0": {
+    "Microsoft.Maui.Essentials/10.0.1": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-Lq9QTJ3UrA9CZdFACmEtXHqju27I8CeRWRD0PSAZHNbvH2v3uAtfzKAaJunbopIxf5nOboYwt8Ja70jgUVDI+w==",
-      "path": "microsoft.maui.essentials/10.0.0",
-      "hashPath": "microsoft.maui.essentials.10.0.0.nupkg.sha512"
+      "sha512": "sha512-7LYVsZa8NYbxiMjshPR1H0tJlAluJcHNk9Jf+iBgjpZmF1LGwXslN5NPUSikAPaQKU8xyJ7Rs7Yfl30CCaNTlw==",
+      "path": "microsoft.maui.essentials/10.0.1",
+      "hashPath": "microsoft.maui.essentials.10.0.1.nupkg.sha512"
     },
-    "Microsoft.Maui.Graphics/10.0.0": {
+    "Microsoft.Maui.Graphics/10.0.1": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-hHQdbaavPrUl25INCFRIr/PegJI8148AYe7D8qn8UMBGG/Djd/UvMPxM+3u2L0J6tyWlfWfwmDeiJs7Ab+OjLw==",
-      "path": "microsoft.maui.graphics/10.0.0",
-      "hashPath": "microsoft.maui.graphics.10.0.0.nupkg.sha512"
+      "sha512": "sha512-CoOqzAmEwOcePVe+STZi37Ccvs+PF6xwIiObIXR89M0jQitFPuuMFWdmnjbebIfvYHN6LJflejVtGzennI0zsg==",
+      "path": "microsoft.maui.graphics/10.0.1",
+      "hashPath": "microsoft.maui.graphics.10.0.1.nupkg.sha512"
     },
-    "Microsoft.Maui.Graphics.Win2D.WinUI.Desktop/10.0.0": {
+    "Microsoft.Maui.Graphics.Win2D.WinUI.Desktop/10.0.1": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-/YTC7GZyitKChjDAPCmbxN8c/fp6oUJ6jXKokYG6nJq1jLc5/UOhnn4c5PMzchftEfgcZvktefmP2UMt1s1fqw==",
-      "path": "microsoft.maui.graphics.win2d.winui.desktop/10.0.0",
-      "hashPath": "microsoft.maui.graphics.win2d.winui.desktop.10.0.0.nupkg.sha512"
+      "sha512": "sha512-WG7BMJ5aklifgbsftcmAsyRI86EtmMaBVw+qtBQAyuQzIRPVtEnWmVsO4YZ5WUNT+4mZJxgzH2FF2q0LDcGxGQ==",
+      "path": "microsoft.maui.graphics.win2d.winui.desktop/10.0.1",
+      "hashPath": "microsoft.maui.graphics.win2d.winui.desktop.10.0.1.nupkg.sha512"
     },
     "Microsoft.Web.WebView2/1.0.3179.45": {
       "type": "package",

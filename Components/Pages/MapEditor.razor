@@ -38,9 +38,14 @@
             <div>
                 <h3 style="margin: 0 0 10px 0; color: #aaa;">Tile Type</h3>
                 <div style="display: flex; flex-direction: column; gap: 5px;">
+                    <button @onclick="() => SelectTool(TileType.Erase)" 
+                            style="background: @(selectedTool == TileType.Erase ? "#666" : "#333"); padding: 8px; text-align: left;">
+                        <span style="display: inline-block; width: 16px; height: 16px; background: #222; border: 1px solid #888; margin-right: 8px; vertical-align: middle;"></span>
+                        Erase
+                    </button>
                     <button @onclick="() => SelectTool(TileType.Wall)" 
                             style="background: @(selectedTool == TileType.Wall ? "#666" : "#333"); padding: 8px; text-align: left;">
-                        <span style="display: inline-block; width: 16px; height: 16px; background: #8B4513; margin-right: 8px; vertical-align: middle;"></span>
+                        <span style="display: inline-block; width: 16px; height: 16px; background: transparent; border: 2px solid #B8860B; margin-right: 8px; vertical-align: middle;"></span>
                         Wall
                     </button>
                     <button @onclick="() => SelectTool(TileType.Floor)" 
@@ -112,9 +117,9 @@
 
             <div style="margin-top: auto; padding-top: 15px; border-top: 1px solid #444; font-size: 0.8rem; color: #888;">
                 <div>Left-click: Paint</div>
-                <div>Right-click: Erase (Wall)</div>
                 <div>Mouse wheel: Zoom</div>
-                <div>Middle-click drag: Pan</div>
+                <div style="color: #B8860B; margin-top: 5px;">Wall: Click near edge to place</div>
+                <div style="color: #B8860B;">Erase: Removes walls & tiles</div>
             </div>
         </div>
 
@@ -131,8 +136,9 @@
                                 var tileX = x;
                                 var tileY = y;
                                 var tile = GetTile(x, y);
-                                <div style="width: @(TileDisplaySize)px; height: @(TileDisplaySize)px; background: @GetTileColor(tile); border: 1px solid rgba(255,255,255,0.1); cursor: crosshair; position: relative;"
-                                     @onmouseenter="() => OnTileHover(tileX, tileY)">
+                                <div style="width: @(TileDisplaySize)px; height: @(TileDisplaySize)px; background: @GetTileColor(tile); @GetWallBorderStyle(tileX, tileY) cursor: @GetCursorStyle(); position: relative;"
+                                     @onmouseenter="(e) => OnTileMouseMove(e, tileX, tileY)"
+                                     @onmousemove="(e) => OnTileMouseMove(e, tileX, tileY)">
                                     @if (playerStartX == tileX && playerStartY == tileY && currentLevel == 0)
                                     {
                                         <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 6px; height: 6px; background: gold; border-radius: 50%;"></div>
@@ -151,7 +157,7 @@
 
             <!-- Status Bar -->
             <div style="position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.8); padding: 8px 15px; display: flex; justify-content: space-between; font-size: 0.85rem;">
-                <span>Level: @(currentLevel + 1) | Position: (@hoverX, @hoverY) | Zoom: @(Math.Round(zoom * 100))%</span>
+                <span>Level: @(currentLevel + 1) | Position: (@hoverX, @hoverY) | Edge: @hoveredEdge | Zoom: @(Math.Round(zoom * 100))%</span>
                 <span>Tool: @selectedTool | Brush: @brushSize x @brushSize | Map: @mapName</span>
             </div>
         </div>
@@ -244,10 +250,15 @@
     private const int TileDisplaySize = 10;
     private const int NumLevels = 4;
 
-    private enum TileType { Wall = 1, Floor = 0, StairsDown = 2, StairsUp = 3, PlayerStart = 4, SpecialRoomN = 5, SpecialRoomE = 6, SpecialRoomS = 7, SpecialRoomW = 8 }
+    private enum TileType { Floor = 0, StairsDown = 2, StairsUp = 3, PlayerStart = 4, SpecialRoomN = 5, SpecialRoomE = 6, SpecialRoomS = 7, SpecialRoomW = 8, Wall = 10, Erase = 11 }
     private enum EntranceDirection { North, East, South, West }
 
     private int[,,] mapData = new int[NumLevels, MapHeight, MapWidth];
+    // Edge-based walls: horizontal walls are on the top edge of each cell, vertical walls are on the left edge
+    // hWalls[level, y, x] = true means there's a wall on the TOP edge of cell (x, y)
+    // vWalls[level, y, x] = true means there's a wall on the LEFT edge of cell (x, y)
+    private bool[,,] hWalls = new bool[NumLevels, MapHeight + 1, MapWidth]; // +1 for bottom edge of last row
+    private bool[,,] vWalls = new bool[NumLevels, MapHeight, MapWidth + 1]; // +1 for right edge of last column
     private int currentLevel = 0;
     private TileType selectedTool = TileType.Floor;
     private int brushSize = 1;
@@ -325,17 +336,49 @@
         playerStartX = map.PlayerStartX;
         playerStartY = map.PlayerStartY;
         
+        // Initialize wall edges first (sets up perimeter)
+        InitializeWallEdges();
+        
         if (map.Levels == null || map.Levels.Length == 0) return;
         
         for (int level = 0; level < Math.Min(NumLevels, map.Levels.Length); level++)
         {
-            if (map.Levels[level] == null) continue;
-            for (int y = 0; y < Math.Min(MapHeight, map.Levels[level].Length); y++)
+            // Load tile data
+            if (map.Levels[level] != null)
             {
-                if (map.Levels[level][y] == null) continue;
-                for (int x = 0; x < Math.Min(MapWidth, map.Levels[level][y].Length); x++)
+                for (int y = 0; y < Math.Min(MapHeight, map.Levels[level].Length); y++)
                 {
-                    mapData[level, y, x] = map.Levels[level][y][x];
+                    if (map.Levels[level][y] == null) continue;
+                    for (int x = 0; x < Math.Min(MapWidth, map.Levels[level][y].Length); x++)
+                    {
+                        mapData[level, y, x] = map.Levels[level][y][x];
+                    }
+                }
+            }
+            
+            // Load horizontal walls if present
+            if (map.HWalls != null && level < map.HWalls.Length && map.HWalls[level] != null)
+            {
+                for (int y = 0; y <= MapHeight && y < map.HWalls[level].Length; y++)
+                {
+                    if (map.HWalls[level][y] == null) continue;
+                    for (int x = 0; x < MapWidth && x < map.HWalls[level][y].Length; x++)
+                    {
+                        hWalls[level, y, x] = map.HWalls[level][y][x];
+                    }
+                }
+            }
+            
+            // Load vertical walls if present
+            if (map.VWalls != null && level < map.VWalls.Length && map.VWalls[level] != null)
+            {
+                for (int y = 0; y < MapHeight && y < map.VWalls[level].Length; y++)
+                {
+                    if (map.VWalls[level][y] == null) continue;
+                    for (int x = 0; x <= MapWidth && x < map.VWalls[level][y].Length; x++)
+                    {
+                        vWalls[level, y, x] = map.VWalls[level][y][x];
+                    }
                 }
             }
         }
@@ -353,11 +396,14 @@
             NumLevels = NumLevels,
             PlayerStartX = playerStartX,
             PlayerStartY = playerStartY,
-            Levels = new int[NumLevels][][]
+            Levels = new int[NumLevels][][],
+            HWalls = new bool[NumLevels][][],
+            VWalls = new bool[NumLevels][][]
         };
 
         for (int level = 0; level < NumLevels; level++)
         {
+            // Save tile data
             map.Levels[level] = new int[MapHeight][];
             for (int y = 0; y < MapHeight; y++)
             {
@@ -367,6 +413,28 @@
                     map.Levels[level][y][x] = mapData[level, y, x];
                 }
             }
+            
+            // Save horizontal walls (MapHeight + 1 rows)
+            map.HWalls[level] = new bool[MapHeight + 1][];
+            for (int y = 0; y <= MapHeight; y++)
+            {
+                map.HWalls[level][y] = new bool[MapWidth];
+                for (int x = 0; x < MapWidth; x++)
+                {
+                    map.HWalls[level][y][x] = hWalls[level, y, x];
+                }
+            }
+            
+            // Save vertical walls (MapWidth + 1 columns)
+            map.VWalls[level] = new bool[MapHeight][];
+            for (int y = 0; y < MapHeight; y++)
+            {
+                map.VWalls[level][y] = new bool[MapWidth + 1];
+                for (int x = 0; x <= MapWidth; x++)
+                {
+                    map.VWalls[level][y][x] = vWalls[level, y, x];
+                }
+            }
         }
 
         return map;
@@ -374,22 +442,57 @@
 
     private void InitializeMap()
     {
-        // Initialize all tiles as walls
+        // Initialize all tiles as floor
         for (int level = 0; level < NumLevels; level++)
         {
             for (int y = 0; y < MapHeight; y++)
             {
                 for (int x = 0; x < MapWidth; x++)
                 {
-                    mapData[level, y, x] = (int)TileType.Wall;
+                    mapData[level, y, x] = (int)TileType.Floor;
                 }
+            }
+        }
+        // Initialize wall edges - add perimeter walls
+        InitializeWallEdges();
+    }
+
+    private void InitializeWallEdges()
+    {
+        for (int level = 0; level < NumLevels; level++)
+        {
+            // Clear all walls first
+            for (int y = 0; y <= MapHeight; y++)
+            {
+                for (int x = 0; x < MapWidth; x++)
+                {
+                    hWalls[level, y, x] = false;
+                }
+            }
+            for (int y = 0; y < MapHeight; y++)
+            {
+                for (int x = 0; x <= MapWidth; x++)
+                {
+                    vWalls[level, y, x] = false;
+                }
+            }
+            // Add perimeter walls
+            for (int x = 0; x < MapWidth; x++)
+            {
+                hWalls[level, 0, x] = true;           // Top edge
+                hWalls[level, MapHeight, x] = true;   // Bottom edge
+            }
+            for (int y = 0; y < MapHeight; y++)
+            {
+                vWalls[level, y, 0] = true;           // Left edge
+                vWalls[level, y, MapWidth] = true;    // Right edge
             }
         }
     }
 
     private int GetTile(int x, int y)
     {
-        if (x < 0 || x >= MapWidth || y < 0 || y >= MapHeight) return (int)TileType.Wall;
+        if (x < 0 || x >= MapWidth || y < 0 || y >= MapHeight) return (int)TileType.Floor;
         return mapData[currentLevel, y, x];
     }
 
@@ -397,16 +500,128 @@
     {
         if (x < 0 || x >= MapWidth || y < 0 || y >= MapHeight) return;
         
+        // Wall and Erase tools work on edges, not tiles
+        if (type == TileType.Wall || type == TileType.Erase)
+        {
+            return; // Handled by SetWallEdge instead
+        }
+        
         if (type == TileType.PlayerStart)
         {
             playerStartX = x;
             playerStartY = y;
             mapData[0, y, x] = (int)TileType.Floor; // Player start is on floor
+            // Clear walls around player start so they can move
+            ClearWallsAroundTile(0, x, y);
         }
         else
         {
             mapData[currentLevel, y, x] = (int)type;
+            
+            // When placing stairs, clear surrounding walls so player can move
+            if (type == TileType.StairsDown || type == TileType.StairsUp)
+            {
+                ClearWallsAroundTile(currentLevel, x, y);
+            }
         }
+    }
+    
+    private void ClearWallsAroundTile(int level, int x, int y)
+    {
+        // Clear horizontal walls (top and bottom of tile)
+        if (y >= 0 && y <= MapHeight && x >= 0 && x < MapWidth)
+            hWalls[level, y, x] = false; // Top edge
+        if (y + 1 >= 0 && y + 1 <= MapHeight && x >= 0 && x < MapWidth)
+            hWalls[level, y + 1, x] = false; // Bottom edge
+            
+        // Clear vertical walls (left and right of tile)
+        if (y >= 0 && y < MapHeight && x >= 0 && x <= MapWidth)
+            vWalls[level, y, x] = false; // Left edge
+        if (y >= 0 && y < MapHeight && x + 1 >= 0 && x + 1 <= MapWidth)
+            vWalls[level, y, x + 1] = false; // Right edge
+    }
+
+    // Track which edge is being hovered for wall placement
+    private enum EdgeType { None, Top, Bottom, Left, Right }
+    private enum DirectionLock { None, Horizontal, Vertical }
+    private EdgeType hoveredEdge = EdgeType.None;
+    private DirectionLock drawingLock = DirectionLock.None; // Lock direction while drawing
+    private double lastMouseOffsetX = 0;
+    private double lastMouseOffsetY = 0;
+
+    private void SetWallEdge(int x, int y, EdgeType edge, bool hasWall)
+    {
+        if (x < 0 || x >= MapWidth || y < 0 || y >= MapHeight) return;
+        
+        switch (edge)
+        {
+            case EdgeType.Top:
+                hWalls[currentLevel, y, x] = hasWall;
+                break;
+            case EdgeType.Bottom:
+                if (y + 1 <= MapHeight)
+                    hWalls[currentLevel, y + 1, x] = hasWall;
+                break;
+            case EdgeType.Left:
+                vWalls[currentLevel, y, x] = hasWall;
+                break;
+            case EdgeType.Right:
+                if (x + 1 <= MapWidth)
+                    vWalls[currentLevel, y, x + 1] = hasWall;
+                break;
+        }
+    }
+
+    private EdgeType DetectEdge(double offsetX, double offsetY)
+    {
+        // Determine which edge of the tile is closest to the mouse position
+        // offsetX and offsetY are 0-1 normalized positions within the tile
+        double edgeThreshold = 0.25; // How close to edge to detect (reduced for less sensitivity)
+        
+        // Calculate distances to each edge
+        double distTop = offsetY;
+        double distBottom = 1 - offsetY;
+        double distLeft = offsetX;
+        double distRight = 1 - offsetX;
+        
+        // If we have a direction lock from drawing, respect it
+        if (drawingLock == DirectionLock.Horizontal)
+        {
+            // Only allow Top/Bottom edges
+            if (distTop < edgeThreshold) return EdgeType.Top;
+            if (distBottom < edgeThreshold) return EdgeType.Bottom;
+            return distTop < distBottom ? EdgeType.Top : EdgeType.Bottom;
+        }
+        else if (drawingLock == DirectionLock.Vertical)
+        {
+            // Only allow Left/Right edges
+            if (distLeft < edgeThreshold) return EdgeType.Left;
+            if (distRight < edgeThreshold) return EdgeType.Right;
+            return distLeft < distRight ? EdgeType.Left : EdgeType.Right;
+        }
+        
+        // No lock - detect based on threshold first
+        if (distTop < edgeThreshold) return EdgeType.Top;
+        if (distBottom < edgeThreshold) return EdgeType.Bottom;
+        if (distLeft < edgeThreshold) return EdgeType.Left;
+        if (distRight < edgeThreshold) return EdgeType.Right;
+        
+        // Default to closest edge
+        double minDist = Math.Min(Math.Min(distTop, distBottom), Math.Min(distLeft, distRight));
+        
+        if (minDist == distTop) return EdgeType.Top;
+        if (minDist == distBottom) return EdgeType.Bottom;
+        if (minDist == distLeft) return EdgeType.Left;
+        return EdgeType.Right;
+    }
+
+    private string GetCursorStyle()
+    {
+        // Use arrow cursor for Wall tool for precise edge placement
+        // Use cell cursor (box) for Erase tool
+        if (selectedTool == TileType.Wall) return "default";
+        if (selectedTool == TileType.Erase) return "cell";
+        return "crosshair";
     }
 
     private string GetTileColor(int tile)
@@ -414,15 +629,30 @@
         return tile switch
         {
             0 => "#444444", // Floor
-            1 => "#8B4513", // Wall
             2 => "#8B0000", // Stairs Down
             3 => "#006400", // Stairs Up
-            5 => "#8B4513", // Special Room (North entrance) - shows as wall
-            6 => "#8B4513", // Special Room (East entrance) - shows as wall
-            7 => "#8B4513", // Special Room (South entrance) - shows as wall
-            8 => "#8B4513", // Special Room (West entrance) - shows as wall
+            5 => "#9932CC", // Special Room (North entrance)
+            6 => "#9932CC", // Special Room (East entrance)
+            7 => "#9932CC", // Special Room (South entrance)
+            8 => "#9932CC", // Special Room (West entrance)
             _ => "#444444"
         };
+    }
+
+    private string GetWallBorderStyle(int x, int y)
+    {
+        // Check edge-based walls for this cell
+        bool wallTop = hWalls[currentLevel, y, x];           // Top edge of this cell
+        bool wallBottom = hWalls[currentLevel, y + 1, x];    // Bottom edge (top of cell below)
+        bool wallLeft = vWalls[currentLevel, y, x];          // Left edge of this cell
+        bool wallRight = vWalls[currentLevel, y, x + 1];     // Right edge (left of cell to the right)
+        
+        string borderTop = wallTop ? "2px solid #B8860B" : "1px solid rgba(255,255,255,0.1)";
+        string borderBottom = wallBottom ? "2px solid #B8860B" : "1px solid rgba(255,255,255,0.1)";
+        string borderLeft = wallLeft ? "2px solid #B8860B" : "1px solid rgba(255,255,255,0.1)";
+        string borderRight = wallRight ? "2px solid #B8860B" : "1px solid rgba(255,255,255,0.1)";
+        
+        return $"border-top: {borderTop}; border-bottom: {borderBottom}; border-left: {borderLeft}; border-right: {borderRight};";
     }
 
     private bool IsSpecialRoomTile(int tile)
@@ -483,12 +713,21 @@
         if (e.Button == 0) // Left click
         {
             isDrawing = true;
+            
+            // Set direction lock based on first edge for Wall/Erase tools
+            if (selectedTool == TileType.Wall || selectedTool == TileType.Erase)
+            {
+                if (hoveredEdge == EdgeType.Top || hoveredEdge == EdgeType.Bottom)
+                {
+                    drawingLock = DirectionLock.Horizontal;
+                }
+                else if (hoveredEdge == EdgeType.Left || hoveredEdge == EdgeType.Right)
+                {
+                    drawingLock = DirectionLock.Vertical;
+                }
+            }
+            
             PaintAtHover();
-        }
-        else if (e.Button == 2) // Right click
-        {
-            isErasing = true;
-            EraseAtHover();
         }
     }
 
@@ -496,6 +735,7 @@
     {
         isDrawing = false;
         isErasing = false;
+        drawingLock = DirectionLock.None; // Clear direction lock when mouse released
     }
 
     private void OnMouseMove(MouseEventArgs e)
@@ -503,10 +743,6 @@
         if (isDrawing)
         {
             PaintAtHover();
-        }
-        else if (isErasing)
-        {
-            EraseAtHover();
         }
     }
 
@@ -519,33 +755,60 @@
         {
             PaintAtHover();
         }
-        else if (isErasing)
+    }
+
+    private void OnTileMouseMove(MouseEventArgs e, int x, int y)
+    {
+        hoverX = x;
+        hoverY = y;
+        
+        // Calculate position within tile (0-1 normalized)
+        // OffsetX/Y gives position relative to the element
+        double offsetX = e.OffsetX / TileDisplaySize;
+        double offsetY = e.OffsetY / TileDisplaySize;
+        
+        // Clamp to 0-1 range
+        offsetX = Math.Max(0, Math.Min(1, offsetX));
+        offsetY = Math.Max(0, Math.Min(1, offsetY));
+        
+        hoveredEdge = DetectEdge(offsetX, offsetY);
+        
+        if (isDrawing)
         {
-            EraseAtHover();
+            PaintAtHover();
         }
     }
 
     private void PaintAtHover()
     {
-        int halfBrush = brushSize / 2;
-        for (int dy = -halfBrush; dy <= halfBrush; dy++)
+        if (selectedTool == TileType.Wall)
         {
-            for (int dx = -halfBrush; dx <= halfBrush; dx++)
+            // Wall tool: place wall on the detected edge
+            if (hoveredEdge != EdgeType.None)
             {
-                SetTile(hoverX + dx, hoverY + dy, selectedTool);
+                SetWallEdge(hoverX, hoverY, hoveredEdge, true);
             }
         }
-        StateHasChanged();
-    }
-
-    private void EraseAtHover()
-    {
-        int halfBrush = brushSize / 2;
-        for (int dy = -halfBrush; dy <= halfBrush; dy++)
+        else if (selectedTool == TileType.Erase)
         {
-            for (int dx = -halfBrush; dx <= halfBrush; dx++)
+            // Erase tool: remove wall on the detected edge AND clear tile content
+            if (hoveredEdge != EdgeType.None)
             {
-                SetTile(hoverX + dx, hoverY + dy, TileType.Wall);
+                SetWallEdge(hoverX, hoverY, hoveredEdge, false);
+            }
+            // Also clear tile to floor
+            mapData[currentLevel, hoverY, hoverX] = (int)TileType.Floor;
+        }
+        else
+        {
+            // Other tools: apply to tiles with brush size
+            int halfBrush = brushSize / 2;
+            for (int dy = -halfBrush; dy <= halfBrush; dy++)
+            {
+                for (int dx = -halfBrush; dx <= halfBrush; dx++)
+                {
+                    SetTile(hoverX + dx, hoverY + dy, selectedTool);
+                }
             }
         }
         StateHasChanged();
@@ -565,11 +828,35 @@
 
     private void ClearLevel()
     {
+        // Clear all tiles to floor
         for (int y = 0; y < MapHeight; y++)
         {
             for (int x = 0; x < MapWidth; x++)
             {
-                mapData[currentLevel, y, x] = (int)TileType.Wall;
+                mapData[currentLevel, y, x] = (int)TileType.Floor;
+            }
+        }
+        // Clear all interior walls, keep perimeter
+        for (int y = 0; y <= MapHeight; y++)
+        {
+            for (int x = 0; x < MapWidth; x++)
+            {
+                // Keep top and bottom perimeter
+                if (y == 0 || y == MapHeight)
+                    hWalls[currentLevel, y, x] = true;
+                else
+                    hWalls[currentLevel, y, x] = false;
+            }
+        }
+        for (int y = 0; y < MapHeight; y++)
+        {
+            for (int x = 0; x <= MapWidth; x++)
+            {
+                // Keep left and right perimeter
+                if (x == 0 || x == MapWidth)
+                    vWalls[currentLevel, y, x] = true;
+                else
+                    vWalls[currentLevel, y, x] = false;
             }
         }
         StateHasChanged();

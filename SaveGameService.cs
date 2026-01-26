@@ -63,6 +63,14 @@ namespace AlternateRealityDungeon
         {
             ValidateSlot(slot);
 
+            GameLogger.LogInfo("SaveGameService", "Save operation started", new { 
+                slot = slot, 
+                playerName = state.Name, 
+                level = state.Level,
+                hitpoints = state.Hitpoints,
+                mapId = mapId
+            });
+
             var save = new GameSave
             {
                 State = state,
@@ -93,25 +101,50 @@ namespace AlternateRealityDungeon
             var json = JsonSerializer.Serialize(save, _jsonOptions);
             var path = GetSlotPath(slot);
             await File.WriteAllTextAsync(path, json);
+            
+            GameLogger.LogInfo("SaveGameService", "Save completed successfully", new { 
+                slot = slot, 
+                filePath = path,
+                mapLevelsCount = mapLevels?.Length ?? 0
+            });
         }
 
         public async Task<GameSave?> LoadAsync(int slot)
         {
             ValidateSlot(slot);
 
+            GameLogger.LogInfo("SaveGameService", "Load operation started", new { slot = slot });
+
             var path = GetSlotPath(slot);
             if (!File.Exists(path))
             {
+                GameLogger.LogWarning("SaveGameService", "No save file found", new { slot = slot, path = path });
                 return null;
             }
 
             var json = await File.ReadAllTextAsync(path);
             if (string.IsNullOrWhiteSpace(json))
             {
+                GameLogger.LogError("SaveGameService", "Save file is empty", null);
                 return null;
             }
 
-            return JsonSerializer.Deserialize<GameSave>(json, _jsonOptions);
+            try
+            {
+                var save = JsonSerializer.Deserialize<GameSave>(json, _jsonOptions);
+                GameLogger.LogInfo("SaveGameService", "Load completed successfully", new { 
+                    slot = slot, 
+                    playerName = save?.State?.Name ?? "Unknown",
+                    level = save?.State?.Level ?? 0,
+                    hasMapData = save?.MapLevels != null
+                });
+                return save;
+            }
+            catch (Exception ex)
+            {
+                GameLogger.LogError("SaveGameService", "Failed to deserialize save file", ex);
+                return null;
+            }
         }
 
         public Task<IReadOnlyList<SaveSlotInfo>> GetSlotInfosAsync()

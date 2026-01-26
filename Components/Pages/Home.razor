@@ -1,4 +1,5 @@
 ﻿@page "/game"
+@implements IDisposable
 @inject IJSRuntime JSRuntime
 @inject PlayerState PlayerState
 @inject SaveGameService SaveGameService
@@ -87,6 +88,7 @@
     private bool _showSaveSlots;
     private CameraState? _pendingCamera;
     private List<SaveSlotInfo>? _slotInfos;
+    private System.Threading.Timer? _logPollTimer;
     
     // Track current map for saving
     private string? _currentMapId;
@@ -198,7 +200,9 @@
                     numLevels = PlayerState.CurrentMapData.NumLevels,
                     playerStartX = PlayerState.CurrentMapData.PlayerStartX,
                     playerStartY = PlayerState.CurrentMapData.PlayerStartY,
-                    levels = PlayerState.CurrentMapData.Levels
+                    levels = PlayerState.CurrentMapData.Levels,
+                    hWalls = PlayerState.CurrentMapData.HWalls,
+                    vWalls = PlayerState.CurrentMapData.VWalls
                 };
                 
                 PlayerState.ClearCurrentMapData();
@@ -221,7 +225,9 @@
                         numLevels = defaultMap.NumLevels,
                         playerStartX = defaultMap.PlayerStartX,
                         playerStartY = defaultMap.PlayerStartY,
-                        levels = defaultMap.Levels
+                        levels = defaultMap.Levels,
+                        hWalls = defaultMap.HWalls,
+                        vWalls = defaultMap.VWalls
                     };
                 }
             }
@@ -229,6 +235,9 @@
             _dotNetRef ??= DotNetObjectReference.Create(this);
 
             await JSRuntime.InvokeVoidAsync("window.game.initGame", "game-container", gameStateArg, _dotNetRef, cameraArg, mapArg);
+
+            // Start polling for JavaScript logs every 500ms
+            _logPollTimer = new System.Threading.Timer(async _ => await PollJavaScriptLogs(), null, 1000, 500);
 
             // Clear the loaded game state after using it
             PlayerState.ClearLoadedGameState();
@@ -299,5 +308,70 @@
         // Force navigation back to the opening screen (main menu) so the user
         // reliably sees the "Alternate Reality Dungeon" menu after saving.
         Navigation.NavigateTo("/", true);
+    }
+    
+    // Method to handle JavaScript logging
+    [JSInvokable]
+    public void LogFromJavaScript(string message)
+    {
+        // Parse the message to determine log level and category
+        if (message.StartsWith("[ERROR]"))
+        {
+            GameLogger.LogError("JavaScript", message.Substring(8));
+        }
+        else if (message.StartsWith("[WARNING]"))
+        {
+            GameLogger.LogWarning("JavaScript", message.Substring(10));
+        }
+        else if (message.StartsWith("[STAIR]"))
+        {
+            GameLogger.LogInfo("StairTransition", message.Substring(8));
+        }
+        else if (message.StartsWith("[MOVE]"))
+        {
+            GameLogger.LogPlayerMovement("Movement", message.Substring(7));
+        }
+        else
+        {
+            GameLogger.LogInfo("JavaScript", message);
+        }
+    }
+    
+    // Poll for JavaScript logs and write them to file
+    private async Task PollJavaScriptLogs()
+    {
+        try
+        {
+            var logs = await JSRuntime.InvokeAsync<string[]>("window.game.getAndClearLogs");
+            if (logs != null && logs.Length > 0)
+            {
+                foreach (var log in logs)
+                {
+                    // Parse the log message to extract category
+                    if (log.Contains("[STAIR]"))
+                    {
+                        GameLogger.LogInfo("StairTransition", log);
+                    }
+                    else if (log.Contains("[MOVE]"))
+                    {
+                        GameLogger.LogPlayerMovement("Movement", log);
+                    }
+                    else
+                    {
+                        GameLogger.LogInfo("JavaScript", log);
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // Silently ignore errors during polling (e.g., if page is navigating away)
+        }
+    }
+    
+    public void Dispose()
+    {
+        _logPollTimer?.Dispose();
+        _dotNetRef?.Dispose();
     }
 }
