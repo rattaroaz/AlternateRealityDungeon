@@ -73,8 +73,54 @@
                         <span style="display: inline-block; width: 16px; height: 16px; background: #9932CC; margin-right: 8px; vertical-align: middle;"></span>
                         Special Room (Guild)
                     </button>
+                    <button @onclick="() => SelectTool(TileType.Door)" 
+                            style="background: @(selectedTool == TileType.Door ? "#666" : "#333"); padding: 8px; text-align: left;">
+                        <span style="display: inline-block; width: 16px; height: 16px; background: transparent; border: 2px solid #00CED1; margin-right: 8px; vertical-align: middle;"></span>
+                        Door
+                    </button>
                 </div>
             </div>
+
+            @if (selectedTool == TileType.Door)
+            {
+                <div>
+                    <h3 style="margin: 0 0 10px 0; color: #aaa;">Door Type</h3>
+                    <div style="display: flex; flex-direction: column; gap: 5px;">
+                        <button @onclick="() => selectedDoorSubType = DoorSubType.Normal" 
+                                style="background: @(selectedDoorSubType == DoorSubType.Normal ? "#666" : "#333"); padding: 8px; text-align: left;">
+                            <span style="display: inline-block; width: 16px; height: 16px; background: transparent; border: 2px solid #00CED1; margin-right: 8px; vertical-align: middle;"></span>
+                            Normal
+                        </button>
+                        <button @onclick="() => selectedDoorSubType = DoorSubType.Hidden" 
+                                style="background: @(selectedDoorSubType == DoorSubType.Hidden ? "#666" : "#333"); padding: 8px; text-align: left;">
+                            <span style="display: inline-block; width: 16px; height: 16px; background: transparent; border: 2px dashed #FF6347; margin-right: 8px; vertical-align: middle;"></span>
+                            Hidden
+                        </button>
+                        <button @onclick="() => selectedDoorSubType = DoorSubType.OneWay" 
+                                style="background: @(selectedDoorSubType == DoorSubType.OneWay ? "#666" : "#333"); padding: 8px; text-align: left;">
+                            <span style="display: inline-block; width: 16px; height: 16px; background: transparent; border: 2px solid #32CD32; margin-right: 8px; vertical-align: middle;"></span>
+                            One-Way
+                        </button>
+                    </div>
+                </div>
+                @if (selectedDoorSubType == DoorSubType.OneWay)
+                {
+                    <div>
+                        <h3 style="margin: 0 0 10px 0; color: #aaa;">Passable Direction</h3>
+                        <div style="display: flex; flex-direction: column; gap: 5px;">
+                            <button @onclick="() => selectedOneWayDir = OneWayDir.South" 
+                                    style="background: @(selectedOneWayDir == OneWayDir.South ? "#666" : "#333"); padding: 8px; text-align: left;">
+                                ↓ South / East
+                            </button>
+                            <button @onclick="() => selectedOneWayDir = OneWayDir.North" 
+                                    style="background: @(selectedOneWayDir == OneWayDir.North ? "#666" : "#333"); padding: 8px; text-align: left;">
+                                ↑ North / West
+                            </button>
+                        </div>
+                        <div style="font-size: 0.75rem; color: #888; margin-top: 5px;">H-edges: N/S, V-edges: W/E</div>
+                    </div>
+                }
+            }
 
             @if (IsSpecialRoomTool())
             {
@@ -119,7 +165,8 @@
                 <div>Left-click: Paint</div>
                 <div>Mouse wheel: Zoom</div>
                 <div style="color: #B8860B; margin-top: 5px;">Wall: Click near edge to place</div>
-                <div style="color: #B8860B;">Erase: Removes walls & tiles</div>
+                <div style="color: #00CED1;">Door: Looks like wall, passable</div>
+                <div style="color: #B8860B;">Erase: Removes walls, doors & tiles</div>
             </div>
         </div>
 
@@ -250,8 +297,10 @@
     private const int TileDisplaySize = 10;
     private const int NumLevels = 4;
 
-    private enum TileType { Floor = 0, StairsDown = 2, StairsUp = 3, PlayerStart = 4, SpecialRoomN = 5, SpecialRoomE = 6, SpecialRoomS = 7, SpecialRoomW = 8, Wall = 10, Erase = 11 }
+    private enum TileType { Floor = 0, StairsDown = 2, StairsUp = 3, PlayerStart = 4, SpecialRoomN = 5, SpecialRoomE = 6, SpecialRoomS = 7, SpecialRoomW = 8, Wall = 10, Erase = 11, Door = 12 }
     private enum EntranceDirection { North, East, South, West }
+    private enum DoorSubType { Normal, Hidden, OneWay }
+    private enum OneWayDir { South, North } // South=positive (S/E), North=negative (N/W)
 
     private int[,,] mapData = new int[NumLevels, MapHeight, MapWidth];
     // Edge-based walls: horizontal walls are on the top edge of each cell, vertical walls are on the left edge
@@ -259,8 +308,13 @@
     // vWalls[level, y, x] = true means there's a wall on the LEFT edge of cell (x, y)
     private bool[,,] hWalls = new bool[NumLevels, MapHeight + 1, MapWidth]; // +1 for bottom edge of last row
     private bool[,,] vWalls = new bool[NumLevels, MapHeight, MapWidth + 1]; // +1 for right edge of last column
+    // Door edges parallel to walls: 0=none, 1=normal, 2=hidden, 3=one-way positive (S/E), 4=one-way negative (N/W)
+    private int[,,] hDoors = new int[NumLevels, MapHeight + 1, MapWidth];
+    private int[,,] vDoors = new int[NumLevels, MapHeight, MapWidth + 1];
     private int currentLevel = 0;
     private TileType selectedTool = TileType.Floor;
+    private DoorSubType selectedDoorSubType = DoorSubType.Normal;
+    private OneWayDir selectedOneWayDir = OneWayDir.South;
     private int brushSize = 1;
     private double zoom = 1.0;
     private bool isDrawing = false;
@@ -381,6 +435,32 @@
                     }
                 }
             }
+            
+            // Load horizontal doors if present
+            if (map.HDoors != null && level < map.HDoors.Length && map.HDoors[level] != null)
+            {
+                for (int y = 0; y <= MapHeight && y < map.HDoors[level].Length; y++)
+                {
+                    if (map.HDoors[level][y] == null) continue;
+                    for (int x = 0; x < MapWidth && x < map.HDoors[level][y].Length; x++)
+                    {
+                        hDoors[level, y, x] = map.HDoors[level][y][x];
+                    }
+                }
+            }
+            
+            // Load vertical doors if present
+            if (map.VDoors != null && level < map.VDoors.Length && map.VDoors[level] != null)
+            {
+                for (int y = 0; y < MapHeight && y < map.VDoors[level].Length; y++)
+                {
+                    if (map.VDoors[level][y] == null) continue;
+                    for (int x = 0; x <= MapWidth && x < map.VDoors[level][y].Length; x++)
+                    {
+                        vDoors[level, y, x] = map.VDoors[level][y][x];
+                    }
+                }
+            }
         }
         StateHasChanged();
     }
@@ -398,7 +478,9 @@
             PlayerStartY = playerStartY,
             Levels = new int[NumLevels][][],
             HWalls = new bool[NumLevels][][],
-            VWalls = new bool[NumLevels][][]
+            VWalls = new bool[NumLevels][][],
+            HDoors = new int[NumLevels][][],
+            VDoors = new int[NumLevels][][]
         };
 
         for (int level = 0; level < NumLevels; level++)
@@ -435,6 +517,28 @@
                     map.VWalls[level][y][x] = vWalls[level, y, x];
                 }
             }
+            
+            // Save horizontal doors
+            map.HDoors[level] = new int[MapHeight + 1][];
+            for (int y = 0; y <= MapHeight; y++)
+            {
+                map.HDoors[level][y] = new int[MapWidth];
+                for (int x = 0; x < MapWidth; x++)
+                {
+                    map.HDoors[level][y][x] = hDoors[level, y, x];
+                }
+            }
+            
+            // Save vertical doors
+            map.VDoors[level] = new int[MapHeight][];
+            for (int y = 0; y < MapHeight; y++)
+            {
+                map.VDoors[level][y] = new int[MapWidth + 1];
+                for (int x = 0; x <= MapWidth; x++)
+                {
+                    map.VDoors[level][y][x] = vDoors[level, y, x];
+                }
+            }
         }
 
         return map;
@@ -461,12 +565,13 @@
     {
         for (int level = 0; level < NumLevels; level++)
         {
-            // Clear all walls first
+            // Clear all walls and doors first
             for (int y = 0; y <= MapHeight; y++)
             {
                 for (int x = 0; x < MapWidth; x++)
                 {
                     hWalls[level, y, x] = false;
+                    hDoors[level, y, x] = 0;
                 }
             }
             for (int y = 0; y < MapHeight; y++)
@@ -474,6 +579,7 @@
                 for (int x = 0; x <= MapWidth; x++)
                 {
                     vWalls[level, y, x] = false;
+                    vDoors[level, y, x] = 0;
                 }
             }
             // Add perimeter walls
@@ -557,17 +663,56 @@
         {
             case EdgeType.Top:
                 hWalls[currentLevel, y, x] = hasWall;
+                if (hasWall) hDoors[currentLevel, y, x] = 0; // Clear door when placing wall
                 break;
             case EdgeType.Bottom:
                 if (y + 1 <= MapHeight)
+                {
                     hWalls[currentLevel, y + 1, x] = hasWall;
+                    if (hasWall) hDoors[currentLevel, y + 1, x] = 0;
+                }
                 break;
             case EdgeType.Left:
                 vWalls[currentLevel, y, x] = hasWall;
+                if (hasWall) vDoors[currentLevel, y, x] = 0;
                 break;
             case EdgeType.Right:
                 if (x + 1 <= MapWidth)
+                {
                     vWalls[currentLevel, y, x + 1] = hasWall;
+                    if (hasWall) vDoors[currentLevel, y, x + 1] = 0;
+                }
+                break;
+        }
+    }
+    
+    private void SetDoorEdge(int x, int y, EdgeType edge, int doorValue)
+    {
+        if (x < 0 || x >= MapWidth || y < 0 || y >= MapHeight) return;
+        
+        switch (edge)
+        {
+            case EdgeType.Top:
+                hWalls[currentLevel, y, x] = false; // Doors replace walls
+                hDoors[currentLevel, y, x] = doorValue;
+                break;
+            case EdgeType.Bottom:
+                if (y + 1 <= MapHeight)
+                {
+                    hWalls[currentLevel, y + 1, x] = false;
+                    hDoors[currentLevel, y + 1, x] = doorValue;
+                }
+                break;
+            case EdgeType.Left:
+                vWalls[currentLevel, y, x] = false;
+                vDoors[currentLevel, y, x] = doorValue;
+                break;
+            case EdgeType.Right:
+                if (x + 1 <= MapWidth)
+                {
+                    vWalls[currentLevel, y, x + 1] = false;
+                    vDoors[currentLevel, y, x + 1] = doorValue;
+                }
                 break;
         }
     }
@@ -617,9 +762,9 @@
 
     private string GetCursorStyle()
     {
-        // Use arrow cursor for Wall tool for precise edge placement
+        // Use arrow cursor for Wall/Door tool for precise edge placement
         // Use cell cursor (box) for Erase tool
-        if (selectedTool == TileType.Wall) return "default";
+        if (selectedTool == TileType.Wall || selectedTool == TileType.Door) return "default";
         if (selectedTool == TileType.Erase) return "cell";
         return "crosshair";
     }
@@ -639,18 +784,33 @@
         };
     }
 
+    private string GetEdgeBorderCss(bool hasWall, int doorValue)
+    {
+        if (hasWall) return "2px solid #B8860B";
+        if (doorValue == 1) return "2px solid #00CED1";   // Normal door - cyan
+        if (doorValue == 2) return "2px dashed #FF6347";   // Hidden door - dashed red
+        if (doorValue == 3) return "2px solid #32CD32";    // One-way positive (S/E) - green
+        if (doorValue == 4) return "2px solid #ADFF2F";    // One-way negative (N/W) - yellow-green
+        return "1px solid rgba(255,255,255,0.1)";
+    }
+
     private string GetWallBorderStyle(int x, int y)
     {
-        // Check edge-based walls for this cell
-        bool wallTop = hWalls[currentLevel, y, x];           // Top edge of this cell
-        bool wallBottom = hWalls[currentLevel, y + 1, x];    // Bottom edge (top of cell below)
-        bool wallLeft = vWalls[currentLevel, y, x];          // Left edge of this cell
-        bool wallRight = vWalls[currentLevel, y, x + 1];     // Right edge (left of cell to the right)
+        // Check edge-based walls and doors for this cell
+        bool wallTop = hWalls[currentLevel, y, x];
+        bool wallBottom = hWalls[currentLevel, y + 1, x];
+        bool wallLeft = vWalls[currentLevel, y, x];
+        bool wallRight = vWalls[currentLevel, y, x + 1];
         
-        string borderTop = wallTop ? "2px solid #B8860B" : "1px solid rgba(255,255,255,0.1)";
-        string borderBottom = wallBottom ? "2px solid #B8860B" : "1px solid rgba(255,255,255,0.1)";
-        string borderLeft = wallLeft ? "2px solid #B8860B" : "1px solid rgba(255,255,255,0.1)";
-        string borderRight = wallRight ? "2px solid #B8860B" : "1px solid rgba(255,255,255,0.1)";
+        int doorTop = hDoors[currentLevel, y, x];
+        int doorBottom = hDoors[currentLevel, y + 1, x];
+        int doorLeft = vDoors[currentLevel, y, x];
+        int doorRight = vDoors[currentLevel, y, x + 1];
+        
+        string borderTop = GetEdgeBorderCss(wallTop, doorTop);
+        string borderBottom = GetEdgeBorderCss(wallBottom, doorBottom);
+        string borderLeft = GetEdgeBorderCss(wallLeft, doorLeft);
+        string borderRight = GetEdgeBorderCss(wallRight, doorRight);
         
         return $"border-top: {borderTop}; border-bottom: {borderBottom}; border-left: {borderLeft}; border-right: {borderRight};";
     }
@@ -714,8 +874,8 @@
         {
             isDrawing = true;
             
-            // Set direction lock based on first edge for Wall/Erase tools
-            if (selectedTool == TileType.Wall || selectedTool == TileType.Erase)
+            // Set direction lock based on first edge for Wall/Erase/Door tools
+            if (selectedTool == TileType.Wall || selectedTool == TileType.Erase || selectedTool == TileType.Door)
             {
                 if (hoveredEdge == EdgeType.Top || hoveredEdge == EdgeType.Bottom)
                 {
@@ -789,12 +949,28 @@
                 SetWallEdge(hoverX, hoverY, hoveredEdge, true);
             }
         }
+        else if (selectedTool == TileType.Door)
+        {
+            // Door tool: place door on the detected edge (looks like wall, but passable)
+            if (hoveredEdge != EdgeType.None)
+            {
+                int doorValue = selectedDoorSubType switch
+                {
+                    DoorSubType.Normal => 1,
+                    DoorSubType.Hidden => 2,
+                    DoorSubType.OneWay => selectedOneWayDir == OneWayDir.South ? 3 : 4,
+                    _ => 1
+                };
+                SetDoorEdge(hoverX, hoverY, hoveredEdge, doorValue);
+            }
+        }
         else if (selectedTool == TileType.Erase)
         {
-            // Erase tool: remove wall on the detected edge AND clear tile content
+            // Erase tool: remove wall AND door on the detected edge, AND clear tile content
             if (hoveredEdge != EdgeType.None)
             {
                 SetWallEdge(hoverX, hoverY, hoveredEdge, false);
+                SetDoorEdge(hoverX, hoverY, hoveredEdge, 0);
             }
             // Also clear tile to floor
             mapData[currentLevel, hoverY, hoverX] = (int)TileType.Floor;
@@ -836,7 +1012,7 @@
                 mapData[currentLevel, y, x] = (int)TileType.Floor;
             }
         }
-        // Clear all interior walls, keep perimeter
+        // Clear all interior walls and all doors, keep perimeter walls
         for (int y = 0; y <= MapHeight; y++)
         {
             for (int x = 0; x < MapWidth; x++)
@@ -846,6 +1022,7 @@
                     hWalls[currentLevel, y, x] = true;
                 else
                     hWalls[currentLevel, y, x] = false;
+                hDoors[currentLevel, y, x] = 0;
             }
         }
         for (int y = 0; y < MapHeight; y++)
@@ -857,6 +1034,7 @@
                     vWalls[currentLevel, y, x] = true;
                 else
                     vWalls[currentLevel, y, x] = false;
+                vDoors[currentLevel, y, x] = 0;
             }
         }
         StateHasChanged();

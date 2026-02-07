@@ -1,8 +1,12 @@
 window.game = {
     _player: null, // Reference to current player state for saving
+    _dotNetHelper: null, // Reference to .NET helper for logging
     initGame: function (containerId, playerStats, dotNetHelper, cameraState, mapData) {
         const container = document.getElementById(containerId);
         if (!container) return;
+
+        // Store dotNetHelper globally for logging
+        window.game._dotNetHelper = dotNetHelper;
 
         // Scene
         const scene = new THREE.Scene();
@@ -82,12 +86,32 @@ window.game = {
             scene.add(treeGroup);
         }
 
-        // Add random trees (disabled in dungeon)
-        // for (let i = 0; i < 50; i++) {
-        //     const x = (Math.random() - 0.5) * 80;
-        //     const z = (Math.random() - 0.5) * 80;
-        //     createTree(x, z);
-        // }
+        // JavaScript logging system - accumulates logs for .NET to fetch
+        window.gameLogBuffer = window.gameLogBuffer || [];
+        
+        function logToFile(message) {
+            // Log to console
+            console.log(message);
+            
+            // Add to log buffer for .NET to fetch
+            const timestamp = new Date().toISOString();
+            window.gameLogBuffer.push(`[${timestamp}] ${message}`);
+            
+            // Keep buffer size manageable (max 100 entries)
+            if (window.gameLogBuffer.length > 100) {
+                window.gameLogBuffer.shift();
+            }
+        }
+        
+        // Method for .NET to call to get and clear logs
+        window.game.getAndClearLogs = function() {
+            const logs = window.gameLogBuffer.slice();
+            window.gameLogBuffer = [];
+            return logs;
+        };
+        
+        // Make logToFile available globally
+        window.logToFile = logToFile;
 
         // Dungeon layout - Multi-level
         const WALL = 1;
@@ -109,6 +133,9 @@ window.game = {
         // vWalls[level][y][x] = vertical wall on left edge of cell (x,y)
         const hWalls = [];
         const vWalls = [];
+        // Edge-based doors (parallel to walls): 0=none, 1=normal, 2=hidden, 3=one-way positive (S/E), 4=one-way negative (N/W)
+        const hDoors = [];
+        const vDoors = [];
         
         // Check if we have edge-based wall data
         const useEdgeWalls = mapData && mapData.hWalls && mapData.vWalls && 
@@ -127,17 +154,23 @@ window.game = {
             
             // Initialize edge-based walls with perimeter
             hWalls[level] = [];
+            hDoors[level] = [];
             for (let y = 0; y <= MAP_HEIGHT; y++) {
                 hWalls[level][y] = [];
+                hDoors[level][y] = [];
                 for (let x = 0; x < MAP_WIDTH; x++) {
                     hWalls[level][y][x] = (y === 0 || y === MAP_HEIGHT);
+                    hDoors[level][y][x] = 0;
                 }
             }
             vWalls[level] = [];
+            vDoors[level] = [];
             for (let y = 0; y < MAP_HEIGHT; y++) {
                 vWalls[level][y] = [];
+                vDoors[level][y] = [];
                 for (let x = 0; x <= MAP_WIDTH; x++) {
                     vWalls[level][y][x] = (x === 0 || x === MAP_WIDTH);
+                    vDoors[level][y][x] = 0;
                 }
             }
         }
@@ -298,6 +331,33 @@ window.game = {
                     }
                 }
                 console.log('Loaded edge-based walls from editor for all levels');
+            }
+            
+            // Load edge-based doors if present
+            const useEdgeDoors = mapData && mapData.hDoors && mapData.vDoors &&
+                                mapData.hDoors.length > 0 && mapData.vDoors.length > 0;
+            if (useEdgeDoors) {
+                for (let level = 0; level < NUM_LEVELS; level++) {
+                    if (level < mapData.hDoors.length && mapData.hDoors[level]) {
+                        for (let y = 0; y <= MAP_HEIGHT; y++) {
+                            if (y < mapData.hDoors[level].length && mapData.hDoors[level][y]) {
+                                for (let x = 0; x < MAP_WIDTH && x < mapData.hDoors[level][y].length; x++) {
+                                    hDoors[level][y][x] = mapData.hDoors[level][y][x];
+                                }
+                            }
+                        }
+                    }
+                    if (level < mapData.vDoors.length && mapData.vDoors[level]) {
+                        for (let y = 0; y < MAP_HEIGHT; y++) {
+                            if (y < mapData.vDoors[level].length && mapData.vDoors[level][y]) {
+                                for (let x = 0; x <= MAP_WIDTH && x < mapData.vDoors[level][y].length; x++) {
+                                    vDoors[level][y][x] = mapData.vDoors[level][y][x];
+                                }
+                            }
+                        }
+                    }
+                }
+                console.log('Loaded edge-based doors from editor for all levels');
             }
             
             console.log('Loaded custom map from editor');
@@ -580,12 +640,20 @@ window.game = {
                         if (hWalls[level][y] && hWalls[level][y][x]) {
                             addHEdgeWall(x, y);
                         }
+                        // Doors look like walls visually
+                        if (hDoors[level][y] && hDoors[level][y][x] > 0) {
+                            addHEdgeWall(x, y);
+                        }
                     }
                 }
                 // Vertical walls
                 for (let y = 0; y < MAP_HEIGHT; y++) {
                     for (let x = 0; x <= MAP_WIDTH; x++) {
                         if (vWalls[level][y] && vWalls[level][y][x]) {
+                            addVEdgeWall(x, y);
+                        }
+                        // Doors look like walls visually
+                        if (vDoors[level][y] && vDoors[level][y][x] > 0) {
                             addVEdgeWall(x, y);
                         }
                     }
@@ -608,11 +676,37 @@ window.game = {
                 return false;
             }
             const tile = dungeonLevels[currentLevel][ty][tx];
-            // With edge-based walls, most tiles are walkable (floor) unless they're special
+            // With edge-based walls, ALL tiles are walkable - walls are edges, not tile types
+            // Only special rooms block based on tile type
             if (useEdgeWalls) {
-                return tile === FLOOR || tile === STAIRS_DOWN || tile === STAIRS_UP;
+                // Special rooms are not walkable (must enter through proper entrance)
+                if (tile === SPECIAL_ROOM_N || tile === SPECIAL_ROOM_E || 
+                    tile === SPECIAL_ROOM_S || tile === SPECIAL_ROOM_W) {
+                    return false;
+                }
+                // All other tiles are walkable when using edge-based walls
+                return true;
             }
             return tile === FLOOR || tile === STAIRS_DOWN || tile === STAIRS_UP;
+        }
+        
+        // Check if a door edge allows passage in a given direction
+        // doorValue: 0=none, 1=normal, 2=hidden, 3=one-way positive (S/E), 4=one-way negative (N/W)
+        // isPositiveDir: true if moving in positive direction (south for h-edges, east for v-edges)
+        function isDoorPassable(doorValue, isPositiveDir) {
+            if (doorValue === 0) return false; // No door
+            if (doorValue === 1 || doorValue === 2) return true; // Normal or hidden = passable both ways
+            if (doorValue === 3) return isPositiveDir;  // One-way positive: only pass going S/E
+            if (doorValue === 4) return !isPositiveDir; // One-way negative: only pass going N/W
+            return false;
+        }
+        
+        // Check if an edge blocks movement: returns true if blocked
+        // hasWall: boolean, doorValue: int, isPositiveDir: movement direction
+        function isEdgeBlocked(hasWall, doorValue, isPositiveDir) {
+            if (hasWall) return true; // Solid wall always blocks
+            if (doorValue > 0) return !isDoorPassable(doorValue, isPositiveDir); // Door: blocked if not passable
+            return false; // No wall or door = open
         }
         
         // Check if there's a wall edge between two adjacent cells
@@ -622,35 +716,39 @@ window.game = {
             const dx = toTx - fromTx;
             const dy = toTy - fromTy;
             
-            // Moving north (negative Y in map coords)
+            // Moving north (negative Y in map coords) = negative direction for h-edges
             if (dy < 0) {
-                // Check horizontal wall on top of fromTx, fromTy (which is same as bottom of toTx, toTy)
                 if (fromTy >= 0 && fromTy <= MAP_HEIGHT && fromTx >= 0 && fromTx < MAP_WIDTH) {
-                    return hWalls[currentLevel][fromTy] && hWalls[currentLevel][fromTy][fromTx];
+                    const wall = hWalls[currentLevel][fromTy] && hWalls[currentLevel][fromTy][fromTx];
+                    const door = hDoors[currentLevel][fromTy] ? hDoors[currentLevel][fromTy][fromTx] : 0;
+                    return isEdgeBlocked(wall, door, false); // north = negative direction
                 }
                 return true;
             }
-            // Moving south (positive Y)
+            // Moving south (positive Y) = positive direction for h-edges
             if (dy > 0) {
-                // Check horizontal wall on bottom of fromTx, fromTy (which is top of toTx, toTy)
                 if (toTy >= 0 && toTy <= MAP_HEIGHT && toTx >= 0 && toTx < MAP_WIDTH) {
-                    return hWalls[currentLevel][toTy] && hWalls[currentLevel][toTy][toTx];
+                    const wall = hWalls[currentLevel][toTy] && hWalls[currentLevel][toTy][toTx];
+                    const door = hDoors[currentLevel][toTy] ? hDoors[currentLevel][toTy][toTx] : 0;
+                    return isEdgeBlocked(wall, door, true); // south = positive direction
                 }
                 return true;
             }
-            // Moving west (negative X)
+            // Moving west (negative X) = negative direction for v-edges
             if (dx < 0) {
-                // Check vertical wall on left of fromTx, fromTy
                 if (fromTy >= 0 && fromTy < MAP_HEIGHT && fromTx >= 0 && fromTx <= MAP_WIDTH) {
-                    return vWalls[currentLevel][fromTy] && vWalls[currentLevel][fromTy][fromTx];
+                    const wall = vWalls[currentLevel][fromTy] && vWalls[currentLevel][fromTy][fromTx];
+                    const door = vDoors[currentLevel][fromTy] ? vDoors[currentLevel][fromTy][fromTx] : 0;
+                    return isEdgeBlocked(wall, door, false); // west = negative direction
                 }
                 return true;
             }
-            // Moving east (positive X)
+            // Moving east (positive X) = positive direction for v-edges
             if (dx > 0) {
-                // Check vertical wall on right of fromTx, fromTy (which is left of toTx, toTy)
                 if (toTy >= 0 && toTy < MAP_HEIGHT && toTx >= 0 && toTx <= MAP_WIDTH) {
-                    return vWalls[currentLevel][toTy] && vWalls[currentLevel][toTy][toTx];
+                    const wall = vWalls[currentLevel][toTy] && vWalls[currentLevel][toTy][toTx];
+                    const door = vDoors[currentLevel][toTy] ? vDoors[currentLevel][toTy][toTx] : 0;
+                    return isEdgeBlocked(wall, door, true); // east = positive direction
                 }
                 return true;
             }
@@ -659,6 +757,7 @@ window.game = {
         }
         
         // Check wall collision at a world position with buffer
+        // Doors are passable so we need to check both walls and doors
         function checkEdgeWallCollision(worldX, worldZ, buffer) {
             if (!useEdgeWalls) return false;
             
@@ -671,22 +770,30 @@ window.game = {
             const localX = worldX - tileStartX;
             const localZ = worldZ - tileStartZ;
             
-            // Check if too close to an edge that has a wall
-            // Top edge (low Z within tile)
-            if (localZ < buffer && ty >= 0 && hWalls[currentLevel][ty] && hWalls[currentLevel][ty][tx]) {
-                return true;
+            // Check if too close to an edge that has a wall (not a door)
+            // Top edge (low Z within tile) - approaching from south = negative direction
+            if (localZ < buffer && ty >= 0) {
+                const wall = hWalls[currentLevel][ty] && hWalls[currentLevel][ty][tx];
+                const door = hDoors[currentLevel][ty] ? hDoors[currentLevel][ty][tx] : 0;
+                if (isEdgeBlocked(wall, door, false)) return true; // Moving north through top edge
             }
-            // Bottom edge (high Z within tile)
-            if (localZ > TILE_SIZE - buffer && ty + 1 <= MAP_HEIGHT && hWalls[currentLevel][ty + 1] && hWalls[currentLevel][ty + 1][tx]) {
-                return true;
+            // Bottom edge (high Z within tile) - approaching from north = positive direction
+            if (localZ > TILE_SIZE - buffer && ty + 1 <= MAP_HEIGHT) {
+                const wall = hWalls[currentLevel][ty + 1] && hWalls[currentLevel][ty + 1][tx];
+                const door = hDoors[currentLevel][ty + 1] ? hDoors[currentLevel][ty + 1][tx] : 0;
+                if (isEdgeBlocked(wall, door, true)) return true; // Moving south through bottom edge
             }
-            // Left edge (low X within tile)
-            if (localX < buffer && tx >= 0 && vWalls[currentLevel][ty] && vWalls[currentLevel][ty][tx]) {
-                return true;
+            // Left edge (low X within tile) - approaching from east = negative direction
+            if (localX < buffer && tx >= 0) {
+                const wall = vWalls[currentLevel][ty] && vWalls[currentLevel][ty][tx];
+                const door = vDoors[currentLevel][ty] ? vDoors[currentLevel][ty][tx] : 0;
+                if (isEdgeBlocked(wall, door, false)) return true; // Moving west through left edge
             }
-            // Right edge (high X within tile)
-            if (localX > TILE_SIZE - buffer && tx + 1 <= MAP_WIDTH && vWalls[currentLevel][ty] && vWalls[currentLevel][ty][tx + 1]) {
-                return true;
+            // Right edge (high X within tile) - approaching from west = positive direction
+            if (localX > TILE_SIZE - buffer && tx + 1 <= MAP_WIDTH) {
+                const wall = vWalls[currentLevel][ty] && vWalls[currentLevel][ty][tx + 1];
+                const door = vDoors[currentLevel][ty] ? vDoors[currentLevel][ty][tx + 1] : 0;
+                if (isEdgeBlocked(wall, door, true)) return true; // Moving east through right edge
             }
             
             return false;
@@ -733,17 +840,52 @@ window.game = {
             console.log('Cleared walls around tile', tx, ty, 'on level', currentLevel);
         }
         
+        // Convert wall tiles around a position to floor tiles (used at stairs to ensure movement)
+        function clearAreaAroundStairs(tx, ty) {
+            // Convert tiles in a 7x7 area (radius 3) around the stairs to floor tiles
+            const radius = 3;
+            for (let dy = -radius; dy <= radius; dy++) {
+                for (let dx = -radius; dx <= radius; dx++) {
+                    const nx = tx + dx;
+                    const ny = ty + dy;
+                    
+                    // Check bounds
+                    if (nx < 0 || nx >= MAP_WIDTH || ny < 0 || ny >= MAP_HEIGHT) continue;
+                    
+                    // Only convert WALL tiles to FLOOR, leave stairs and special rooms alone
+                    if (dungeonLevels[currentLevel][ny][nx] === WALL) {
+                        dungeonLevels[currentLevel][ny][nx] = FLOOR;
+                        logToFile(`[STAIR] Converted wall at (${nx}, ${ny}) to floor on level ${currentLevel}`);
+                    }
+                }
+            }
+            
+            // Also clear wall segments around the expanded area
+            for (let dy = -radius; dy <= radius; dy++) {
+                for (let dx = -radius; dx <= radius; dx++) {
+                    clearWallsAroundTile(tx + dx, ty + dy);
+                }
+            }
+        }
+        
         // Level transition
         function changeLevel(newLevel) {
-            if (newLevel < 0 || newLevel >= NUM_LEVELS) return;
-            console.log('Changing level from', currentLevel, 'to', newLevel);
+            if (newLevel < 0 || newLevel >= NUM_LEVELS) {
+                logToFile(`[STAIR] Invalid level change: ${currentLevel} -> ${newLevel}`);
+                return;
+            }
+            
+            const oldLevel = currentLevel;
+            const playerTile = worldToTile(camera.position.x, camera.position.z);
+            
+            logToFile(`[STAIR] LEVEL TRANSITION: ${oldLevel} -> ${newLevel}`);
+            logToFile(`[STAIR] Player position before change: (${camera.position.x.toFixed(2)}, ${camera.position.z.toFixed(2)})`);
+            logToFile(`[STAIR] Player tile before change: (${playerTile.tx}, ${playerTile.ty})`);
+            
             currentLevel = newLevel;
             
-            // Clear walls around player's current position to prevent being trapped at stairs
-            const playerTile = worldToTile(camera.position.x, camera.position.z);
-            clearWallsAroundTile(playerTile.tx, playerTile.ty);
-            
             buildLevel(currentLevel);
+            
             // Log wall count for debugging
             let wallCount = 0;
             for (let y = 0; y <= MAP_HEIGHT; y++) {
@@ -756,7 +898,17 @@ window.game = {
                     if (vWalls[currentLevel][y] && vWalls[currentLevel][y][x]) wallCount++;
                 }
             }
-            console.log('Level', currentLevel, 'has', wallCount, 'wall segments');
+            logToFile(`[STAIR] Level ${currentLevel} has ${wallCount} wall segments`);
+            logToFile(`[STAIR] Player position after change: (${camera.position.x.toFixed(2)}, ${camera.position.z.toFixed(2)})`);
+            
+            // Check if player position is walkable
+            const newTile = worldToTile(camera.position.x, camera.position.z);
+            const tileType = getTileType(newTile.tx, newTile.ty);
+            const isWalkableCheck = tileType === FLOOR || tileType === STAIRS_DOWN || tileType === STAIRS_UP;
+            
+            logToFile(`[STAIR] Player tile after change: (${newTile.tx}, ${newTile.ty})`);
+            logToFile(`[STAIR] Tile type: ${tileType}, isWalkable: ${isWalkableCheck}`);
+            
             updateHUD();
         }
 
@@ -2124,9 +2276,10 @@ window.game = {
         setInterval(() => {
             gameTime++;
             
-            // Check for random monster encounter (10% chance every second)
+            // Check for random monster encounter (DISABLED)
             // Don't trigger encounters when any interaction menu is open
-            if (!player.inBattle && !isPaused && !isInteractionMenuOpen() && Math.random() < 0.10) {
+            // MONSTER ENCOUNTERS DISABLED FOR DEBUGGING
+            if (false && !player.inBattle && !isPaused && !isInteractionMenuOpen() && Math.random() < 0.10) {
                 startBattle();
             }
             
@@ -2326,10 +2479,18 @@ window.game = {
             if (e.code === 'Enter' || e.code === 'NumpadEnter') {
                 const tile = worldToTile(camera.position.x, camera.position.z);
                 const tileType = getTileType(tile.tx, tile.ty);
+                
+                // Log stair usage
+                logToFile(`[STAIR] Player attempting to use stairs at tile (${tile.tx}, ${tile.ty}) with type ${tileType} on level ${currentLevel}`);
+                
                 if (tileType === STAIRS_DOWN && currentLevel < NUM_LEVELS - 1) {
+                    logToFile(`[STAIR] Going DOWN from level ${currentLevel} to ${currentLevel + 1}`);
                     changeLevel(currentLevel + 1);
                 } else if (tileType === STAIRS_UP && currentLevel > 0) {
+                    logToFile(`[STAIR] Going UP from level ${currentLevel} to ${currentLevel - 1}`);
                     changeLevel(currentLevel - 1);
+                } else {
+                    logToFile(`[STAIR] Cannot use stairs - type: ${tileType}, currentLevel: ${currentLevel}`);
                 }
             }
 
@@ -2648,6 +2809,9 @@ window.game = {
                         camera.position.x = centerX;
                         camera.position.z = nextPos.z;
                     }
+                    
+                    // Log successful movement
+                    logToFile(`[MOVE] Movement successful: (${camera.position.x.toFixed(2)}, ${camera.position.z.toFixed(2)})`);
                 } else if (isSpecialRoom(collisionTile.tx, collisionTile.ty)) {
                     // Check if player is approaching from the correct entrance direction
                     const entrance = getSpecialRoomEntrance(collisionTile.tx, collisionTile.ty);
@@ -2663,9 +2827,24 @@ window.game = {
                     if (validApproach) {
                         enterSpecialRoom(collisionTile.tx, collisionTile.ty, entrance);
                     } else {
+                        logToFile(`[MOVE] BLOCKED: Wrong entrance direction for special room`);
                         triggerHitFlash(); // Can't enter from this side
                     }
                 } else {
+                    // Log movement blocking with details
+                    const tileType = getTileType(collisionTile.tx, collisionTile.ty);
+                    let blockReason = 'Unknown';
+                    if (!isWalkable(collisionTile.tx, collisionTile.ty)) {
+                        blockReason = `Tile not walkable (type: ${tileType})`;
+                    } else if (edgeCollision) {
+                        blockReason = 'Edge wall collision';
+                    }
+                    
+                    logToFile(`[MOVE] BLOCKED: ${blockReason}`);
+                    logToFile(`[MOVE] Position: (${camera.position.x.toFixed(2)}, ${camera.position.z.toFixed(2)})`);
+                    logToFile(`[MOVE] Target tile: (${collisionTile.tx}, ${collisionTile.ty}), type: ${tileType}`);
+                    logToFile(`[MOVE] Edge collision: ${edgeCollision}`);
+                    
                     triggerHitFlash();
                 }
             }

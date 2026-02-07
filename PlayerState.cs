@@ -64,6 +64,9 @@ namespace AlternateRealityDungeon
         // Edge-based walls
         public bool[][][] HWalls { get; set; } = Array.Empty<bool[][]>();
         public bool[][][] VWalls { get; set; } = Array.Empty<bool[][]>();
+        // Edge-based doors: 0=none, 1=normal, 2=hidden, 3=one-way positive (S/E), 4=one-way negative (N/W)
+        public int[][][] HDoors { get; set; } = Array.Empty<int[][]>();
+        public int[][][] VDoors { get; set; } = Array.Empty<int[][]>();
     }
 
     public class PlayerState

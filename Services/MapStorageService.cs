@@ -60,6 +60,9 @@ public class MapStorageService
         // VWalls[level][y][x] = vertical wall on left edge of cell
         public bool[][][] HWalls { get; set; } = Array.Empty<bool[][]>();
         public bool[][][] VWalls { get; set; } = Array.Empty<bool[][]>();
+        // Edge-based doors (parallel to walls): 0=none, 1=normal, 2=hidden, 3=one-way positive (S/E), 4=one-way negative (N/W)
+        public int[][][] HDoors { get; set; } = Array.Empty<int[][]>();
+        public int[][][] VDoors { get; set; } = Array.Empty<int[][]>();
     }
 
     public class MapCollection
@@ -189,7 +192,9 @@ public class MapStorageService
             PlayerStartY = 32,
             Levels = new int[NumLevels][][],
             HWalls = new bool[NumLevels][][],
-            VWalls = new bool[NumLevels][][]
+            VWalls = new bool[NumLevels][][],
+            HDoors = new int[NumLevels][][],
+            VDoors = new int[NumLevels][][]
         };
 
         var random = new Random();
@@ -228,6 +233,19 @@ public class MapStorageService
                     // Perimeter walls on left and right
                     map.VWalls[level][y][x] = (x == 0 || x == MapWidth);
                 }
+            }
+            
+            // Initialize door arrays (all zeros = no doors)
+            map.HDoors[level] = new int[MapHeight + 1][];
+            for (int y = 0; y <= MapHeight; y++)
+            {
+                map.HDoors[level][y] = new int[MapWidth];
+            }
+            
+            map.VDoors[level] = new int[MapHeight][];
+            for (int y = 0; y < MapHeight; y++)
+            {
+                map.VDoors[level][y] = new int[MapWidth + 1];
             }
 
             // Generate rooms

@@ -133,6 +133,9 @@ window.game = {
         // vWalls[level][y][x] = vertical wall on left edge of cell (x,y)
         const hWalls = [];
         const vWalls = [];
+        // Edge-based doors (parallel to walls): 0=none, 1=normal, 2=hidden, 3=one-way positive (S/E), 4=one-way negative (N/W)
+        const hDoors = [];
+        const vDoors = [];
         
         // Check if we have edge-based wall data
         const useEdgeWalls = mapData && mapData.hWalls && mapData.vWalls && 
@@ -151,17 +154,23 @@ window.game = {
             
             // Initialize edge-based walls with perimeter
             hWalls[level] = [];
+            hDoors[level] = [];
             for (let y = 0; y <= MAP_HEIGHT; y++) {
                 hWalls[level][y] = [];
+                hDoors[level][y] = [];
                 for (let x = 0; x < MAP_WIDTH; x++) {
                     hWalls[level][y][x] = (y === 0 || y === MAP_HEIGHT);
+                    hDoors[level][y][x] = 0;
                 }
             }
             vWalls[level] = [];
+            vDoors[level] = [];
             for (let y = 0; y < MAP_HEIGHT; y++) {
                 vWalls[level][y] = [];
+                vDoors[level][y] = [];
                 for (let x = 0; x <= MAP_WIDTH; x++) {
                     vWalls[level][y][x] = (x === 0 || x === MAP_WIDTH);
+                    vDoors[level][y][x] = 0;
                 }
             }
         }
@@ -322,6 +331,33 @@ window.game = {
                     }
                 }
                 console.log('Loaded edge-based walls from editor for all levels');
+            }
+            
+            // Load edge-based doors if present
+            const useEdgeDoors = mapData && mapData.hDoors && mapData.vDoors &&
+                                mapData.hDoors.length > 0 && mapData.vDoors.length > 0;
+            if (useEdgeDoors) {
+                for (let level = 0; level < NUM_LEVELS; level++) {
+                    if (level < mapData.hDoors.length && mapData.hDoors[level]) {
+                        for (let y = 0; y <= MAP_HEIGHT; y++) {
+                            if (y < mapData.hDoors[level].length && mapData.hDoors[level][y]) {
+                                for (let x = 0; x < MAP_WIDTH && x < mapData.hDoors[level][y].length; x++) {
+                                    hDoors[level][y][x] = mapData.hDoors[level][y][x];
+                                }
+                            }
+                        }
+                    }
+                    if (level < mapData.vDoors.length && mapData.vDoors[level]) {
+                        for (let y = 0; y < MAP_HEIGHT; y++) {
+                            if (y < mapData.vDoors[level].length && mapData.vDoors[level][y]) {
+                                for (let x = 0; x <= MAP_WIDTH && x < mapData.vDoors[level][y].length; x++) {
+                                    vDoors[level][y][x] = mapData.vDoors[level][y][x];
+                                }
+                            }
+                        }
+                    }
+                }
+                console.log('Loaded edge-based doors from editor for all levels');
             }
             
             console.log('Loaded custom map from editor');
@@ -604,12 +640,20 @@ window.game = {
                         if (hWalls[level][y] && hWalls[level][y][x]) {
                             addHEdgeWall(x, y);
                         }
+                        // Doors look like walls visually
+                        if (hDoors[level][y] && hDoors[level][y][x] > 0) {
+                            addHEdgeWall(x, y);
+                        }
                     }
                 }
                 // Vertical walls
                 for (let y = 0; y < MAP_HEIGHT; y++) {
                     for (let x = 0; x <= MAP_WIDTH; x++) {
                         if (vWalls[level][y] && vWalls[level][y][x]) {
+                            addVEdgeWall(x, y);
+                        }
+                        // Doors look like walls visually
+                        if (vDoors[level][y] && vDoors[level][y][x] > 0) {
                             addVEdgeWall(x, y);
                         }
                     }
@@ -646,6 +690,25 @@ window.game = {
             return tile === FLOOR || tile === STAIRS_DOWN || tile === STAIRS_UP;
         }
         
+        // Check if a door edge allows passage in a given direction
+        // doorValue: 0=none, 1=normal, 2=hidden, 3=one-way positive (S/E), 4=one-way negative (N/W)
+        // isPositiveDir: true if moving in positive direction (south for h-edges, east for v-edges)
+        function isDoorPassable(doorValue, isPositiveDir) {
+            if (doorValue === 0) return false; // No door
+            if (doorValue === 1 || doorValue === 2) return true; // Normal or hidden = passable both ways
+            if (doorValue === 3) return isPositiveDir;  // One-way positive: only pass going S/E
+            if (doorValue === 4) return !isPositiveDir; // One-way negative: only pass going N/W
+            return false;
+        }
+        
+        // Check if an edge blocks movement: returns true if blocked
+        // hasWall: boolean, doorValue: int, isPositiveDir: movement direction
+        function isEdgeBlocked(hasWall, doorValue, isPositiveDir) {
+            if (hasWall) return true; // Solid wall always blocks
+            if (doorValue > 0) return !isDoorPassable(doorValue, isPositiveDir); // Door: blocked if not passable
+            return false; // No wall or door = open
+        }
+        
         // Check if there's a wall edge between two adjacent cells
         function hasWallBetween(fromTx, fromTy, toTx, toTy) {
             if (!useEdgeWalls) return false;
@@ -653,35 +716,39 @@ window.game = {
             const dx = toTx - fromTx;
             const dy = toTy - fromTy;
             
-            // Moving north (negative Y in map coords)
+            // Moving north (negative Y in map coords) = negative direction for h-edges
             if (dy < 0) {
-                // Check horizontal wall on top of fromTx, fromTy (which is same as bottom of toTx, toTy)
                 if (fromTy >= 0 && fromTy <= MAP_HEIGHT && fromTx >= 0 && fromTx < MAP_WIDTH) {
-                    return hWalls[currentLevel][fromTy] && hWalls[currentLevel][fromTy][fromTx];
+                    const wall = hWalls[currentLevel][fromTy] && hWalls[currentLevel][fromTy][fromTx];
+                    const door = hDoors[currentLevel][fromTy] ? hDoors[currentLevel][fromTy][fromTx] : 0;
+                    return isEdgeBlocked(wall, door, false); // north = negative direction
                 }
                 return true;
             }
-            // Moving south (positive Y)
+            // Moving south (positive Y) = positive direction for h-edges
             if (dy > 0) {
-                // Check horizontal wall on bottom of fromTx, fromTy (which is top of toTx, toTy)
                 if (toTy >= 0 && toTy <= MAP_HEIGHT && toTx >= 0 && toTx < MAP_WIDTH) {
-                    return hWalls[currentLevel][toTy] && hWalls[currentLevel][toTy][toTx];
+                    const wall = hWalls[currentLevel][toTy] && hWalls[currentLevel][toTy][toTx];
+                    const door = hDoors[currentLevel][toTy] ? hDoors[currentLevel][toTy][toTx] : 0;
+                    return isEdgeBlocked(wall, door, true); // south = positive direction
                 }
                 return true;
             }
-            // Moving west (negative X)
+            // Moving west (negative X) = negative direction for v-edges
             if (dx < 0) {
-                // Check vertical wall on left of fromTx, fromTy
                 if (fromTy >= 0 && fromTy < MAP_HEIGHT && fromTx >= 0 && fromTx <= MAP_WIDTH) {
-                    return vWalls[currentLevel][fromTy] && vWalls[currentLevel][fromTy][fromTx];
+                    const wall = vWalls[currentLevel][fromTy] && vWalls[currentLevel][fromTy][fromTx];
+                    const door = vDoors[currentLevel][fromTy] ? vDoors[currentLevel][fromTy][fromTx] : 0;
+                    return isEdgeBlocked(wall, door, false); // west = negative direction
                 }
                 return true;
             }
-            // Moving east (positive X)
+            // Moving east (positive X) = positive direction for v-edges
             if (dx > 0) {
-                // Check vertical wall on right of fromTx, fromTy (which is left of toTx, toTy)
                 if (toTy >= 0 && toTy < MAP_HEIGHT && toTx >= 0 && toTx <= MAP_WIDTH) {
-                    return vWalls[currentLevel][toTy] && vWalls[currentLevel][toTy][toTx];
+                    const wall = vWalls[currentLevel][toTy] && vWalls[currentLevel][toTy][toTx];
+                    const door = vDoors[currentLevel][toTy] ? vDoors[currentLevel][toTy][toTx] : 0;
+                    return isEdgeBlocked(wall, door, true); // east = positive direction
                 }
                 return true;
             }
@@ -690,6 +757,7 @@ window.game = {
         }
         
         // Check wall collision at a world position with buffer
+        // Doors are passable so we need to check both walls and doors
         function checkEdgeWallCollision(worldX, worldZ, buffer) {
             if (!useEdgeWalls) return false;
             
@@ -702,22 +770,30 @@ window.game = {
             const localX = worldX - tileStartX;
             const localZ = worldZ - tileStartZ;
             
-            // Check if too close to an edge that has a wall
-            // Top edge (low Z within tile)
-            if (localZ < buffer && ty >= 0 && hWalls[currentLevel][ty] && hWalls[currentLevel][ty][tx]) {
-                return true;
+            // Check if too close to an edge that has a wall (not a door)
+            // Top edge (low Z within tile) - approaching from south = negative direction
+            if (localZ < buffer && ty >= 0) {
+                const wall = hWalls[currentLevel][ty] && hWalls[currentLevel][ty][tx];
+                const door = hDoors[currentLevel][ty] ? hDoors[currentLevel][ty][tx] : 0;
+                if (isEdgeBlocked(wall, door, false)) return true; // Moving north through top edge
             }
-            // Bottom edge (high Z within tile)
-            if (localZ > TILE_SIZE - buffer && ty + 1 <= MAP_HEIGHT && hWalls[currentLevel][ty + 1] && hWalls[currentLevel][ty + 1][tx]) {
-                return true;
+            // Bottom edge (high Z within tile) - approaching from north = positive direction
+            if (localZ > TILE_SIZE - buffer && ty + 1 <= MAP_HEIGHT) {
+                const wall = hWalls[currentLevel][ty + 1] && hWalls[currentLevel][ty + 1][tx];
+                const door = hDoors[currentLevel][ty + 1] ? hDoors[currentLevel][ty + 1][tx] : 0;
+                if (isEdgeBlocked(wall, door, true)) return true; // Moving south through bottom edge
             }
-            // Left edge (low X within tile)
-            if (localX < buffer && tx >= 0 && vWalls[currentLevel][ty] && vWalls[currentLevel][ty][tx]) {
-                return true;
+            // Left edge (low X within tile) - approaching from east = negative direction
+            if (localX < buffer && tx >= 0) {
+                const wall = vWalls[currentLevel][ty] && vWalls[currentLevel][ty][tx];
+                const door = vDoors[currentLevel][ty] ? vDoors[currentLevel][ty][tx] : 0;
+                if (isEdgeBlocked(wall, door, false)) return true; // Moving west through left edge
             }
-            // Right edge (high X within tile)
-            if (localX > TILE_SIZE - buffer && tx + 1 <= MAP_WIDTH && vWalls[currentLevel][ty] && vWalls[currentLevel][ty][tx + 1]) {
-                return true;
+            // Right edge (high X within tile) - approaching from west = positive direction
+            if (localX > TILE_SIZE - buffer && tx + 1 <= MAP_WIDTH) {
+                const wall = vWalls[currentLevel][ty] && vWalls[currentLevel][ty][tx + 1];
+                const door = vDoors[currentLevel][ty] ? vDoors[currentLevel][ty][tx + 1] : 0;
+                if (isEdgeBlocked(wall, door, true)) return true; // Moving east through right edge
             }
             
             return false;

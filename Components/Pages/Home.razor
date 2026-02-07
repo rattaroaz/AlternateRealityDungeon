@@ -202,7 +202,9 @@
                     playerStartY = PlayerState.CurrentMapData.PlayerStartY,
                     levels = PlayerState.CurrentMapData.Levels,
                     hWalls = PlayerState.CurrentMapData.HWalls,
-                    vWalls = PlayerState.CurrentMapData.VWalls
+                    vWalls = PlayerState.CurrentMapData.VWalls,
+                    hDoors = PlayerState.CurrentMapData.HDoors,
+                    vDoors = PlayerState.CurrentMapData.VDoors
                 };
                 
                 PlayerState.ClearCurrentMapData();
@@ -227,7 +229,9 @@
                         playerStartY = defaultMap.PlayerStartY,
                         levels = defaultMap.Levels,
                         hWalls = defaultMap.HWalls,
-                        vWalls = defaultMap.VWalls
+                        vWalls = defaultMap.VWalls,
+                        hDoors = defaultMap.HDoors,
+                        vDoors = defaultMap.VDoors
                     };
                 }
             }
