@@ -359,6 +359,8 @@ window.game = {
                 }
                 console.log('Loaded edge-based doors from editor for all levels');
             }
+
+            normalizeWallDoorExclusivity();
             
             console.log('Loaded custom map from editor');
         } else {
@@ -497,6 +499,10 @@ window.game = {
         // Special room materials (door frame on wall)
         const doorFrameMaterial = new THREE.MeshStandardMaterial({ color: 0x4a2810, roughness: 0.6, metalness: 0.2 }); // Dark wood color
         const doorMaterial = new THREE.MeshStandardMaterial({ color: 0x8B008B, roughness: 0.3, metalness: 0.1 }); // Dark magenta for door
+        const doorArchMaterial = new THREE.MeshStandardMaterial({ color: 0x6b4423, roughness: 0.55, metalness: 0.15 });
+        const hiddenDoorArchMaterial = new THREE.MeshStandardMaterial({ color: 0xB8860B, roughness: 0.7, metalness: 0.1 });
+        const oneWayDoorAccentPosMaterial = new THREE.MeshStandardMaterial({ color: 0x32CD32, roughness: 0.35, metalness: 0.25, emissive: 0x103010, emissiveIntensity: 0.2 });
+        const oneWayDoorAccentNegMaterial = new THREE.MeshStandardMaterial({ color: 0xADFF2F, roughness: 0.35, metalness: 0.25, emissive: 0x203010, emissiveIntensity: 0.2 });
         
         // Track dungeon meshes for level switching
         let dungeonMeshes = [];
@@ -519,6 +525,108 @@ window.game = {
             mesh.position.set(worldX, wallHeight / 2, worldZ);
             scene.add(mesh);
             dungeonMeshes.push(mesh);
+        }
+
+        function getDoorMaterials(doorValue) {
+            const frameMat = doorFrameMaterial;
+            let archMat = doorArchMaterial;
+            let accentMat = null;
+            let showAccent = false;
+
+            if (doorValue === 2) {
+                archMat = hiddenDoorArchMaterial;
+            } else if (doorValue === 3) {
+                accentMat = oneWayDoorAccentPosMaterial;
+                showAccent = true;
+            } else if (doorValue === 4) {
+                accentMat = oneWayDoorAccentNegMaterial;
+                showAccent = true;
+            }
+
+            return { frameMat, archMat, accentMat, showAccent };
+        }
+
+        // Render a passable edge door with side posts and a curved arch on top.
+        function addEdgeDoor(worldX, worldZ, axis, doorValue) {
+            const openingWidth = TILE_SIZE * 0.62;
+            const jambWidth = (TILE_SIZE - openingWidth) / 2;
+            const frameHeight = wallHeight * 0.72;
+            const archRadius = openingWidth / 2;
+            const thickness = WALL_THICKNESS;
+            const tubeRadius = 0.16;
+            const materials = getDoorMaterials(doorValue);
+
+            const jambGeo = axis === 'x'
+                ? new THREE.BoxGeometry(jambWidth, frameHeight, thickness)
+                : new THREE.BoxGeometry(thickness, frameHeight, jambWidth);
+
+            const offset = openingWidth / 2 + jambWidth / 2;
+            const leftJamb = new THREE.Mesh(jambGeo, materials.frameMat);
+            const rightJamb = new THREE.Mesh(jambGeo, materials.frameMat);
+
+            if (axis === 'x') {
+                leftJamb.position.set(worldX - offset, frameHeight / 2, worldZ);
+                rightJamb.position.set(worldX + offset, frameHeight / 2, worldZ);
+            } else {
+                leftJamb.position.set(worldX, frameHeight / 2, worldZ - offset);
+                rightJamb.position.set(worldX, frameHeight / 2, worldZ + offset);
+            }
+
+            const archGeo = new THREE.TorusGeometry(archRadius, tubeRadius, 8, 24, Math.PI);
+            const arch = new THREE.Mesh(archGeo, materials.archMat);
+            arch.rotation.x = Math.PI / 2;
+            if (axis === 'z') {
+                arch.rotation.y = Math.PI / 2;
+            }
+            arch.position.set(worldX, frameHeight, worldZ);
+
+            const keystoneGeo = new THREE.BoxGeometry(
+                axis === 'x' ? openingWidth * 0.18 : thickness * 1.4,
+                wallHeight * 0.12,
+                axis === 'z' ? openingWidth * 0.18 : thickness * 1.4
+            );
+            const keystone = new THREE.Mesh(keystoneGeo, materials.archMat);
+            keystone.position.set(worldX, frameHeight + archRadius * 0.55, worldZ);
+
+            scene.add(leftJamb);
+            scene.add(rightJamb);
+            scene.add(arch);
+            scene.add(keystone);
+            dungeonMeshes.push(leftJamb, rightJamb, arch, keystone);
+
+            if (materials.showAccent) {
+                const accentGeo = new THREE.BoxGeometry(
+                    axis === 'x' ? openingWidth * 0.55 : thickness * 0.8,
+                    0.08,
+                    axis === 'z' ? openingWidth * 0.55 : thickness * 0.8
+                );
+                const accent = new THREE.Mesh(accentGeo, materials.accentMat);
+                accent.position.set(worldX, frameHeight * 0.35, worldZ);
+                scene.add(accent);
+                dungeonMeshes.push(accent);
+            } else if (doorValue === 1) {
+                const panelGeo = new THREE.BoxGeometry(
+                    axis === 'x' ? openingWidth * 0.78 : thickness * 0.45,
+                    frameHeight * 0.82,
+                    axis === 'z' ? openingWidth * 0.78 : thickness * 0.45
+                );
+                const panel = new THREE.Mesh(panelGeo, doorMaterial);
+                panel.position.set(worldX, frameHeight * 0.41, worldZ);
+                scene.add(panel);
+                dungeonMeshes.push(panel);
+            }
+        }
+
+        function addHEdgeDoor(tx, ty, doorValue) {
+            const worldX = (tx - MAP_WIDTH / 2) * TILE_SIZE + TILE_SIZE / 2;
+            const worldZ = (ty - MAP_HEIGHT / 2) * TILE_SIZE;
+            addEdgeDoor(worldX, worldZ, 'x', doorValue);
+        }
+
+        function addVEdgeDoor(tx, ty, doorValue) {
+            const worldX = (tx - MAP_WIDTH / 2) * TILE_SIZE;
+            const worldZ = (ty - MAP_HEIGHT / 2) * TILE_SIZE + TILE_SIZE / 2;
+            addEdgeDoor(worldX, worldZ, 'z', doorValue);
         }
         
         function addWallTile(tx, ty) {
@@ -564,40 +672,17 @@ window.game = {
             wallMesh.position.set(worldX, wallHeight / 2, worldZ);
             scene.add(wallMesh);
             dungeonMeshes.push(wallMesh);
-            
-            // Add door frame on the entrance side
-            const frameWidth = TILE_SIZE * 0.7;
-            const frameHeight = wallHeight * 0.85;
-            const frameDepth = 0.3;
-            const frameGeo = new THREE.BoxGeometry(frameWidth, frameHeight, frameDepth);
-            const doorGeo = new THREE.BoxGeometry(frameWidth * 0.8, frameHeight * 0.9, 0.1);
-            
-            const frameMesh = new THREE.Mesh(frameGeo, doorFrameMaterial);
-            const doorMesh = new THREE.Mesh(doorGeo, doorMaterial);
-            
-            // Position door based on entrance direction
+
+            // Guild entrance uses the same arched door style as edge doors.
             if (entranceDir === 'N') {
-                frameMesh.position.set(worldX, frameHeight / 2, worldZ - TILE_SIZE / 2 + frameDepth / 2);
-                doorMesh.position.set(worldX, frameHeight / 2, worldZ - TILE_SIZE / 2 + 0.05);
+                addHEdgeDoor(tx, ty, 1);
             } else if (entranceDir === 'S') {
-                frameMesh.position.set(worldX, frameHeight / 2, worldZ + TILE_SIZE / 2 - frameDepth / 2);
-                doorMesh.position.set(worldX, frameHeight / 2, worldZ + TILE_SIZE / 2 - 0.05);
+                addHEdgeDoor(tx, ty + 1, 1);
             } else if (entranceDir === 'E') {
-                frameMesh.rotation.y = Math.PI / 2;
-                doorMesh.rotation.y = Math.PI / 2;
-                frameMesh.position.set(worldX + TILE_SIZE / 2 - frameDepth / 2, frameHeight / 2, worldZ);
-                doorMesh.position.set(worldX + TILE_SIZE / 2 - 0.05, frameHeight / 2, worldZ);
+                addVEdgeDoor(tx + 1, ty, 1);
             } else if (entranceDir === 'W') {
-                frameMesh.rotation.y = Math.PI / 2;
-                doorMesh.rotation.y = Math.PI / 2;
-                frameMesh.position.set(worldX - TILE_SIZE / 2 + frameDepth / 2, frameHeight / 2, worldZ);
-                doorMesh.position.set(worldX - TILE_SIZE / 2 + 0.05, frameHeight / 2, worldZ);
+                addVEdgeDoor(tx, ty, 1);
             }
-            
-            scene.add(frameMesh);
-            scene.add(doorMesh);
-            dungeonMeshes.push(frameMesh);
-            dungeonMeshes.push(doorMesh);
         }
         
         function buildLevel(level) {
@@ -637,24 +722,26 @@ window.game = {
                 // Horizontal walls
                 for (let y = 0; y <= MAP_HEIGHT; y++) {
                     for (let x = 0; x < MAP_WIDTH; x++) {
-                        if (hWalls[level][y] && hWalls[level][y][x]) {
+                        if (hWalls[level][y] && hWalls[level][y][x] &&
+                            !(hDoors[level][y] && hDoors[level][y][x] > 0)) {
                             addHEdgeWall(x, y);
                         }
-                        // Doors look like walls visually
+                        // Doors render as arched openings instead of solid walls
                         if (hDoors[level][y] && hDoors[level][y][x] > 0) {
-                            addHEdgeWall(x, y);
+                            addHEdgeDoor(x, y, hDoors[level][y][x]);
                         }
                     }
                 }
                 // Vertical walls
                 for (let y = 0; y < MAP_HEIGHT; y++) {
                     for (let x = 0; x <= MAP_WIDTH; x++) {
-                        if (vWalls[level][y] && vWalls[level][y][x]) {
+                        if (vWalls[level][y] && vWalls[level][y][x] &&
+                            !(vDoors[level][y] && vDoors[level][y][x] > 0)) {
                             addVEdgeWall(x, y);
                         }
-                        // Doors look like walls visually
+                        // Doors render as arched openings instead of solid walls
                         if (vDoors[level][y] && vDoors[level][y][x] > 0) {
-                            addVEdgeWall(x, y);
+                            addVEdgeDoor(x, y, vDoors[level][y][x]);
                         }
                     }
                 }
@@ -704,9 +791,31 @@ window.game = {
         // Check if an edge blocks movement: returns true if blocked
         // hasWall: boolean, doorValue: int, isPositiveDir: movement direction
         function isEdgeBlocked(hasWall, doorValue, isPositiveDir) {
-            if (hasWall) return true; // Solid wall always blocks
-            if (doorValue > 0) return !isDoorPassable(doorValue, isPositiveDir); // Door: blocked if not passable
+            if (doorValue > 0) return !isDoorPassable(doorValue, isPositiveDir); // Door overrides wall at same edge
+            if (hasWall) return true;
             return false; // No wall or door = open
+        }
+
+        // Doors and walls share the same edge slot; keep only one active.
+        function normalizeWallDoorExclusivity() {
+            if (!useEdgeWalls) return;
+
+            for (let level = 0; level < NUM_LEVELS; level++) {
+                for (let y = 0; y <= MAP_HEIGHT; y++) {
+                    for (let x = 0; x < MAP_WIDTH; x++) {
+                        if (hDoors[level][y] && hDoors[level][y][x] > 0) {
+                            hWalls[level][y][x] = false;
+                        }
+                    }
+                }
+                for (let y = 0; y < MAP_HEIGHT; y++) {
+                    for (let x = 0; x <= MAP_WIDTH; x++) {
+                        if (vDoors[level][y] && vDoors[level][y][x] > 0) {
+                            vWalls[level][y][x] = false;
+                        }
+                    }
+                }
+            }
         }
         
         // Check if there's a wall edge between two adjacent cells

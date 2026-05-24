@@ -16,32 +16,53 @@ public class MapStorageService
 
     public MapStorageService()
     {
+        _storagePath = ResolveMapsStoragePath();
+        Directory.CreateDirectory(_storagePath);
+        TryMigrateFromLegacyAppDataStorage();
+    }
+
+    /// <summary>
+    /// Prefer the project repo's Data/Maps folder (so map editor saves can be committed to git).
+    /// Falls back to Data/Maps beside the running app when no .csproj is found (mobile/published builds).
+    /// </summary>
+    private static string ResolveMapsStoragePath()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir != null)
+        {
+            if (dir.GetFiles("*.csproj").Length > 0)
+            {
+                return Path.Combine(dir.FullName, "Data", "Maps");
+            }
+            dir = dir.Parent;
+        }
+
+        return Path.Combine(AppContext.BaseDirectory, "Data", "Maps");
+    }
+
+    private void TryMigrateFromLegacyAppDataStorage()
+    {
+        var destination = GetStorageFilePath();
+        if (File.Exists(destination))
+            return;
+
         try
         {
-            _storagePath = Path.Combine(
+            var legacyFile = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 "AlternateRealityDungeon",
-                "maps");
-            
-            if (!Directory.Exists(_storagePath))
+                "maps",
+                "map_collection.json");
+
+            if (File.Exists(legacyFile))
             {
-                Directory.CreateDirectory(_storagePath);
+                File.Copy(legacyFile, destination);
+                Console.WriteLine($"Migrated map data from LocalAppData to {destination}");
             }
         }
         catch (Exception ex)
         {
-            // Fallback to temp directory if LocalApplicationData fails
-            Console.WriteLine($"Failed to create storage path: {ex.Message}");
-            _storagePath = Path.Combine(Path.GetTempPath(), "AlternateRealityDungeon", "maps");
-            try
-            {
-                Directory.CreateDirectory(_storagePath);
-            }
-            catch
-            {
-                // Last resort - just use temp folder
-                _storagePath = Path.GetTempPath();
-            }
+            Console.WriteLine($"Failed to migrate legacy map storage: {ex.Message}");
         }
     }
 
@@ -65,10 +86,65 @@ public class MapStorageService
         public int[][][] VDoors { get; set; } = Array.Empty<int[][]>();
     }
 
+    public static void NormalizeWallDoorExclusivity(MapData map)
+    {
+        if (map.HWalls == null || map.HDoors == null || map.VWalls == null || map.VDoors == null)
+            return;
+
+        for (int level = 0; level < Math.Min(NumLevels, map.HWalls.Length); level++)
+        {
+            if (map.HWalls[level] == null || map.HDoors[level] == null)
+                continue;
+
+            for (int y = 0; y <= MapHeight && y < map.HWalls[level].Length; y++)
+            {
+                if (map.HWalls[level][y] == null || map.HDoors[level][y] == null)
+                    continue;
+
+                for (int x = 0; x < MapWidth && x < map.HWalls[level][y].Length; x++)
+                {
+                    if (x < map.HDoors[level][y].Length && map.HDoors[level][y][x] > 0)
+                        map.HWalls[level][y][x] = false;
+                }
+            }
+
+            if (level >= map.VWalls.Length || map.VWalls[level] == null || map.VDoors[level] == null)
+                continue;
+
+            for (int y = 0; y < MapHeight && y < map.VWalls[level].Length; y++)
+            {
+                if (map.VWalls[level][y] == null || map.VDoors[level][y] == null)
+                    continue;
+
+                for (int x = 0; x <= MapWidth && x < map.VWalls[level][y].Length; x++)
+                {
+                    if (x < map.VDoors[level][y].Length && map.VDoors[level][y][x] > 0)
+                        map.VWalls[level][y][x] = false;
+                }
+            }
+        }
+    }
+
     public class MapCollection
     {
         public MapData? DefaultMap { get; set; }
         public List<MapData> SavedMaps { get; set; } = new();
+    }
+
+    public class LegacySlotInfo
+    {
+        public int Slot { get; set; }
+        public bool HasMapData { get; set; }
+        public DateTime? SavedAt { get; set; }
+        public string DisplayName { get; set; } = "";
+    }
+
+    private class LegacyGameSave
+    {
+        public string? MapId { get; set; }
+        public int[][]? MapLevels { get; set; }
+        public int MapPlayerStartX { get; set; } = 32;
+        public int MapPlayerStartY { get; set; } = 32;
     }
 
     private string GetStorageFilePath() => Path.Combine(_storagePath, "map_collection.json");
@@ -84,6 +160,13 @@ public class MapStorageService
             {
                 var json = await File.ReadAllTextAsync(filePath);
                 _cachedMaps = JsonSerializer.Deserialize<MapCollection>(json) ?? new MapCollection();
+                if (_cachedMaps.DefaultMap != null)
+                    NormalizeWallDoorExclusivity(_cachedMaps.DefaultMap);
+                foreach (var savedMap in _cachedMaps.SavedMaps)
+                {
+                    if (savedMap != null)
+                        NormalizeWallDoorExclusivity(savedMap);
+                }
             }
             catch
             {
@@ -95,7 +178,163 @@ public class MapStorageService
             _cachedMaps = new MapCollection();
         }
 
+        if (_cachedMaps.DefaultMap == null)
+        {
+            var legacyMap = await TryLoadLegacyTemplateMapAsync();
+            if (legacyMap != null)
+            {
+                _cachedMaps.DefaultMap = legacyMap;
+                await SaveMapCollectionAsync(_cachedMaps);
+            }
+        }
+
         return _cachedMaps;
+    }
+
+    private async Task<MapData?> TryLoadLegacyTemplateMapAsync()
+    {
+        try
+        {
+            var databaseDir = Path.Combine(AppContext.BaseDirectory, "Database");
+            if (!Directory.Exists(databaseDir)) return null;
+
+            for (int slot = 1; slot <= 10; slot++)
+            {
+                var slotPath = Path.Combine(databaseDir, $"slot{slot}.json");
+                if (!File.Exists(slotPath)) continue;
+
+                var json = await File.ReadAllTextAsync(slotPath);
+                if (string.IsNullOrWhiteSpace(json)) continue;
+
+                var legacy = JsonSerializer.Deserialize<LegacyGameSave>(json);
+                if (legacy?.MapLevels == null || legacy.MapLevels.Length == 0) continue;
+
+                var map = ConvertLegacyMap(legacy, slot);
+                if (map != null) return map;
+            }
+        }
+        catch
+        {
+            // If legacy import fails, continue without blocking map editor startup.
+        }
+
+        return null;
+    }
+
+    private static string GetLegacySlotPath(int slot) =>
+        Path.Combine(AppContext.BaseDirectory, "Database", $"slot{slot}.json");
+
+    private MapData? ConvertLegacyMap(LegacyGameSave legacy, int slotNumber)
+    {
+        if (legacy.MapLevels == null || legacy.MapLevels.Length < MapHeight) return null;
+
+        var levels = new int[NumLevels][][];
+        for (int level = 0; level < NumLevels; level++)
+        {
+            levels[level] = new int[MapHeight][];
+            for (int y = 0; y < MapHeight; y++)
+            {
+                levels[level][y] = new int[MapWidth];
+                var sourceRowIndex = level * MapHeight + y;
+                if (sourceRowIndex >= legacy.MapLevels.Length) continue;
+                var sourceRow = legacy.MapLevels[sourceRowIndex] ?? Array.Empty<int>();
+                for (int x = 0; x < MapWidth && x < sourceRow.Length; x++)
+                {
+                    var legacyTile = sourceRow[x];
+                    levels[level][y][x] = legacyTile switch
+                    {
+                        1 => 1, // Preserve legacy solid wall tiles
+                        2 => 2, // Stairs down
+                        3 => 3, // Stairs up
+                        5 => 5,
+                        6 => 6,
+                        7 => 7,
+                        8 => 8,
+                        _ => 0
+                    };
+                }
+            }
+        }
+
+        var hWalls = new bool[NumLevels][][];
+        var vWalls = new bool[NumLevels][][];
+        var hDoors = new int[NumLevels][][];
+        var vDoors = new int[NumLevels][][];
+
+        for (int level = 0; level < NumLevels; level++)
+        {
+            hWalls[level] = new bool[MapHeight + 1][];
+            hDoors[level] = new int[MapHeight + 1][];
+            for (int y = 0; y <= MapHeight; y++)
+            {
+                hWalls[level][y] = new bool[MapWidth];
+                hDoors[level][y] = new int[MapWidth];
+            }
+
+            vWalls[level] = new bool[MapHeight][];
+            vDoors[level] = new int[MapHeight][];
+            for (int y = 0; y < MapHeight; y++)
+            {
+                vWalls[level][y] = new bool[MapWidth + 1];
+                vDoors[level][y] = new int[MapWidth + 1];
+            }
+
+            // Perimeter walls
+            for (int x = 0; x < MapWidth; x++)
+            {
+                hWalls[level][0][x] = true;
+                hWalls[level][MapHeight][x] = true;
+            }
+            for (int y = 0; y < MapHeight; y++)
+            {
+                vWalls[level][y][0] = true;
+                vWalls[level][y][MapWidth] = true;
+            }
+
+            // Convert legacy wall tiles (value 1) to edge walls.
+            for (int y = 0; y < MapHeight; y++)
+            {
+                for (int x = 0; x < MapWidth; x++)
+                {
+                    bool hereWall = IsLegacyWall(level, x, y, legacy.MapLevels);
+                    bool northWall = IsLegacyWall(level, x, y - 1, legacy.MapLevels);
+                    bool southWall = IsLegacyWall(level, x, y + 1, legacy.MapLevels);
+                    bool westWall = IsLegacyWall(level, x - 1, y, legacy.MapLevels);
+                    bool eastWall = IsLegacyWall(level, x + 1, y, legacy.MapLevels);
+
+                    if (hereWall != northWall) hWalls[level][y][x] = true;
+                    if (hereWall != southWall) hWalls[level][y + 1][x] = true;
+                    if (hereWall != westWall) vWalls[level][y][x] = true;
+                    if (hereWall != eastWall) vWalls[level][y][x + 1] = true;
+                }
+            }
+        }
+
+        return new MapData
+        {
+            Name = $"Legacy Slot {slotNumber} Template",
+            CreatedAt = DateTime.UtcNow,
+            Width = MapWidth,
+            Height = MapHeight,
+            NumLevels = NumLevels,
+            PlayerStartX = legacy.MapPlayerStartX,
+            PlayerStartY = legacy.MapPlayerStartY,
+            Levels = levels,
+            HWalls = hWalls,
+            VWalls = vWalls,
+            HDoors = hDoors,
+            VDoors = vDoors
+        };
+    }
+
+    private bool IsLegacyWall(int level, int x, int y, int[][] legacyFlatRows)
+    {
+        if (x < 0 || x >= MapWidth || y < 0 || y >= MapHeight) return true;
+        var rowIndex = level * MapHeight + y;
+        if (rowIndex < 0 || rowIndex >= legacyFlatRows.Length) return true;
+        var row = legacyFlatRows[rowIndex];
+        if (row == null || x >= row.Length) return true;
+        return row[x] == 1;
     }
 
     public async Task SaveMapCollectionAsync(MapCollection collection)
@@ -109,11 +348,14 @@ public class MapStorageService
     public async Task<MapData?> GetDefaultMapAsync()
     {
         var collection = await LoadMapCollectionAsync();
+        if (collection.DefaultMap != null)
+            NormalizeWallDoorExclusivity(collection.DefaultMap);
         return collection.DefaultMap;
     }
 
     public async Task SetDefaultMapAsync(MapData map)
     {
+        NormalizeWallDoorExclusivity(map);
         var collection = await LoadMapCollectionAsync();
         collection.DefaultMap = map;
         await SaveMapCollectionAsync(collection);
@@ -125,6 +367,68 @@ public class MapStorageService
         return collection.SavedMaps;
     }
 
+    public async Task<List<LegacySlotInfo>> GetLegacySlotInfosAsync()
+    {
+        var results = new List<LegacySlotInfo>();
+        for (int slot = 1; slot <= 10; slot++)
+        {
+            var path = GetLegacySlotPath(slot);
+            if (!File.Exists(path))
+            {
+                results.Add(new LegacySlotInfo { Slot = slot, HasMapData = false, DisplayName = "(Empty)" });
+                continue;
+            }
+
+            try
+            {
+                var json = await File.ReadAllTextAsync(path);
+                var legacy = JsonSerializer.Deserialize<LegacyGameSave>(json);
+                bool hasMap = legacy?.MapLevels != null && legacy.MapLevels.Length >= MapHeight;
+                results.Add(new LegacySlotInfo
+                {
+                    Slot = slot,
+                    HasMapData = hasMap,
+                    SavedAt = File.GetLastWriteTime(path),
+                    DisplayName = hasMap ? $"Legacy Slot {slot} Template" : "(No map data)"
+                });
+            }
+            catch
+            {
+                results.Add(new LegacySlotInfo
+                {
+                    Slot = slot,
+                    HasMapData = false,
+                    SavedAt = File.GetLastWriteTime(path),
+                    DisplayName = "(Unreadable)"
+                });
+            }
+        }
+
+        return results;
+    }
+
+    public async Task<MapData?> ImportFromLegacySlotAsync(int slot)
+    {
+        if (slot < 1 || slot > 10) return null;
+        var path = GetLegacySlotPath(slot);
+        if (!File.Exists(path)) return null;
+
+        try
+        {
+            var json = await File.ReadAllTextAsync(path);
+            var legacy = JsonSerializer.Deserialize<LegacyGameSave>(json);
+            if (legacy?.MapLevels == null || legacy.MapLevels.Length < MapHeight) return null;
+            var map = ConvertLegacyMap(legacy, slot);
+            if (map != null)
+                NormalizeWallDoorExclusivity(map);
+            return map;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     public async Task<MapData?> GetMapByIdAsync(string? mapId)
     {
         if (string.IsNullOrEmpty(mapId)) return null;
@@ -134,11 +438,15 @@ public class MapStorageService
         // Check if it's the default map
         if (collection.DefaultMap?.Id == mapId)
         {
+            NormalizeWallDoorExclusivity(collection.DefaultMap);
             return collection.DefaultMap;
         }
         
         // Check saved maps
-        return collection.SavedMaps.FirstOrDefault(m => m?.Id == mapId);
+        var saved = collection.SavedMaps.FirstOrDefault(m => m?.Id == mapId);
+        if (saved != null)
+            NormalizeWallDoorExclusivity(saved);
+        return saved;
     }
 
     public async Task SaveMapToSlotAsync(MapData map, int slotIndex)
@@ -159,6 +467,7 @@ public class MapStorageService
 
         collection.SavedMaps[slotIndex] = map;
         
+        NormalizeWallDoorExclusivity(map);
         // Clean up nulls and limit size
         collection.SavedMaps = collection.SavedMaps
             .Where(m => m != null)

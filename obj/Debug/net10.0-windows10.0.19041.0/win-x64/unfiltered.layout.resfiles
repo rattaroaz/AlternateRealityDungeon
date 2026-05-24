@@ -1,6 +1,7 @@
 wwwroot\_framework\blazor.modules.json
 wwwroot\_framework\blazor.webview.js
 Components\Layout\MainLayout.razor.css
+Data\Maps\map_collection.json
 OpenSans-Regular.ttf
 appicon.ico
 appiconLargeTile.scale-100.png

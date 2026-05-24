@@ -12,6 +12,7 @@
             <button @onclick="SaveAsDefault" style="background: #2a5a2a; padding: 8px 16px;">Set as Default</button>
             <button @onclick="ShowSaveSlots" style="background: #3a4a5a; padding: 8px 16px;">Save to Slot</button>
             <button @onclick="ShowLoadSlots" style="background: #2a2a5a; padding: 8px 16px;">Load from Slot</button>
+            <button @onclick="ShowLegacyImportSlots" style="background: #5a3a2a; padding: 8px 16px;">Import from Legacy Slot</button>
             <button @onclick="GenerateNew" style="background: #5a4a2a; padding: 8px 16px;">Generate New</button>
             <button @onclick="ClearLevel" style="background: #5a2a2a; padding: 8px 16px;">Clear Level</button>
             <button @onclick="BackToMenu" style="background: #444; padding: 8px 16px;">Back to Menu</button>
@@ -183,7 +184,7 @@
                                 var tileX = x;
                                 var tileY = y;
                                 var tile = GetTile(x, y);
-                                <div style="width: @(TileDisplaySize)px; height: @(TileDisplaySize)px; background: @GetTileColor(tile); @GetWallBorderStyle(tileX, tileY) cursor: @GetCursorStyle(); position: relative;"
+                                <div style="width: @(TileDisplaySize)px; height: @(TileDisplaySize)px; background: @GetTileColor(tile); @GetWallBorderStyle(tileX, tileY) cursor: @GetCursorStyle(); position: relative; box-sizing: border-box;"
                                      @onmouseenter="(e) => OnTileMouseMove(e, tileX, tileY)"
                                      @onmousemove="(e) => OnTileMouseMove(e, tileX, tileY)">
                                     @if (playerStartX == tileX && playerStartY == tileY && currentLevel == 0)
@@ -283,6 +284,33 @@
     </div>
 }
 
+<!-- Legacy Import Modal -->
+@if (showLegacyImportModal)
+{
+    <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 1000;">
+        <div style="background: #2a2a2a; padding: 20px; border-radius: 8px; min-width: 460px; border: 2px solid #444;">
+            <h3 style="margin: 0 0 15px 0; color: gold;">Import Map from Legacy Slot</h3>
+            <div style="display: flex; flex-direction: column; gap: 8px; max-height: 400px; overflow-y: auto;">
+                @for (int i = 0; i < legacySlots.Count; i++)
+                {
+                    var slot = legacySlots[i];
+                    <button @onclick="() => ImportLegacySlot(slot.Slot)" disabled="@(!slot.HasMapData)"
+                            style="padding: 10px; background: @(slot.HasMapData ? "#333" : "#222"); text-align: left; opacity: @(slot.HasMapData ? "1" : "0.5");">
+                        <span>Slot @slot.Slot: @slot.DisplayName</span>
+                        @if (slot.SavedAt.HasValue)
+                        {
+                            <span style="color: #888; font-size: 0.8rem; margin-left: 10px;">@slot.SavedAt.Value.ToLocalTime().ToString("g")</span>
+                        }
+                    </button>
+                }
+            </div>
+            <div style="margin-top: 15px; display: flex; justify-content: flex-end;">
+                <button @onclick="() => showLegacyImportModal = false" style="padding: 8px 16px; background: #444;">Cancel</button>
+            </div>
+        </div>
+    </div>
+}
+
 <!-- Status Message -->
 @if (!string.IsNullOrEmpty(statusMessage))
 {
@@ -329,7 +357,9 @@
     private string mapName = "Untitled";
     private bool showSaveSlotModal = false;
     private bool showLoadSlotModal = false;
+    private bool showLegacyImportModal = false;
     private List<AlternateRealityDungeon.Services.MapStorageService.MapData> savedMaps = new();
+    private List<AlternateRealityDungeon.Services.MapStorageService.LegacySlotInfo> legacySlots = new();
     private bool hasDefaultMap = false;
     private string defaultMapName = "";
     private string statusMessage = "";
@@ -462,7 +492,32 @@
                 }
             }
         }
+        ReconcileWallDoorEdges();
         StateHasChanged();
+    }
+
+    private void ReconcileWallDoorEdges()
+    {
+        for (int level = 0; level < NumLevels; level++)
+        {
+            for (int y = 0; y <= MapHeight; y++)
+            {
+                for (int x = 0; x < MapWidth; x++)
+                {
+                    if (hDoors[level, y, x] > 0)
+                        hWalls[level, y, x] = false;
+                }
+            }
+
+            for (int y = 0; y < MapHeight; y++)
+            {
+                for (int x = 0; x <= MapWidth; x++)
+                {
+                    if (vDoors[level, y, x] > 0)
+                        vWalls[level, y, x] = false;
+                }
+            }
+        }
     }
 
     private AlternateRealityDungeon.Services.MapStorageService.MapData CreateMapData()
@@ -541,6 +596,7 @@
             }
         }
 
+        ReconcileWallDoorEdges();
         return map;
     }
 
@@ -774,6 +830,7 @@
         return tile switch
         {
             0 => "#444444", // Floor
+            1 => "#111111", // Legacy wall tile (from old map saves)
             2 => "#8B0000", // Stairs Down
             3 => "#006400", // Stairs Up
             5 => "#9932CC", // Special Room (North entrance)
@@ -786,12 +843,12 @@
 
     private string GetEdgeBorderCss(bool hasWall, int doorValue)
     {
-        if (hasWall) return "2px solid #B8860B";
         if (doorValue == 1) return "2px solid #00CED1";   // Normal door - cyan
         if (doorValue == 2) return "2px dashed #FF6347";   // Hidden door - dashed red
         if (doorValue == 3) return "2px solid #32CD32";    // One-way positive (S/E) - green
         if (doorValue == 4) return "2px solid #ADFF2F";    // One-way negative (N/W) - yellow-green
-        return "1px solid rgba(255,255,255,0.1)";
+        if (hasWall) return "2px solid #B8860B";
+        return "1px solid #333";
     }
 
     private string GetWallBorderStyle(int x, int y)
@@ -1071,6 +1128,27 @@
         savedMaps = await MapStorage.GetSavedMapsAsync();
         showSaveSlotModal = false;
         ShowStatus($"Map saved to slot {slotIndex + 1}!");
+    }
+
+    private async Task ShowLegacyImportSlots()
+    {
+        legacySlots = await MapStorage.GetLegacySlotInfosAsync();
+        showLegacyImportModal = true;
+    }
+
+    private async Task ImportLegacySlot(int slotNumber)
+    {
+        var imported = await MapStorage.ImportFromLegacySlotAsync(slotNumber);
+        if (imported != null)
+        {
+            LoadMapData(imported);
+            showLegacyImportModal = false;
+            ShowStatus($"Imported map from legacy slot {slotNumber}.");
+        }
+        else
+        {
+            ShowStatus($"No importable map found in legacy slot {slotNumber}.");
+        }
     }
 
     private async Task LoadFromSlot(int slotIndex)

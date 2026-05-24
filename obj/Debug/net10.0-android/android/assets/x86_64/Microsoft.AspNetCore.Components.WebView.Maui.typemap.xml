@@ -1,4 +1,4 @@
-<api type="debug" assembly-name="Microsoft.AspNetCore.Components.WebView.Maui" mvid="a0947b9d537b47a3ba44039db3326e76">
+<api type="debug" assembly-name="Microsoft.AspNetCore.Components.WebView.Maui" mvid="0924c7655c0b43c9a646fd7d1f9bbcad">
   <java-to-managed>
     <entry java-name="crc64d693e2d9159537db/AndroidWebKitWebViewManager_BlazorWebMessageCallback" managed-name="Microsoft.AspNetCore.Components.WebView.Maui.AndroidWebKitWebViewManager+BlazorWebMessageCallback, Microsoft.AspNetCore.Components.WebView.Maui" managed-type-token-id="33554464" />
     <entry java-name="crc64d693e2d9159537db/BlazorAndroidWebView" managed-name="Microsoft.AspNetCore.Components.WebView.Maui.BlazorAndroidWebView, Microsoft.AspNetCore.Components.WebView.Maui" managed-type-token-id="33554445" />
