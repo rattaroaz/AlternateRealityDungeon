@@ -94,6 +94,11 @@ Face unique named bosses on each dungeon level:
 - **Q** - Quick save
 
 ### Special Rooms
+- **Entry**: Approach from the correct direction (look for the entrance)
+  - Guild: Enter from North (approach from south)
+  - Shop: Enter from East (approach from west)
+  - Inn: Enter from South (approach from north)
+  - Smith: Enter from West (approach from east)
 - **1-9 Keys** - Select options in guilds, shops, inns, smiths
 - **Space** - Exit special room
 
@@ -147,14 +152,67 @@ dotnet run --framework net10.0-windows10.0.19041.0
 - **Run Early** if severely outmatched
 - **Switch Weapons** to avoid two-handed penalty
 
+## 🗺️ Custom Hand-Crafted Dungeon Levels
+
+The game features **4 meticulously designed dungeon levels**, each with intentional layouts and strategic placement of services:
+
+### Level 1: Goblin Warrens (Beginner-Friendly)
+- **Theme**: Open hub-and-spoke design for easy navigation
+- **Starting Point**: Central chamber (32, 32)
+- **Services**:
+  - Guild Hall (North) - Early access for stat bonuses
+  - General Shop (East) - Stock up on supplies
+  - The Inn (South) - Safe resting spot nearby
+  - The Smithy (West) - Upgrade your starting gear
+- **Layout**: Multiple exploration wings with clear paths
+- **Boss**: Orc Warlord arena in SE corner
+- **Stairs Down**: 3 locations (exploration areas + boss room)
+
+### Level 2: Ancient Crypt (Intermediate Challenge)
+- **Theme**: Maze-like crypt with multiple wings and dead ends
+- **Layout**: Central crypt chamber with radiating corridors
+- **Services**: Spread across four wings (N/E/S/W)
+- **Features**:
+  - Multiple dead-end treasure rooms
+  - Interconnected maze sections
+  - Hidden alcoves for exploration
+- **Boss**: Necromancer lair in NE corner
+- **Stairs**: 3 connections to Level 1 and Level 3
+
+### Level 3: Dragon's Den (Advanced Dungeon)
+- **Theme**: Complex cavern system with loops and chokepoints
+- **Layout**: Massive main cavern with branching paths
+- **Services**: Positioned on elevated platforms around the den
+- **Features**:
+  - Circular loop corridors for tactical retreats
+  - Treasure pocket rooms off main paths
+  - Natural chokepoints for strategic combat
+- **Boss**: Dragon Wyrmling in central lair (12×12 arena)
+- **Stairs**: Strategic placements for multiple approach options
+
+### Level 4: Dark Sanctum (Final Challenge)
+- **Theme**: Long winding path to The Dark One's throne
+- **Starting Area**: SW corner with all services (last chance!)
+- **Services**: Clustered near entrance for final preparation
+  - Guild (last rank-up opportunity)
+  - Shop (final supply purchases)
+  - Inn (full heal before final boss)
+  - Smith (ultimate equipment upgrades)
+- **Layout**: 
+  - Long serpentine corridor from entrance to throne room
+  - Side chambers for optional exploration
+  - Progressively narrower paths creating tension
+- **Boss**: The Dark One in massive throne room (18×10 arena)
+- **No Exit**: This is the final level - victory or death!
+
 ## 📊 Game Statistics
 
-- **4 Dungeon Levels** - Increasing difficulty
+- **4 Hand-Crafted Dungeon Levels** - Each with unique layout and theme
 - **50+ Monster Types** - From rats to ancient dragons
 - **4 Named Bosses** - Unique abilities and loot
 - **5 Guilds** - 25 ranks total across all guilds
 - **120 Equipment Items** - Weapons, armor, clothing
-- **4 Special Room Types** - Guild, shop, inn, smith
+- **4 Special Room Types** - Guild (North), Shop (East), Inn (South), Smith (West)
 - **Exponential Progression** - Up to level 20+ achievable
 
 ## 🏗️ Technical Details
