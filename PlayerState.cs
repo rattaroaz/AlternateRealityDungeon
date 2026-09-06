@@ -33,6 +33,7 @@ namespace AlternateRealityDungeon
         public int Level { get; set; } = 0;  // Start at level 0, level up to 1 at 1000 XP
         public int Hitpoints { get; set; }
         public int Experience { get; set; }
+        public int Gold { get; set; } = 100; // Starting gold
         public PlayerStats Stats { get; set; } = new PlayerStats();
         public PlayerStats BaseStats { get; set; } = new PlayerStats();  // Base stats before equipment bonuses
         public string? PrimaryWeapon { get; set; }    // Primary weapon for attack
@@ -49,6 +50,21 @@ namespace AlternateRealityDungeon
         public int GetItemIndex { get; set; }
         public bool ShowUseMode { get; set; }
         public int UseItemIndex { get; set; }
+        
+        // Guild system
+        public string? CurrentGuild { get; set; } = null;
+        public Dictionary<string, int> GuildReputation { get; set; } = new Dictionary<string, int>()
+        {
+            { "Fighters", 0 }, { "Mages", 0 }, { "Thieves", 0 }, { "Clerics", 0 }, { "Rangers", 0 }
+        };
+        public int GuildRank { get; set; } = 0; // 0 = not member, 1-5 = ranks
+        public List<string> CompletedQuests { get; set; } = new List<string>();
+        
+        // Game progression
+        public int DungeonDepth { get; set; } = 0; // Deepest floor reached
+        public bool HasDefeatedFinalBoss { get; set; } = false;
+        public int MonstersDefeated { get; set; } = 0;
+        public int BossesDefeated { get; set; } = 0;
     }
 
     // Map data passed along with loaded games
