@@ -1,130 +1,127 @@
-using System;
-using System.IO;
-using System.Threading.Tasks;
+using System.Text.Json;
 
 namespace AlternateRealityDungeon
 {
     public static class GameLogger
     {
-        private static readonly string LogFilePath = "logs.txt";
-        private static readonly object _lock = new object();
-        
-        static GameLogger()
+        private static readonly object Lock = new();
+        private static readonly JsonSerializerOptions JsonOptions = new()
         {
-            // Initialize log file
-            InitializeLogFile();
-        }
-        
-        private static void InitializeLogFile()
+            WriteIndented = false,
+            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+        };
+
+        private static string _logFilePath = ResolveDefaultLogPath();
+        private static bool _sessionStarted;
+
+        public static string LogFilePath
         {
-            try
+            get
             {
-                // Clear existing log file on startup
-                File.WriteAllText(LogFilePath, $"=== Game Log Started at {DateTime.Now:yyyy-MM-dd HH:mm:ss} ==={Environment.NewLine}");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Failed to initialize log file: {ex.Message}");
+                EnsureSessionStarted();
+                return _logFilePath;
             }
         }
-        
+
+        public static void Configure(string logFilePath)
+        {
+            if (string.IsNullOrWhiteSpace(logFilePath))
+                throw new ArgumentException("Log file path is required.", nameof(logFilePath));
+
+            lock (Lock)
+            {
+                _logFilePath = logFilePath;
+                _sessionStarted = false;
+            }
+
+            EnsureSessionStarted();
+        }
+
         public static void Log(string category, string message, object? context = null)
         {
             var timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
             var logEntry = $"[{timestamp}] [{category}] {message}";
-            
+
             if (context != null)
             {
-                logEntry += $" | {context}";
+                logEntry += $" | {FormatContext(context)}";
             }
-            
+
             logEntry += Environment.NewLine;
-            
-            // Write to file
             WriteToFile(logEntry);
-            
-            // Also write to console
             Console.WriteLine(logEntry.Trim());
         }
-        
+
         public static void LogStairTransition(int fromLevel, int toLevel, object? fromTile, object? toTile, int stairType)
         {
-            Log("StairTransition", "Level change via stairs", new { 
-                fromLevel, 
-                toLevel, 
-                fromTile, 
-                toTile, 
-                stairType 
+            Log("StairTransition", "Level change via stairs", new
+            {
+                fromLevel,
+                toLevel,
+                fromTile,
+                toTile,
+                stairType
             });
         }
-        
+
         public static void LogMovementBlock(object position, object direction, string reason)
         {
-            Log("MovementBlock", "Player movement blocked", new { 
-                position, 
-                direction, 
-                reason 
+            Log("MovementBlock", "Player movement blocked", new
+            {
+                position,
+                direction,
+                reason
             });
         }
-        
+
         public static void LogWallClearing(int tileX, int tileY, int level, int wallsCleared)
         {
-            Log("WallClearing", "Walls cleared around tile", new { 
-                tileX, 
-                tileY, 
-                level, 
-                wallsCleared 
+            Log("WallClearing", "Walls cleared around tile", new
+            {
+                tileX,
+                tileY,
+                level,
+                wallsCleared
             });
         }
-        
+
         public static void LogPlayerMovement(string action, object data)
         {
             Log("PlayerMovement", action, data);
         }
-        
+
         public static void LogError(string category, string message, Exception? exception = null)
         {
-            var context = exception != null ? new { error = exception.Message, stackTrace = exception.StackTrace } : null;
+            object? context = exception == null
+                ? null
+                : new { error = exception.Message, exceptionType = exception.GetType().Name, stackTrace = exception.StackTrace };
             Log("ERROR", $"[{category}] {message}", context);
         }
-        
+
         public static void LogWarning(string category, string message, object? context = null)
         {
             Log("WARNING", $"[{category}] {message}", context);
         }
-        
+
         public static void LogInfo(string category, string message, object? context = null)
         {
             Log("INFO", $"[{category}] {message}", context);
         }
-        
+
         public static void LogDebug(string category, string message, object? context = null)
         {
             Log("DEBUG", $"[{category}] {message}", context);
         }
-        
-        private static void WriteToFile(string logEntry)
-        {
-            try
-            {
-                lock (_lock)
-                {
-                    File.AppendAllText(LogFilePath, logEntry);
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Failed to write to log file: {ex.Message}");
-            }
-        }
-        
+
         public static void ClearLogs()
         {
             try
             {
-                lock (_lock)
+                lock (Lock)
                 {
-                    File.WriteAllText(LogFilePath, $"=== Logs Cleared at {DateTime.Now:yyyy-MM-dd HH:mm:ss} ==={Environment.NewLine}");
+                    Directory.CreateDirectory(Path.GetDirectoryName(_logFilePath)!);
+                    File.WriteAllText(_logFilePath, $"=== Logs Cleared at {DateTime.Now:yyyy-MM-dd HH:mm:ss} ==={Environment.NewLine}");
+                    _sessionStarted = true;
                 }
             }
             catch (Exception ex)
@@ -132,21 +129,88 @@ namespace AlternateRealityDungeon
                 Console.WriteLine($"Failed to clear log file: {ex.Message}");
             }
         }
-        
+
         public static string GetLogContents()
         {
             try
             {
-                if (File.Exists(LogFilePath))
+                lock (Lock)
                 {
-                    return File.ReadAllText(LogFilePath);
+                    if (File.Exists(_logFilePath))
+                    {
+                        return File.ReadAllText(_logFilePath);
+                    }
                 }
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Failed to read log file: {ex.Message}");
             }
+
             return string.Empty;
+        }
+
+        private static void EnsureSessionStarted()
+        {
+            lock (Lock)
+            {
+                if (_sessionStarted)
+                    return;
+
+                try
+                {
+                    var directory = Path.GetDirectoryName(_logFilePath);
+                    if (!string.IsNullOrEmpty(directory))
+                        Directory.CreateDirectory(directory);
+
+                    File.AppendAllText(_logFilePath, $"=== Game Log Session {DateTime.Now:yyyy-MM-dd HH:mm:ss} ==={Environment.NewLine}");
+                    _sessionStarted = true;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Failed to initialize log file: {ex.Message}");
+                    _sessionStarted = true;
+                }
+            }
+        }
+
+        private static void WriteToFile(string logEntry)
+        {
+            try
+            {
+                EnsureSessionStarted();
+                lock (Lock)
+                {
+                    File.AppendAllText(_logFilePath, logEntry);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to write to log file: {ex.Message}");
+            }
+        }
+
+        private static string FormatContext(object context)
+        {
+            if (context is string text)
+                return text;
+
+            try
+            {
+                return JsonSerializer.Serialize(context, JsonOptions);
+            }
+            catch
+            {
+                return context.ToString() ?? string.Empty;
+            }
+        }
+
+        private static string ResolveDefaultLogPath()
+        {
+            var dir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "AlternateRealityDungeon");
+            return Path.Combine(dir, "logs.txt");
         }
     }
 }

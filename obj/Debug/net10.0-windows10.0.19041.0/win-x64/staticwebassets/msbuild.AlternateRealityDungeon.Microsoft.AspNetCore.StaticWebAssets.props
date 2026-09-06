@@ -72,12 +72,12 @@
       <RelatedAsset></RelatedAsset>
       <AssetTraitName></AssetTraitName>
       <AssetTraitValue></AssetTraitValue>
-      <Fingerprint>e6pjm2ddhq</Fingerprint>
-      <Integrity>ysvitd7nD9LVgE5yZL9w0wE85vxlElY5fvzoLBPLQWA=</Integrity>
+      <Fingerprint>vazee4umhn</Fingerprint>
+      <Integrity>yZdJQiW3BmWszkVEdtVscazLkFBKSjzj6Px8mR7blFs=</Integrity>
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-      <FileLength>196883</FileLength>
-      <LastWriteTime>Sun, 06 Sep 2026 14:40:34 GMT</LastWriteTime>
+      <FileLength>197703</FileLength>
+      <LastWriteTime>Sun, 06 Sep 2026 15:48:39 GMT</LastWriteTime>
       <OriginalItemSpec>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\js\game.js'))</OriginalItemSpec>
     </StaticWebAsset>
     <StaticWebAsset Include="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\js\mapeditor.js'))">

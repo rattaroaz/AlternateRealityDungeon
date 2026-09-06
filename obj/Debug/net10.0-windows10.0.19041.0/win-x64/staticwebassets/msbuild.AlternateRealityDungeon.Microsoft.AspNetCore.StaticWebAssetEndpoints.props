@@ -36,17 +36,17 @@
       <EndpointProperties><![CDATA[[{"Name":"integrity","Value":"sha256-PcHtYur6haEtEplTtciueZUN\u002BZmzJXK1/ciTzjXsr1Y="}]]]></EndpointProperties>
       <ResponseHeaders><![CDATA[[{"Name":"Cache-Control","Value":"no-cache"},{"Name":"Content-Length","Value":"1007"},{"Name":"Content-Type","Value":"text/html"},{"Name":"ETag","Value":"\u0022PcHtYur6haEtEplTtciueZUN\u002BZmzJXK1/ciTzjXsr1Y=\u0022"},{"Name":"Last-Modified","Value":"Thu, 27 Nov 2025 06:15:25 GMT"}]]]></ResponseHeaders>
     </StaticWebAssetEndpoint>
-    <StaticWebAssetEndpoint Include="js/game.e6pjm2ddhq.js">
-      <AssetFile>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\js\game.js'))</AssetFile>
-      <Selectors><![CDATA[[]]]></Selectors>
-      <EndpointProperties><![CDATA[[{"Name":"fingerprint","Value":"e6pjm2ddhq"},{"Name":"integrity","Value":"sha256-ysvitd7nD9LVgE5yZL9w0wE85vxlElY5fvzoLBPLQWA="},{"Name":"label","Value":"js/game.js"}]]]></EndpointProperties>
-      <ResponseHeaders><![CDATA[[{"Name":"Cache-Control","Value":"max-age=31536000, immutable"},{"Name":"Content-Length","Value":"196883"},{"Name":"Content-Type","Value":"text/javascript"},{"Name":"ETag","Value":"\u0022ysvitd7nD9LVgE5yZL9w0wE85vxlElY5fvzoLBPLQWA=\u0022"},{"Name":"Last-Modified","Value":"Sun, 06 Sep 2026 14:40:34 GMT"}]]]></ResponseHeaders>
-    </StaticWebAssetEndpoint>
     <StaticWebAssetEndpoint Include="js/game.js">
       <AssetFile>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\js\game.js'))</AssetFile>
       <Selectors><![CDATA[[]]]></Selectors>
-      <EndpointProperties><![CDATA[[{"Name":"integrity","Value":"sha256-ysvitd7nD9LVgE5yZL9w0wE85vxlElY5fvzoLBPLQWA="}]]]></EndpointProperties>
-      <ResponseHeaders><![CDATA[[{"Name":"Cache-Control","Value":"no-cache"},{"Name":"Content-Length","Value":"196883"},{"Name":"Content-Type","Value":"text/javascript"},{"Name":"ETag","Value":"\u0022ysvitd7nD9LVgE5yZL9w0wE85vxlElY5fvzoLBPLQWA=\u0022"},{"Name":"Last-Modified","Value":"Sun, 06 Sep 2026 14:40:34 GMT"}]]]></ResponseHeaders>
+      <EndpointProperties><![CDATA[[{"Name":"integrity","Value":"sha256-yZdJQiW3BmWszkVEdtVscazLkFBKSjzj6Px8mR7blFs="}]]]></EndpointProperties>
+      <ResponseHeaders><![CDATA[[{"Name":"Cache-Control","Value":"no-cache"},{"Name":"Content-Length","Value":"197703"},{"Name":"Content-Type","Value":"text/javascript"},{"Name":"ETag","Value":"\u0022yZdJQiW3BmWszkVEdtVscazLkFBKSjzj6Px8mR7blFs=\u0022"},{"Name":"Last-Modified","Value":"Sun, 06 Sep 2026 15:48:39 GMT"}]]]></ResponseHeaders>
+    </StaticWebAssetEndpoint>
+    <StaticWebAssetEndpoint Include="js/game.vazee4umhn.js">
+      <AssetFile>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\js\game.js'))</AssetFile>
+      <Selectors><![CDATA[[]]]></Selectors>
+      <EndpointProperties><![CDATA[[{"Name":"fingerprint","Value":"vazee4umhn"},{"Name":"integrity","Value":"sha256-yZdJQiW3BmWszkVEdtVscazLkFBKSjzj6Px8mR7blFs="},{"Name":"label","Value":"js/game.js"}]]]></EndpointProperties>
+      <ResponseHeaders><![CDATA[[{"Name":"Cache-Control","Value":"max-age=31536000, immutable"},{"Name":"Content-Length","Value":"197703"},{"Name":"Content-Type","Value":"text/javascript"},{"Name":"ETag","Value":"\u0022yZdJQiW3BmWszkVEdtVscazLkFBKSjzj6Px8mR7blFs=\u0022"},{"Name":"Last-Modified","Value":"Sun, 06 Sep 2026 15:48:39 GMT"}]]]></ResponseHeaders>
     </StaticWebAssetEndpoint>
     <StaticWebAssetEndpoint Include="js/mapeditor.bc16jducve.js">
       <AssetFile>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\js\mapeditor.js'))</AssetFile>

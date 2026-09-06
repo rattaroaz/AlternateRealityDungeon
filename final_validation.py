@@ -4,6 +4,10 @@ Final comprehensive validation of the dungeon maps.
 """
 
 import json
+import sys
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 def final_validation():
     with open('Data/Maps/map_collection.json', 'r') as f:
@@ -101,11 +105,13 @@ def final_validation():
     print(f"✓ Stair Synchronization: {'PASS' if all_synced else 'FAIL'}")
     
     print("\n" + "=" * 70)
-    if service_count == 16 and all_synced:
+    passed = service_count == 16 and all_synced
+    if passed:
         print("🎉 ALL VALIDATIONS PASSED - MAPS READY FOR GAMEPLAY!")
     else:
         print("⚠️  SOME VALIDATIONS FAILED - REVIEW ABOVE")
     print("=" * 70)
+    return passed
 
 if __name__ == "__main__":
-    final_validation()
+    sys.exit(0 if final_validation() else 1)

@@ -4,6 +4,10 @@ Validate stair synchronization between levels.
 """
 
 import json
+import sys
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 def validate_stair_sync():
     with open('Data/Maps/map_collection.json', 'r') as f:
@@ -74,4 +78,4 @@ def validate_stair_sync():
     return len(errors) == 0
 
 if __name__ == "__main__":
-    validate_stair_sync()
+    sys.exit(0 if validate_stair_sync() else 1)

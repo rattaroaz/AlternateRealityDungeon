@@ -125,7 +125,8 @@ namespace AlternateRealityDungeon
             var json = await File.ReadAllTextAsync(path);
             if (string.IsNullOrWhiteSpace(json))
             {
-                GameLogger.LogError("SaveGameService", "Save file is empty", null);
+                GameLogger.LogError("SaveGameService", "Save file is empty");
+                GameLogger.LogWarning("SaveGameService", "Empty save file skipped", new { slot, path });
                 return null;
             }
 

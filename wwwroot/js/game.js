@@ -362,19 +362,26 @@ window.game = {
 
             normalizeWallDoorExclusivity();
             
+            logToFile('[INFO] Loaded custom map from editor');
             console.log('Loaded custom map from editor');
         } else {
-            // Generate all levels procedurally
+            logToFile('[INFO] Starting procedural dungeon generation');
             const allRooms = [];
+            try {
             for (let level = 0; level < NUM_LEVELS; level++) {
                 allRooms[level] = generateLevel(level);
+                logToFile(`[INFO] Generated ${allRooms[level].length} rooms on level ${level}`);
             }
             
             // Place stairs between levels (2 sets per level connection)
             function placeStairs() {
                 for (let level = 0; level < NUM_LEVELS - 1; level++) {
-                    const rooms = allRooms[level];
-                    const nextRooms = allRooms[level + 1];
+                    const rooms = allRooms[level] && allRooms[level].length > 0
+                        ? allRooms[level]
+                        : [{ cx: Math.floor(MAP_WIDTH / 2), cy: Math.floor(MAP_HEIGHT / 2) }];
+                    if (!allRooms[level] || allRooms[level].length === 0) {
+                        logToFile(`[WARNING] No rooms on level ${level}; using fallback stair positions`);
+                    }
                     
                     // Find 2 good stair locations on current level
                     const usedPositions = [];
@@ -480,7 +487,12 @@ window.game = {
             }
             placeSpecialRooms();
             
+            logToFile('[INFO] Generated procedural dungeon');
             console.log('Generated procedural dungeon');
+            } catch (error) {
+                logToFile(`[ERROR] Procedural generation failed: ${error && error.message ? error.message : error}`);
+                console.error('Procedural generation failed', error);
+            }
         }
         
         // Get current level's map
@@ -1005,7 +1017,7 @@ window.game = {
             if (vWalls[currentLevel][ty]) vWalls[currentLevel][ty][tx] = false;
             if (tx + 1 <= MAP_WIDTH && vWalls[currentLevel][ty]) vWalls[currentLevel][ty][tx + 1] = false;
             
-            console.log('Cleared walls around tile', tx, ty, 'on level', currentLevel);
+            logToFile(`[STAIR] Cleared walls around tile (${tx}, ${ty}) on level ${currentLevel}`);
         }
         
         // Convert wall tiles around a position to floor tiles (used at stairs to ensure movement)
@@ -1076,6 +1088,9 @@ window.game = {
             
             logToFile(`[STAIR] Player tile after change: (${newTile.tx}, ${newTile.ty})`);
             logToFile(`[STAIR] Tile type: ${tileType}, isWalkable: ${isWalkableCheck}`);
+            if (!isWalkableCheck) {
+                logToFile(`[WARNING] Player landed on non-walkable tile after level change`);
+            }
             
             updateHUD();
         }
@@ -2360,6 +2375,7 @@ Good luck, adventurer. You'll need it.
                 roomContent = '<div style="font-size: 2rem; color: #888; margin-bottom: 40px;">Empty Room</div>';
             }
             
+            logToFile(`[ROOM] Entered ${roomType || 'unknown'} at (${tx}, ${ty}) via ${entrance}`);
             specialRoomOverlay.innerHTML = roomContent + 
                 '<div style="margin-top: 30px; font-size: 0.9rem; color: #888;">Press Space Bar to exit</div>';
             specialRoomOverlay.style.display = 'flex';
@@ -2522,6 +2538,7 @@ Good luck, adventurer. You'll need it.
             player.currentGuild = guildKey;
             player.guildRank = 1;
             player.guildReputation[guildKey] = 10;
+            logToFile(`[ROOM] Joined guild ${guild.name} as ${guild.ranks[0]}`);
             alert(`Welcome to the ${guild.name}! You are now a ${guild.ranks[0]}.`);
             
             // Refresh display
@@ -2612,6 +2629,7 @@ Good luck, adventurer. You'll need it.
                 player.inventory.push({ name: item.name, count: 1, equipped: false });
             }
             
+            logToFile(`[ROOM] Bought ${item.name} (${category}) for ${item.price} gold`);
             alert(`Purchased ${item.name} for ${item.price} gold!`);
             
             // Refresh display
@@ -2635,6 +2653,7 @@ Good luck, adventurer. You'll need it.
                 return;
             }
             
+            logToFile(`[ROOM] Rested in ${roomType} for ${service.cost} gold`);
             // Pay and rest
             player.gold -= service.cost;
             const healAmount = Math.floor(player.baseStats.Stamina * service.healPercent);
@@ -2681,6 +2700,7 @@ Good luck, adventurer. You'll need it.
         
         // ==== SMITH HANDLERS ====
         function handleSmithService(choice) {
+            logToFile(`[ROOM] Smith service requested: ${choice}`);
             if (choice === 1) {
                 // Buy armor - simple implementation
                 const armorItem = shops.armor[Math.floor(Math.random() * shops.armor.length)];
@@ -2747,6 +2767,7 @@ Good luck, adventurer. You'll need it.
             player.experience += monster.exp;
             player.gold += monster.gold;
             player.monstersDefeated++;
+            logToFile(`[COMBAT] Victory over ${monster.name}: +${monster.exp} XP, +${monster.gold} gold`);
             
             // Check if this was a boss
             if (monster.isBoss) {
@@ -2821,6 +2842,7 @@ Good luck, adventurer. You'll need it.
         }
 
         function loseGame() {
+            logToFile(`[COMBAT] Player died on level ${currentLevel} (character level ${player.level})`);
             player.inBattle = false;
             player.currentMonster = null;
             player.battleLog = [];
@@ -3116,6 +3138,7 @@ Good luck, adventurer. You'll need it.
             player.battleLog = []; // Reset log
             player.waitingForTurn = false;
             isPaused = true;
+            logToFile(`[COMBAT] Battle started: ${monster.name} (lvl ${monster.level})${monster.isBoss ? ' [BOSS]' : ''} on level ${currentLevel}`);
             
             updateBattleOverlay();
             monsterOverlay.style.display = 'flex';
@@ -3753,8 +3776,12 @@ Good luck, adventurer. You'll need it.
                         camera.position.z = nextPos.z;
                     }
                     
-                    // Log successful movement
-                    logToFile(`[MOVE] Movement successful: (${camera.position.x.toFixed(2)}, ${camera.position.z.toFixed(2)})`);
+                    if (!window._lastLoggedMoveTile ||
+                        window._lastLoggedMoveTile.tx !== stepTile.tx ||
+                        window._lastLoggedMoveTile.ty !== stepTile.ty) {
+                        window._lastLoggedMoveTile = { tx: stepTile.tx, ty: stepTile.ty };
+                        logToFile(`[MOVE] Entered tile (${stepTile.tx}, ${stepTile.ty}) at (${camera.position.x.toFixed(2)}, ${camera.position.z.toFixed(2)})`);
+                    }
                 } else if (isSpecialRoom(collisionTile.tx, collisionTile.ty)) {
                     // Check if player is approaching from the correct entrance direction
                     const entrance = getSpecialRoomEntrance(collisionTile.tx, collisionTile.ty);

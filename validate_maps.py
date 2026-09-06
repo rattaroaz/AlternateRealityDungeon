@@ -4,6 +4,10 @@ Validate the generated dungeon maps and show statistics.
 """
 
 import json
+import sys
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 def validate_map():
     with open('Data/Maps/map_collection.json', 'r') as f:
@@ -130,7 +134,23 @@ def validate_map():
     print("\n" + "=" * 60)
     print("VALIDATION COMPLETE")
     print("=" * 60)
+
+    errors = []
+    if map_data.get('Width') != 65 or map_data.get('Height') != 65:
+        errors.append("Unexpected map dimensions.")
+    if map_data.get('NumLevels') != 4:
+        errors.append("Expected 4 levels.")
+    if not map_data.get('Levels'):
+        errors.append("Default map has no levels.")
+
+    if errors:
+        print("\n✗ Map structure failed:")
+        for error in errors:
+            print(f"  - {error}")
+        return False
+
     print("\n✓ Map structure is valid and ready to use!")
+    return True
 
 if __name__ == "__main__":
-    validate_map()
+    sys.exit(0 if validate_map() else 1)

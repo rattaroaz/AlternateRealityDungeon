@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("AlternateRealityDungeon")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0+b34d52d8e5af90e33145079a28e0fdf975861332")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0+a74900ef6278bd444c332050bf7b4f11001dcd0c")]
 [assembly: System.Reflection.AssemblyProductAttribute("AlternateRealityDungeon")]
 [assembly: System.Reflection.AssemblyTitleAttribute("AlternateRealityDungeon")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

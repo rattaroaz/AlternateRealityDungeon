@@ -14,3 +14,7 @@ Thumbs.db
 !Data/
 !Data/Maps/
 !Data/Maps/**
+
+# Runtime logs
+logs.txt
+**/logs.txt

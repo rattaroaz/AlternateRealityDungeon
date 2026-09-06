@@ -299,9 +299,9 @@
                     _currentMapId, _currentMapLevels, _currentMapPlayerStartX, _currentMapPlayerStartY);
             }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // Swallow or log as needed; prevents unhandled error from bubbling.
+            GameLogger.LogError("SaveGame", $"Failed to save slot {slot}", ex);
         }
         finally
         {
@@ -352,7 +352,23 @@
                 foreach (var log in logs)
                 {
                     // Parse the log message to extract category
-                    if (log.Contains("[STAIR]"))
+                    if (log.Contains("[ERROR]"))
+                    {
+                        GameLogger.LogError("JavaScript", log);
+                    }
+                    else if (log.Contains("[WARNING]"))
+                    {
+                        GameLogger.LogWarning("JavaScript", log);
+                    }
+                    else if (log.Contains("[COMBAT]"))
+                    {
+                        GameLogger.LogInfo("Combat", log);
+                    }
+                    else if (log.Contains("[ROOM]"))
+                    {
+                        GameLogger.LogInfo("SpecialRoom", log);
+                    }
+                    else if (log.Contains("[STAIR]"))
                     {
                         GameLogger.LogInfo("StairTransition", log);
                     }

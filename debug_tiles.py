@@ -21,4 +21,4 @@ for y in range(65):
     for x in range(65):
         tile = levels[0][y][x]
         if tile >= 5 and tile <= 8:
-            print(f"  Found tile {tile} at position [{y}][x]")
+            print(f"  Found tile {tile} at position [{y}][{x}]")

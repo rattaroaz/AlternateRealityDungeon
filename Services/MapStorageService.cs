@@ -14,11 +14,19 @@ public class MapStorageService
     private readonly string _storagePath;
     private MapCollection? _cachedMaps;
 
-    public MapStorageService()
+    public MapStorageService() : this(null)
     {
-        _storagePath = ResolveMapsStoragePath();
+    }
+
+    public MapStorageService(string? storagePath)
+    {
+        _storagePath = string.IsNullOrWhiteSpace(storagePath)
+            ? ResolveMapsStoragePath()
+            : storagePath;
         Directory.CreateDirectory(_storagePath);
-        TryMigrateFromLegacyAppDataStorage();
+        GameLogger.LogInfo("MapStorage", "Storage initialized", new { path = _storagePath });
+        if (string.IsNullOrWhiteSpace(storagePath))
+            TryMigrateFromLegacyAppDataStorage();
     }
 
     /// <summary>
@@ -57,12 +65,12 @@ public class MapStorageService
             if (File.Exists(legacyFile))
             {
                 File.Copy(legacyFile, destination);
-                Console.WriteLine($"Migrated map data from LocalAppData to {destination}");
+                GameLogger.LogInfo("MapStorage", "Migrated map data from LocalAppData", new { destination });
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Failed to migrate legacy map storage: {ex.Message}");
+            GameLogger.LogError("MapStorage", "Failed to migrate legacy map storage", ex);
         }
     }
 
@@ -167,9 +175,16 @@ public class MapStorageService
                     if (savedMap != null)
                         NormalizeWallDoorExclusivity(savedMap);
                 }
+                GameLogger.LogInfo("MapStorage", "Loaded map collection", new
+                {
+                    path = filePath,
+                    hasDefault = _cachedMaps.DefaultMap != null,
+                    savedCount = _cachedMaps.SavedMaps.Count
+                });
             }
-            catch
+            catch (Exception ex)
             {
+                GameLogger.LogError("MapStorage", "Failed to deserialize map collection", ex);
                 _cachedMaps = new MapCollection();
             }
         }
@@ -213,9 +228,9 @@ public class MapStorageService
                 if (map != null) return map;
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // If legacy import fails, continue without blocking map editor startup.
+            GameLogger.LogError("MapStorage", "Legacy template import failed", ex);
         }
 
         return null;
@@ -343,6 +358,12 @@ public class MapStorageService
         var filePath = GetStorageFilePath();
         var json = JsonSerializer.Serialize(collection, new JsonSerializerOptions { WriteIndented = true });
         await File.WriteAllTextAsync(filePath, json);
+        GameLogger.LogInfo("MapStorage", "Saved map collection", new
+        {
+            path = filePath,
+            hasDefault = collection.DefaultMap != null,
+            savedCount = collection.SavedMaps.Count
+        });
     }
 
     public async Task<MapData?> GetDefaultMapAsync()
@@ -392,8 +413,9 @@ public class MapStorageService
                     DisplayName = hasMap ? $"Legacy Slot {slot} Template" : "(No map data)"
                 });
             }
-            catch
+            catch (Exception ex)
             {
+                GameLogger.LogError("MapStorage", $"Failed to read legacy slot {slot}", ex);
                 results.Add(new LegacySlotInfo
                 {
                     Slot = slot,
@@ -423,8 +445,9 @@ public class MapStorageService
                 NormalizeWallDoorExclusivity(map);
             return map;
         }
-        catch
+        catch (Exception ex)
         {
+            GameLogger.LogError("MapStorage", $"Failed to import legacy slot {slot}", ex);
             return null;
         }
     }
@@ -466,6 +489,7 @@ public class MapStorageService
         }
 
         collection.SavedMaps[slotIndex] = map;
+        GameLogger.LogInfo("MapStorage", "Saved map to slot", new { slotIndex, mapName = map.Name, mapId = map.Id });
         
         NormalizeWallDoorExclusivity(map);
         // Clean up nulls and limit size
@@ -483,6 +507,7 @@ public class MapStorageService
         if (slotIndex >= 0 && slotIndex < collection.SavedMaps.Count)
         {
             collection.SavedMaps.RemoveAt(slotIndex);
+            GameLogger.LogInfo("MapStorage", "Deleted map slot", new { slotIndex });
             await SaveMapCollectionAsync(collection);
         }
     }
@@ -490,151 +515,187 @@ public class MapStorageService
     // Generate a procedural map (fallback when no default exists)
     public MapData GenerateProceduralMap()
     {
-        var map = new MapData
+        GameLogger.LogInfo("MapGenerate", "Procedural map generation started");
+
+        try
         {
-            Name = "Procedural Dungeon",
-            CreatedAt = DateTime.UtcNow,
-            Width = MapWidth,
-            Height = MapHeight,
-            NumLevels = NumLevels,
-            PlayerStartX = 32,
-            PlayerStartY = 32,
-            Levels = new int[NumLevels][][],
-            HWalls = new bool[NumLevels][][],
-            VWalls = new bool[NumLevels][][],
-            HDoors = new int[NumLevels][][],
-            VDoors = new int[NumLevels][][]
-        };
+            var map = new MapData
+            {
+                Name = "Procedural Dungeon",
+                CreatedAt = DateTime.UtcNow,
+                Width = MapWidth,
+                Height = MapHeight,
+                NumLevels = NumLevels,
+                PlayerStartX = 32,
+                PlayerStartY = 32,
+                Levels = new int[NumLevels][][],
+                HWalls = new bool[NumLevels][][],
+                VWalls = new bool[NumLevels][][],
+                HDoors = new int[NumLevels][][],
+                VDoors = new int[NumLevels][][]
+            };
 
-        var random = new Random();
+            var random = new Random();
+            var roomsByLevel = new List<(int x, int y, int w, int h, int cx, int cy)>[NumLevels];
 
-        for (int level = 0; level < NumLevels; level++)
+            // Initialize every level first so stair placement can write to the next level.
+            for (int level = 0; level < NumLevels; level++)
+            {
+                InitializeGeneratedLevel(map, level);
+                roomsByLevel[level] = GenerateRoomsForLevel(map, level, random);
+                GameLogger.LogInfo("MapGenerate", "Generated rooms for level", new
+                {
+                    level,
+                    roomCount = roomsByLevel[level].Count
+                });
+            }
+
+            for (int level = 0; level < NumLevels - 1; level++)
+            {
+                PlaceStairs(map, level, roomsByLevel[level], random);
+            }
+
+            NormalizeWallDoorExclusivity(map);
+
+            var structureErrors = MapValidation.ValidateStructure(map);
+            var stairErrors = MapValidation.ValidateStairs(map);
+            if (structureErrors.Count > 0 || stairErrors.Count > 0)
+            {
+                GameLogger.LogWarning("MapGenerate", "Generated map failed validation", new
+                {
+                    structureErrors,
+                    stairErrors
+                });
+            }
+            else
+            {
+                GameLogger.LogInfo("MapGenerate", "Procedural map generation completed", new
+                {
+                    width = map.Width,
+                    height = map.Height,
+                    levels = map.NumLevels,
+                    playerStartX = map.PlayerStartX,
+                    playerStartY = map.PlayerStartY
+                });
+            }
+
+            return map;
+        }
+        catch (Exception ex)
         {
-            // Initialize tile data as floor
-            map.Levels[level] = new int[MapHeight][];
-            for (int y = 0; y < MapHeight; y++)
-            {
-                map.Levels[level][y] = new int[MapWidth];
-                for (int x = 0; x < MapWidth; x++)
-                {
-                    map.Levels[level][y][x] = 0; // Floor
-                }
-            }
-            
-            // Initialize edge-based walls
-            map.HWalls[level] = new bool[MapHeight + 1][];
-            for (int y = 0; y <= MapHeight; y++)
-            {
-                map.HWalls[level][y] = new bool[MapWidth];
-                for (int x = 0; x < MapWidth; x++)
-                {
-                    // Perimeter walls on top and bottom
-                    map.HWalls[level][y][x] = (y == 0 || y == MapHeight);
-                }
-            }
-            
-            map.VWalls[level] = new bool[MapHeight][];
-            for (int y = 0; y < MapHeight; y++)
-            {
-                map.VWalls[level][y] = new bool[MapWidth + 1];
-                for (int x = 0; x <= MapWidth; x++)
-                {
-                    // Perimeter walls on left and right
-                    map.VWalls[level][y][x] = (x == 0 || x == MapWidth);
-                }
-            }
-            
-            // Initialize door arrays (all zeros = no doors)
-            map.HDoors[level] = new int[MapHeight + 1][];
-            for (int y = 0; y <= MapHeight; y++)
-            {
-                map.HDoors[level][y] = new int[MapWidth];
-            }
-            
-            map.VDoors[level] = new int[MapHeight][];
-            for (int y = 0; y < MapHeight; y++)
-            {
-                map.VDoors[level][y] = new int[MapWidth + 1];
-            }
+            GameLogger.LogError("MapGenerate", "Procedural map generation failed", ex);
+            throw;
+        }
+    }
 
-            // Generate rooms
-            var rooms = new List<(int x, int y, int w, int h, int cx, int cy)>();
-            int numRooms = random.Next(8, 13);
-
-            for (int i = 0; i < numRooms; i++)
+    private static void InitializeGeneratedLevel(MapData map, int level)
+    {
+        map.Levels[level] = new int[MapHeight][];
+        for (int y = 0; y < MapHeight; y++)
+        {
+            map.Levels[level][y] = new int[MapWidth];
+            for (int x = 0; x < MapWidth; x++)
             {
-                int w = random.Next(4, 11);
-                int h = random.Next(4, 11);
-                int x = random.Next(1, MapWidth - w - 1);
-                int y = random.Next(1, MapHeight - h - 1);
-
-                bool overlaps = rooms.Any(r =>
-                    x < r.x + r.w + 1 && x + w + 1 > r.x &&
-                    y < r.y + r.h + 1 && y + h + 1 > r.y);
-
-                if (!overlaps)
-                {
-                    // Carve room
-                    for (int ry = y; ry < y + h && ry < MapHeight - 1; ry++)
-                    {
-                        for (int rx = x; rx < x + w && rx < MapWidth - 1; rx++)
-                        {
-                            if (rx > 0 && ry > 0)
-                                map.Levels[level][ry][rx] = 0; // Floor
-                        }
-                    }
-                    rooms.Add((x, y, w, h, x + w / 2, y + h / 2));
-                }
-            }
-
-            // Connect rooms with corridors
-            for (int i = 1; i < rooms.Count; i++)
-            {
-                CarveCorridor(map.Levels[level], rooms[i - 1].cx, rooms[i - 1].cy, rooms[i].cx, rooms[i].cy, random);
-            }
-            if (rooms.Count > 2)
-            {
-                CarveCorridor(map.Levels[level], rooms[^1].cx, rooms[^1].cy, rooms[0].cx, rooms[0].cy, random);
-            }
-
-            // Ensure player start is open on level 0
-            if (level == 0)
-            {
-                for (int dy = -2; dy <= 2; dy++)
-                {
-                    for (int dx = -2; dx <= 2; dx++)
-                    {
-                        int px = map.PlayerStartX + dx;
-                        int py = map.PlayerStartY + dy;
-                        if (px > 0 && px < MapWidth - 1 && py > 0 && py < MapHeight - 1)
-                        {
-                            map.Levels[level][py][px] = 0; // Floor
-                        }
-                    }
-                }
-
-                // Connect to nearest room
-                if (rooms.Count > 0)
-                {
-                    var nearest = rooms.OrderBy(r =>
-                        Math.Abs(r.cx - map.PlayerStartX) + Math.Abs(r.cy - map.PlayerStartY)).First();
-                    CarveCorridor(map.Levels[level], map.PlayerStartX, map.PlayerStartY, nearest.cx, nearest.cy, random);
-                }
-            }
-
-            // Place stairs (except on last level for down, first level for up)
-            if (level < NumLevels - 1)
-            {
-                // Place 2 stairs down
-                PlaceStairs(map, level, rooms, 2, true, random); // 2 = STAIRS_DOWN
-            }
-            if (level > 0)
-            {
-                // Stairs up are placed by the level below
+                map.Levels[level][y][x] = 0; // Floor
             }
         }
 
-        return map;
+        map.HWalls[level] = new bool[MapHeight + 1][];
+        for (int y = 0; y <= MapHeight; y++)
+        {
+            map.HWalls[level][y] = new bool[MapWidth];
+            for (int x = 0; x < MapWidth; x++)
+            {
+                map.HWalls[level][y][x] = (y == 0 || y == MapHeight);
+            }
+        }
+
+        map.VWalls[level] = new bool[MapHeight][];
+        for (int y = 0; y < MapHeight; y++)
+        {
+            map.VWalls[level][y] = new bool[MapWidth + 1];
+            for (int x = 0; x <= MapWidth; x++)
+            {
+                map.VWalls[level][y][x] = (x == 0 || x == MapWidth);
+            }
+        }
+
+        map.HDoors[level] = new int[MapHeight + 1][];
+        for (int y = 0; y <= MapHeight; y++)
+        {
+            map.HDoors[level][y] = new int[MapWidth];
+        }
+
+        map.VDoors[level] = new int[MapHeight][];
+        for (int y = 0; y < MapHeight; y++)
+        {
+            map.VDoors[level][y] = new int[MapWidth + 1];
+        }
+    }
+
+    private List<(int x, int y, int w, int h, int cx, int cy)> GenerateRoomsForLevel(MapData map, int level, Random random)
+    {
+        var rooms = new List<(int x, int y, int w, int h, int cx, int cy)>();
+        int numRooms = random.Next(8, 13);
+
+        for (int i = 0; i < numRooms; i++)
+        {
+            int w = random.Next(4, 11);
+            int h = random.Next(4, 11);
+            int x = random.Next(1, MapWidth - w - 1);
+            int y = random.Next(1, MapHeight - h - 1);
+
+            bool overlaps = rooms.Any(r =>
+                x < r.x + r.w + 1 && x + w + 1 > r.x &&
+                y < r.y + r.h + 1 && y + h + 1 > r.y);
+
+            if (!overlaps)
+            {
+                for (int ry = y; ry < y + h && ry < MapHeight - 1; ry++)
+                {
+                    for (int rx = x; rx < x + w && rx < MapWidth - 1; rx++)
+                    {
+                        if (rx > 0 && ry > 0)
+                            map.Levels[level][ry][rx] = 0;
+                    }
+                }
+                rooms.Add((x, y, w, h, x + w / 2, y + h / 2));
+            }
+        }
+
+        for (int i = 1; i < rooms.Count; i++)
+        {
+            CarveCorridor(map.Levels[level], rooms[i - 1].cx, rooms[i - 1].cy, rooms[i].cx, rooms[i].cy, random);
+        }
+        if (rooms.Count > 2)
+        {
+            CarveCorridor(map.Levels[level], rooms[^1].cx, rooms[^1].cy, rooms[0].cx, rooms[0].cy, random);
+        }
+
+        if (level == 0)
+        {
+            for (int dy = -2; dy <= 2; dy++)
+            {
+                for (int dx = -2; dx <= 2; dx++)
+                {
+                    int px = map.PlayerStartX + dx;
+                    int py = map.PlayerStartY + dy;
+                    if (px > 0 && px < MapWidth - 1 && py > 0 && py < MapHeight - 1)
+                    {
+                        map.Levels[level][py][px] = 0;
+                    }
+                }
+            }
+
+            if (rooms.Count > 0)
+            {
+                var nearest = rooms.OrderBy(r =>
+                    Math.Abs(r.cx - map.PlayerStartX) + Math.Abs(r.cy - map.PlayerStartY)).First();
+                CarveCorridor(map.Levels[level], map.PlayerStartX, map.PlayerStartY, nearest.cx, nearest.cy, random);
+            }
+        }
+
+        return rooms;
     }
 
     private void CarveCorridor(int[][] levelMap, int x1, int y1, int x2, int y2, Random random)
@@ -660,52 +721,66 @@ public class MapStorageService
             levelMap[y][x] = 0;
     }
 
-    private void PlaceStairs(MapData map, int level, List<(int x, int y, int w, int h, int cx, int cy)> rooms, int stairType, bool isDown, Random random)
+    private void PlaceStairs(MapData map, int level, List<(int x, int y, int w, int h, int cx, int cy)> rooms, Random random)
     {
+        if (level + 1 >= NumLevels || map.Levels[level + 1] == null)
+        {
+            GameLogger.LogWarning("MapGenerate", "Cannot place stairs; next level is missing", new { level });
+            return;
+        }
+
         var usedPositions = new List<(int x, int y)>();
+        var candidates = rooms.Count > 0
+            ? rooms.Select(r => (r.cx, r.cy)).ToList()
+            : new List<(int cx, int cy)> { (MapWidth / 2, MapHeight / 2) };
+
+        if (rooms.Count == 0)
+        {
+            GameLogger.LogWarning("MapGenerate", "No rooms available; using fallback stair positions", new { level });
+        }
 
         for (int stairNum = 0; stairNum < 2; stairNum++)
         {
             int attempts = 0;
-            (int x, int y, int w, int h, int cx, int cy) stairRoom;
+            (int cx, int cy) stairRoom;
 
             do
             {
-                stairRoom = rooms[random.Next(rooms.Count)];
+                stairRoom = candidates[random.Next(candidates.Count)];
                 attempts++;
             } while (usedPositions.Any(p => Math.Abs(p.x - stairRoom.cx) < 8 && Math.Abs(p.y - stairRoom.cy) < 8) && attempts < 20);
 
-            int stairX = stairRoom.cx;
-            int stairY = stairRoom.cy;
+            int stairX = Math.Clamp(stairRoom.cx, 1, MapWidth - 2);
+            int stairY = Math.Clamp(stairRoom.cy, 1, MapHeight - 2);
 
-            if (map.Levels[level][stairY][stairX] == 0) // Is floor
+            if (usedPositions.Contains((stairX, stairY)))
             {
-                map.Levels[level][stairY][stairX] = 2; // STAIRS_DOWN
-                usedPositions.Add((stairX, stairY));
+                stairX = Math.Clamp(stairX + stairNum + 2, 1, MapWidth - 2);
+                stairY = Math.Clamp(stairY + stairNum + 2, 1, MapHeight - 2);
+            }
 
-                // Create corresponding stairs up on next level
-                if (level + 1 < NumLevels)
+            map.Levels[level][stairY][stairX] = 2; // STAIRS_DOWN
+            map.Levels[level + 1][stairY][stairX] = 3; // STAIRS_UP
+            usedPositions.Add((stairX, stairY));
+
+            for (int dy = -1; dy <= 1; dy++)
+            {
+                for (int dx = -1; dx <= 1; dx++)
                 {
-                    map.Levels[level + 1][stairY][stairX] = 3; // STAIRS_UP
-
-                    // Ensure area around stairs is walkable
-                    for (int dy = -1; dy <= 1; dy++)
+                    if (dx == 0 && dy == 0) continue;
+                    int nx = stairX + dx;
+                    int ny = stairY + dy;
+                    if (nx > 0 && nx < MapWidth - 1 && ny > 0 && ny < MapHeight - 1)
                     {
-                        for (int dx = -1; dx <= 1; dx++)
-                        {
-                            int nx = stairX + dx;
-                            int ny = stairY + dy;
-                            if (nx > 0 && nx < MapWidth - 1 && ny > 0 && ny < MapHeight - 1)
-                            {
-                                if (map.Levels[level][ny][nx] == 1) // Wall
-                                    map.Levels[level][ny][nx] = 0;
-                                if (map.Levels[level + 1][ny][nx] == 1)
-                                    map.Levels[level + 1][ny][nx] = 0;
-                            }
-                        }
+                        if (map.Levels[level][ny][nx] == 1)
+                            map.Levels[level][ny][nx] = 0;
+                        if (map.Levels[level + 1][ny][nx] == 1)
+                            map.Levels[level + 1][ny][nx] = 0;
                     }
                 }
             }
+
+            GameLogger.LogDebug("MapGenerate", "Placed stair pair", new { level, stairX, stairY });
         }
     }
 
@@ -722,8 +797,9 @@ public class MapStorageService
         {
             return JsonSerializer.Deserialize<MapData>(json);
         }
-        catch
+        catch (Exception ex)
         {
+            GameLogger.LogError("MapStorage", "Failed to parse map JSON", ex);
             return null;
         }
     }

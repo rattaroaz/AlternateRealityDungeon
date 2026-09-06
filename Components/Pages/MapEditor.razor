@@ -379,8 +379,7 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error loading map: {ex.Message}");
-            // Map is already initialized as walls, so we're safe
+            GameLogger.LogError("MapEditor", "Error loading map on init", ex);
         }
     }
 
@@ -409,7 +408,7 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error in LoadCurrentMap: {ex.Message}");
+            GameLogger.LogError("MapEditor", "Error in LoadCurrentMap", ex);
             hasDefaultMap = false;
             savedMaps = new();
         }
@@ -1110,11 +1109,20 @@
 
     private async Task SaveAsDefault()
     {
-        var map = CreateMapData();
-        await MapStorage.SetDefaultMapAsync(map);
-        hasDefaultMap = true;
-        defaultMapName = map.Name;
-        ShowStatus("Map saved as default! New players will use this map.");
+        try
+        {
+            var map = CreateMapData();
+            await MapStorage.SetDefaultMapAsync(map);
+            hasDefaultMap = true;
+            defaultMapName = map.Name;
+            ShowStatus("Map saved as default! New players will use this map.");
+            GameLogger.LogInfo("MapEditor", "Saved map as default", new { map.Name, map.Id });
+        }
+        catch (Exception ex)
+        {
+            GameLogger.LogError("MapEditor", "Failed to save default map", ex);
+            ShowStatus("Failed to save default map. Check logs.");
+        }
     }
 
     private async Task ShowSaveSlots()
@@ -1134,11 +1142,20 @@
 
     private async Task SaveToSlot(int slotIndex)
     {
-        var map = CreateMapData();
-        await MapStorage.SaveMapToSlotAsync(map, slotIndex);
-        savedMaps = await MapStorage.GetSavedMapsAsync();
-        showSaveSlotModal = false;
-        ShowStatus($"Map saved to slot {slotIndex + 1}!");
+        try
+        {
+            var map = CreateMapData();
+            await MapStorage.SaveMapToSlotAsync(map, slotIndex);
+            savedMaps = await MapStorage.GetSavedMapsAsync();
+            showSaveSlotModal = false;
+            ShowStatus($"Map saved to slot {slotIndex + 1}!");
+            GameLogger.LogInfo("MapEditor", "Saved map to slot", new { slotIndex, map.Name, map.Id });
+        }
+        catch (Exception ex)
+        {
+            GameLogger.LogError("MapEditor", $"Failed to save map to slot {slotIndex + 1}", ex);
+            ShowStatus("Failed to save map slot. Check logs.");
+        }
     }
 
     private async Task ShowLegacyImportSlots()
@@ -1149,16 +1166,26 @@
 
     private async Task ImportLegacySlot(int slotNumber)
     {
-        var imported = await MapStorage.ImportFromLegacySlotAsync(slotNumber);
-        if (imported != null)
+        try
         {
-            LoadMapData(imported);
-            showLegacyImportModal = false;
-            ShowStatus($"Imported map from legacy slot {slotNumber}.");
+            var imported = await MapStorage.ImportFromLegacySlotAsync(slotNumber);
+            if (imported != null)
+            {
+                LoadMapData(imported);
+                showLegacyImportModal = false;
+                ShowStatus($"Imported map from legacy slot {slotNumber}.");
+                GameLogger.LogInfo("MapEditor", "Imported legacy map", new { slotNumber, imported.Name, imported.Id });
+            }
+            else
+            {
+                GameLogger.LogWarning("MapEditor", "Legacy slot had no importable map", new { slotNumber });
+                ShowStatus($"No importable map found in legacy slot {slotNumber}.");
+            }
         }
-        else
+        catch (Exception ex)
         {
-            ShowStatus($"No importable map found in legacy slot {slotNumber}.");
+            GameLogger.LogError("MapEditor", $"Failed to import legacy slot {slotNumber}", ex);
+            ShowStatus("Legacy import failed. Check logs.");
         }
     }
 
@@ -1169,22 +1196,33 @@
             LoadMapData(savedMaps[slotIndex]);
             showLoadSlotModal = false;
             ShowStatus($"Map loaded from slot {slotIndex + 1}!");
+            GameLogger.LogInfo("MapEditor", "Loaded map from slot", new { slotIndex, name = savedMaps[slotIndex].Name });
         }
     }
 
     private async Task LoadDefaultMap()
     {
-        var defaultMap = await MapStorage.GetDefaultMapAsync();
-        if (defaultMap != null)
+        try
         {
-            LoadMapData(defaultMap);
-            ShowStatus("Default map loaded!");
+            var defaultMap = await MapStorage.GetDefaultMapAsync();
+            if (defaultMap != null)
+            {
+                LoadMapData(defaultMap);
+                ShowStatus("Default map loaded!");
+                GameLogger.LogInfo("MapEditor", "Default map loaded", new { name = defaultMap.Name, id = defaultMap.Id });
+            }
+            else
+            {
+                var proceduralMap = MapStorage.GenerateProceduralMap();
+                LoadMapData(proceduralMap);
+                ShowStatus("New procedural map generated!");
+                GameLogger.LogInfo("MapEditor", "No default map; generated procedural map", new { id = proceduralMap.Id });
+            }
         }
-        else
+        catch (Exception ex)
         {
-            var proceduralMap = MapStorage.GenerateProceduralMap();
-            LoadMapData(proceduralMap);
-            ShowStatus("New procedural map generated!");
+            GameLogger.LogError("MapEditor", "Failed to load default map", ex);
+            ShowStatus("Failed to load default map. Check logs.");
         }
         showLoadSlotModal = false;
     }
@@ -1199,10 +1237,20 @@
 
     private void GenerateNew()
     {
-        var proceduralMap = MapStorage.GenerateProceduralMap();
-        LoadMapData(proceduralMap);
-        mapName = "New Dungeon";
-        ShowStatus("New procedural map generated!");
+        try
+        {
+            GameLogger.LogInfo("MapEditor", "Generate New requested");
+            var proceduralMap = MapStorage.GenerateProceduralMap();
+            LoadMapData(proceduralMap);
+            mapName = "New Dungeon";
+            ShowStatus("New procedural map generated!");
+            GameLogger.LogInfo("MapEditor", "Generate New completed", new { mapName, mapId = proceduralMap.Id });
+        }
+        catch (Exception ex)
+        {
+            GameLogger.LogError("MapEditor", "Generate New failed", ex);
+            ShowStatus("Generate failed. Check logs for details.");
+        }
     }
 
     private void ShowStatus(string message)
