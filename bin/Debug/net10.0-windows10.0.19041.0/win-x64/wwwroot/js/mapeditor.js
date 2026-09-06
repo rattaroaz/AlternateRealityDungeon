@@ -1,5 +1,46 @@
 // Map Editor JavaScript helpers
 
+window.mapEditor = {
+    _panElement: null,
+    _panLastX: 0,
+    _panLastY: 0,
+
+    startDragPan: function (element, startClientX, startClientY) {
+        if (!element) return;
+
+        this._panElement = element;
+        this._panLastX = startClientX;
+        this._panLastY = startClientY;
+
+        const self = this;
+
+        function onMove(ev) {
+            if (!self._panElement) return;
+            const dx = ev.clientX - self._panLastX;
+            const dy = ev.clientY - self._panLastY;
+            self._panElement.scrollLeft -= dx;
+            self._panElement.scrollTop -= dy;
+            self._panLastX = ev.clientX;
+            self._panLastY = ev.clientY;
+        }
+
+        function onUp() {
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+            self._panElement = null;
+        }
+
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp, { once: true });
+    },
+
+    panBy: function (element, deltaX, deltaY) {
+        if (!element) return;
+        element.scrollLeft -= deltaX;
+        element.scrollTop -= deltaY;
+    }
+};
+
 // Download map data as JSON file
 window.downloadMapFile = function(jsonContent, filename) {
     const blob = new Blob([jsonContent], { type: 'application/json' });

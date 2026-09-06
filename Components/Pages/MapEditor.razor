@@ -164,6 +164,7 @@
 
             <div style="margin-top: auto; padding-top: 15px; border-top: 1px solid #444; font-size: 0.8rem; color: #888;">
                 <div>Left-click: Paint</div>
+                <div>Right-click drag: Pan</div>
                 <div>Mouse wheel: Zoom</div>
                 <div style="color: #B8860B; margin-top: 5px;">Wall: Click near edge to place</div>
                 <div style="color: #00CED1;">Door: Looks like wall, passable</div>
@@ -172,11 +173,11 @@
         </div>
 
         <!-- Map Canvas Area -->
-        <div style="flex: 1; overflow: hidden; position: relative;" @oncontextmenu:preventDefault="true">
-            <div id="map-viewport" style="width: 100%; height: 100%; overflow: auto; background: #111;"
-                 @onmousedown="OnMouseDown" @onmouseup="OnMouseUp" @onmousemove="OnMouseMove" @onwheel="OnWheel">
-                <div style="transform: scale(@zoom); transform-origin: top left; padding: 20px;">
-                    <div style="display: grid; grid-template-columns: repeat(@MapWidth, @(TileDisplaySize)px); gap: 0; border: 2px solid #666;">
+        <div style="flex: 1; overflow: hidden; position: relative;" @oncontextmenu:preventDefault="true" @onmouseup="OnMouseUp">
+            <div @ref="mapViewportRef" id="map-viewport" style="width: 100%; height: 100%; min-width: 0; min-height: 0; overflow: auto; background: #111; cursor: default;"
+                 @onmousedown="OnMouseDown" @onmousemove="OnMouseMove" @onwheel="OnWheel">
+                <div style="padding: 20px; display: inline-block;">
+                    <div style="display: grid; grid-template-columns: repeat(@MapWidth, @(DisplayTileSize)px); gap: 0; border: 2px solid #666;">
                         @for (int y = 0; y < MapHeight; y++)
                         {
                             @for (int x = 0; x < MapWidth; x++)
@@ -184,7 +185,7 @@
                                 var tileX = x;
                                 var tileY = y;
                                 var tile = GetTile(x, y);
-                                <div style="width: @(TileDisplaySize)px; height: @(TileDisplaySize)px; background: @GetTileColor(tile); @GetWallBorderStyle(tileX, tileY) cursor: @GetCursorStyle(); position: relative; box-sizing: border-box;"
+                                <div style="width: @(DisplayTileSize)px; height: @(DisplayTileSize)px; background: @GetTileColor(tile); @GetWallBorderStyle(tileX, tileY) cursor: @GetCursorStyle(); position: relative; box-sizing: border-box;"
                                      @onmouseenter="(e) => OnTileMouseMove(e, tileX, tileY)"
                                      @onmousemove="(e) => OnTileMouseMove(e, tileX, tileY)">
                                     @if (playerStartX == tileX && playerStartY == tileY && currentLevel == 0)
@@ -324,6 +325,7 @@
     private const int MapHeight = 65;
     private const int TileDisplaySize = 10;
     private const int NumLevels = 4;
+    private int DisplayTileSize => Math.Max(1, (int)Math.Round(TileDisplaySize * zoom));
 
     private enum TileType { Floor = 0, StairsDown = 2, StairsUp = 3, PlayerStart = 4, SpecialRoomN = 5, SpecialRoomE = 6, SpecialRoomS = 7, SpecialRoomW = 8, Wall = 10, Erase = 11, Door = 12 }
     private enum EntranceDirection { North, East, South, West }
@@ -346,6 +348,7 @@
     private int brushSize = 1;
     private double zoom = 1.0;
     private bool isDrawing = false;
+    private ElementReference mapViewportRef;
     private bool isErasing = false;
     private int hoverX = 0;
     private int hoverY = 0;
@@ -925,8 +928,15 @@
         selectedTool = tool;
     }
 
-    private void OnMouseDown(MouseEventArgs e)
+    private async Task OnMouseDown(MouseEventArgs e)
     {
+        if (e.Button == 2)
+        {
+            // Right-click: start JS-driven document-level pan (works even when mouse leaves viewport)
+            await JSRuntime.InvokeVoidAsync("mapEditor.startDragPan", mapViewportRef, e.ClientX, e.ClientY);
+            return;
+        }
+
         if (e.Button == 0) // Left click
         {
             isDrawing = true;
@@ -981,8 +991,8 @@
         
         // Calculate position within tile (0-1 normalized)
         // OffsetX/Y gives position relative to the element
-        double offsetX = e.OffsetX / TileDisplaySize;
-        double offsetY = e.OffsetY / TileDisplaySize;
+        double offsetX = e.OffsetX / DisplayTileSize;
+        double offsetY = e.OffsetY / DisplayTileSize;
         
         // Clamp to 0-1 range
         offsetX = Math.Max(0, Math.Min(1, offsetX));
@@ -1057,6 +1067,7 @@
         {
             zoom = Math.Max(0.3, zoom - 0.1);
         }
+        StateHasChanged();
     }
 
     private void ClearLevel()

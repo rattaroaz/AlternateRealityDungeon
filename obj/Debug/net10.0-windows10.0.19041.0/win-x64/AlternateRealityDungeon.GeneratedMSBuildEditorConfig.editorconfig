@@ -12,10 +12,11 @@ build_property.ProjectTypeGuids = 9A19103F-16F7-4668-BE54-9A1E7A4F7556
 build_property.InvariantGlobalization = 
 build_property.PlatformNeutralAssembly = 
 build_property.EnforceExtendedAnalyzerRules = 
+build_property.EntryPointFilePath = 
 build_property._SupportedPlatformList = Linux,macOS,Windows
 build_property.RootNamespace = AlternateRealityDungeon
 build_property.RootNamespace = AlternateRealityDungeon
-build_property.ProjectDir = c:\Users\kimri\OneDrive\Desktop\cloned repos\AlternateRealityDungeon\
+build_property.ProjectDir = E:\cloned repos\AlternateRealityDungeon\
 build_property.EnableComHosting = 
 build_property.EnableGeneratedComInterfaceComImportInterop = 
 build_property.CsWinRTAotOptimizerEnabled = true
@@ -26,15 +27,15 @@ build_property.CsWinRTCcwLookupTableGeneratorEnabled = true
 build_property.CsWinRTMergeReferencedActivationFactories = 
 build_property.CsWinRTAotWarningLevel = 
 build_property.CsWinRTUseWindowsUIXamlProjections = false
-build_property.RazorLangVersion = 9.0
+build_property.RazorLangVersion = 10.0
 build_property.SupportLocalizedComponentNames = 
 build_property.GenerateRazorMetadataSourceChecksumAttributes = 
-build_property.MSBuildProjectDirectory = c:\Users\kimri\OneDrive\Desktop\cloned repos\AlternateRealityDungeon
+build_property.MSBuildProjectDirectory = E:\cloned repos\AlternateRealityDungeon
 build_property._RazorSourceGeneratorDebug = 
 build_property.EffectiveAnalysisLevelStyle = 10.0
 build_property.EnableCodeStyleSeverity = 
 
-[c:/Users/kimri/OneDrive/Desktop/cloned repos/AlternateRealityDungeon/App.xaml]
+[E:/cloned repos/AlternateRealityDungeon/App.xaml]
 build_metadata.AdditionalFiles.GenKind = Xaml
 build_metadata.AdditionalFiles.ManifestResourceName = AlternateRealityDungeon.App.xaml
 build_metadata.AdditionalFiles.TargetPath = App.xaml
@@ -45,7 +46,7 @@ build_metadata.AdditionalFiles.EnableDiagnostics =
 build_metadata.AdditionalFiles.LineInfo = 
 build_metadata.AdditionalFiles.CssScope = 
 
-[c:/Users/kimri/OneDrive/Desktop/cloned repos/AlternateRealityDungeon/MainPage.xaml]
+[E:/cloned repos/AlternateRealityDungeon/MainPage.xaml]
 build_metadata.AdditionalFiles.GenKind = Xaml
 build_metadata.AdditionalFiles.ManifestResourceName = AlternateRealityDungeon.MainPage.xaml
 build_metadata.AdditionalFiles.TargetPath = MainPage.xaml
@@ -56,7 +57,7 @@ build_metadata.AdditionalFiles.EnableDiagnostics =
 build_metadata.AdditionalFiles.LineInfo = 
 build_metadata.AdditionalFiles.CssScope = 
 
-[c:/Users/kimri/OneDrive/Desktop/cloned repos/AlternateRealityDungeon/Components/Pages/Home.razor]
+[E:/cloned repos/AlternateRealityDungeon/Components/Pages/Home.razor]
 build_metadata.AdditionalFiles.GenKind = 
 build_metadata.AdditionalFiles.ManifestResourceName = 
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xIb21lLnJhem9y
@@ -67,7 +68,7 @@ build_metadata.AdditionalFiles.EnableDiagnostics =
 build_metadata.AdditionalFiles.LineInfo = 
 build_metadata.AdditionalFiles.CssScope = 
 
-[c:/Users/kimri/OneDrive/Desktop/cloned repos/AlternateRealityDungeon/Components/Pages/LoadPlayer.razor]
+[E:/cloned repos/AlternateRealityDungeon/Components/Pages/LoadPlayer.razor]
 build_metadata.AdditionalFiles.GenKind = 
 build_metadata.AdditionalFiles.ManifestResourceName = 
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xMb2FkUGxheWVyLnJhem9y
@@ -78,7 +79,7 @@ build_metadata.AdditionalFiles.EnableDiagnostics =
 build_metadata.AdditionalFiles.LineInfo = 
 build_metadata.AdditionalFiles.CssScope = 
 
-[c:/Users/kimri/OneDrive/Desktop/cloned repos/AlternateRealityDungeon/Components/Pages/MainMenu.razor]
+[E:/cloned repos/AlternateRealityDungeon/Components/Pages/MainMenu.razor]
 build_metadata.AdditionalFiles.GenKind = 
 build_metadata.AdditionalFiles.ManifestResourceName = 
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xNYWluTWVudS5yYXpvcg==
@@ -89,7 +90,7 @@ build_metadata.AdditionalFiles.EnableDiagnostics =
 build_metadata.AdditionalFiles.LineInfo = 
 build_metadata.AdditionalFiles.CssScope = 
 
-[c:/Users/kimri/OneDrive/Desktop/cloned repos/AlternateRealityDungeon/Components/Pages/MapEditor.razor]
+[E:/cloned repos/AlternateRealityDungeon/Components/Pages/MapEditor.razor]
 build_metadata.AdditionalFiles.GenKind = 
 build_metadata.AdditionalFiles.ManifestResourceName = 
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xNYXBFZGl0b3IucmF6b3I=
@@ -100,7 +101,7 @@ build_metadata.AdditionalFiles.EnableDiagnostics =
 build_metadata.AdditionalFiles.LineInfo = 
 build_metadata.AdditionalFiles.CssScope = 
 
-[c:/Users/kimri/OneDrive/Desktop/cloned repos/AlternateRealityDungeon/Components/Pages/NewPlayer.razor]
+[E:/cloned repos/AlternateRealityDungeon/Components/Pages/NewPlayer.razor]
 build_metadata.AdditionalFiles.GenKind = 
 build_metadata.AdditionalFiles.ManifestResourceName = 
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xOZXdQbGF5ZXIucmF6b3I=
@@ -111,7 +112,7 @@ build_metadata.AdditionalFiles.EnableDiagnostics =
 build_metadata.AdditionalFiles.LineInfo = 
 build_metadata.AdditionalFiles.CssScope = 
 
-[c:/Users/kimri/OneDrive/Desktop/cloned repos/AlternateRealityDungeon/Components/Pages/NotFound.razor]
+[E:/cloned repos/AlternateRealityDungeon/Components/Pages/NotFound.razor]
 build_metadata.AdditionalFiles.GenKind = 
 build_metadata.AdditionalFiles.ManifestResourceName = 
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xOb3RGb3VuZC5yYXpvcg==
@@ -122,7 +123,7 @@ build_metadata.AdditionalFiles.EnableDiagnostics =
 build_metadata.AdditionalFiles.LineInfo = 
 build_metadata.AdditionalFiles.CssScope = 
 
-[c:/Users/kimri/OneDrive/Desktop/cloned repos/AlternateRealityDungeon/Components/Routes.razor]
+[E:/cloned repos/AlternateRealityDungeon/Components/Routes.razor]
 build_metadata.AdditionalFiles.GenKind = 
 build_metadata.AdditionalFiles.ManifestResourceName = 
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xSb3V0ZXMucmF6b3I=
@@ -133,7 +134,7 @@ build_metadata.AdditionalFiles.EnableDiagnostics =
 build_metadata.AdditionalFiles.LineInfo = 
 build_metadata.AdditionalFiles.CssScope = 
 
-[c:/Users/kimri/OneDrive/Desktop/cloned repos/AlternateRealityDungeon/Components/_Imports.razor]
+[E:/cloned repos/AlternateRealityDungeon/Components/_Imports.razor]
 build_metadata.AdditionalFiles.GenKind = 
 build_metadata.AdditionalFiles.ManifestResourceName = 
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xfSW1wb3J0cy5yYXpvcg==
@@ -144,7 +145,7 @@ build_metadata.AdditionalFiles.EnableDiagnostics =
 build_metadata.AdditionalFiles.LineInfo = 
 build_metadata.AdditionalFiles.CssScope = 
 
-[c:/Users/kimri/OneDrive/Desktop/cloned repos/AlternateRealityDungeon/Components/Layout/MainLayout.razor]
+[E:/cloned repos/AlternateRealityDungeon/Components/Layout/MainLayout.razor]
 build_metadata.AdditionalFiles.GenKind = 
 build_metadata.AdditionalFiles.ManifestResourceName = 
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xMYXlvdXRcTWFpbkxheW91dC5yYXpvcg==

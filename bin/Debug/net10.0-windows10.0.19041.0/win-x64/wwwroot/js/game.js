@@ -421,6 +421,65 @@ window.game = {
                 }
             }
             placeStairs();
+            
+            // Place special rooms (guilds, shops, inns) on each level
+            function placeSpecialRooms() {
+                const roomTypes = [
+                    { type: SPECIAL_ROOM_N, name: 'guild' },
+                    { type: SPECIAL_ROOM_E, name: 'shop' },
+                    { type: SPECIAL_ROOM_S, name: 'inn' },
+                    { type: SPECIAL_ROOM_W, name: 'smith' }
+                ];
+                
+                for (let level = 0; level < NUM_LEVELS; level++) {
+                    const rooms = allRooms[level];
+                    if (rooms.length < 4) continue; // Need enough rooms
+                    
+                    // Shuffle rooms and pick different ones for each special room type
+                    const shuffled = [...rooms].sort(() => Math.random() - 0.5);
+                    let roomIdx = 0;
+                    
+                    for (const roomType of roomTypes) {
+                        if (roomIdx >= shuffled.length) break;
+                        const room = shuffled[roomIdx++];
+                        
+                        // Find a suitable wall location in the room
+                        const walls = [];
+                        // Top wall (north entrance)
+                        for (let x = room.x + 1; x < room.x + room.w - 1; x++) {
+                            if (room.y > 0 && dungeonLevels[level][room.y - 1][x] === WALL) {
+                                walls.push({ x, y: room.y, dir: SPECIAL_ROOM_N });
+                            }
+                        }
+                        // Right wall (east entrance)
+                        for (let y = room.y + 1; y < room.y + room.h - 1; y++) {
+                            if (room.x + room.w < MAP_WIDTH && dungeonLevels[level][y][room.x + room.w] === WALL) {
+                                walls.push({ x: room.x + room.w - 1, y, dir: SPECIAL_ROOM_E });
+                            }
+                        }
+                        // Bottom wall (south entrance)
+                        for (let x = room.x + 1; x < room.x + room.w - 1; x++) {
+                            if (room.y + room.h < MAP_HEIGHT && dungeonLevels[level][room.y + room.h][x] === WALL) {
+                                walls.push({ x, y: room.y + room.h - 1, dir: SPECIAL_ROOM_S });
+                            }
+                        }
+                        // Left wall (west entrance)
+                        for (let y = room.y + 1; y < room.y + room.h - 1; y++) {
+                            if (room.x > 0 && dungeonLevels[level][y][room.x - 1] === WALL) {
+                                walls.push({ x: room.x, y, dir: SPECIAL_ROOM_W });
+                            }
+                        }
+                        
+                        if (walls.length > 0) {
+                            const wall = walls[Math.floor(Math.random() * walls.length)];
+                            dungeonLevels[level][wall.y][wall.x] = wall.dir;
+                            logToFile(`Placed ${roomType.name} at (${wall.x}, ${wall.y}) on level ${level}`);
+                        }
+                    }
+                }
+            }
+            placeSpecialRooms();
+            
             console.log('Generated procedural dungeon');
         }
         
@@ -1043,6 +1102,7 @@ window.game = {
             level: 0,  // Start at level 0, level up to 1 at 1000 XP
             hitpoints: 0,
             experience: 0,
+            gold: 100, // Starting gold
             stats: {
                 Stamina: 0,
                 Charisma: 0,
@@ -1104,7 +1164,19 @@ window.game = {
             battleOption: 0,
             // Special room state
             inSpecialRoom: false,
-            currentSpecialRoom: null // { tx, ty, entrance }
+            currentSpecialRoom: null, // { tx, ty, entrance }
+            // Guild system
+            currentGuild: null,
+            guildReputation: {
+                'Fighters': 0, 'Mages': 0, 'Thieves': 0, 'Clerics': 0, 'Rangers': 0
+            },
+            guildRank: 0,
+            completedQuests: [],
+            // Game progression
+            dungeonDepth: 0,
+            hasDefeatedFinalBoss: false,
+            monstersDefeated: 0,
+            bossesDefeated: 0
         };
 
         // Helper function to check if any interaction menu is open
@@ -1113,6 +1185,153 @@ window.game = {
                    player.showUseMode || player.showWeaponEquipMode || player.showClothingEquipMode ||
                    player.inSpecialRoom;
         }
+
+        // ===== GUILD SYSTEM =====
+        const guilds = {
+            'Fighters': {
+                name: 'Warriors Guild',
+                statBonus: 'Strength',
+                ranks: ['Recruit', 'Fighter', 'Warrior', 'Champion', 'Guildmaster'],
+                benefits: {
+                    1: { desc: '+2 Strength, 5% discount at smiths', strBonus: 2, discount: 0.05 },
+                    2: { desc: '+4 Strength, 10% discount, Quest: Slay 10 monsters', strBonus: 4, discount: 0.10, questReq: 10 },
+                    3: { desc: '+6 Strength, 15% discount, +5 HP regen/rest', strBonus: 6, discount: 0.15, healBonus: 5 },
+                    4: { desc: '+10 Strength, 20% discount, Quest: Defeat a Boss', strBonus: 10, discount: 0.20, bossReq: true },
+                    5: { desc: '+15 Strength, 25% discount, +10 HP regen, Free repairs', strBonus: 15, discount: 0.25, healBonus: 10, freeRepair: true }
+                },
+                joinReq: { stat: 'Strength', min: 12 }
+            },
+            'Mages': {
+                name: 'Mages Guild',
+                statBonus: 'Intelligence',
+                ranks: ['Apprentice', 'Adept', 'Mage', 'Archmage', 'Grand Archmage'],
+                benefits: {
+                    1: { desc: '+2 Intelligence, Magic items 10% cheaper', intBonus: 2, magicDiscount: 0.10 },
+                    2: { desc: '+4 Intelligence, 15% magic discount, +2 Wisdom', intBonus: 4, wisBonus: 2, magicDiscount: 0.15 },
+                    3: { desc: '+6 Intelligence, +4 Wisdom, Identify magical items', intBonus: 6, wisBonus: 4, identify: true },
+                    4: { desc: '+10 Intelligence, +6 Wisdom, Create magic scrolls', intBonus: 10, wisBonus: 6, scrolls: true },
+                    5: { desc: '+15 Intelligence, +10 Wisdom, Teleport ability', intBonus: 15, wisBonus: 10, teleport: true }
+                },
+                joinReq: { stat: 'Intelligence', min: 13 }
+            },
+            'Thieves': {
+                name: 'Thieves Guild',
+                statBonus: 'Skill',
+                ranks: ['Cutpurse', 'Thief', 'Rogue', 'Master Thief', 'Guildmaster'],
+                benefits: {
+                    1: { desc: '+2 Skill, +2 Speed, Steal from monsters', sklBonus: 2, spdBonus: 2, steal: true },
+                    2: { desc: '+4 Skill, +4 Speed, Better steal chance', sklBonus: 4, spdBonus: 4, stealBonus: 0.15 },
+                    3: { desc: '+6 Skill, +6 Speed, Disarm traps', sklBonus: 6, spdBonus: 6, trapDisarm: true },
+                    4: { desc: '+8 Skill, +8 Speed, Backstab damage x2', sklBonus: 8, spdBonus: 8, backstab: 2.0 },
+                    5: { desc: '+12 Skill, +12 Speed, Shadow Step (flee 90%)', sklBonus: 12, spdBonus: 12, shadowStep: 0.90 }
+                },
+                joinReq: { stat: 'Skill', min: 11 }
+            },
+            'Clerics': {
+                name: 'Clerics Guild',
+                statBonus: 'Wisdom',
+                ranks: ['Acolyte', 'Priest', 'Cleric', 'High Priest', 'Patriarch'],
+                benefits: {
+                    1: { desc: '+2 Wisdom, +5 HP regen at inns', wisBonus: 2, innHeal: 5 },
+                    2: { desc: '+4 Wisdom, +10 HP regen, Cure disease', wisBonus: 4, innHeal: 10, cure: true },
+                    3: { desc: '+6 Wisdom, +15 HP regen, Bless (+10% hit)', wisBonus: 6, innHeal: 15, bless: 0.10 },
+                    4: { desc: '+8 Wisdom, +20 HP regen, Turn undead', wisBonus: 8, innHeal: 20, turnUndead: true },
+                    5: { desc: '+12 Wisdom, Full heal at inns, Resurrection', wisBonus: 12, fullHeal: true, resurrect: true }
+                },
+                joinReq: { stat: 'Wisdom', min: 12 }
+            },
+            'Rangers': {
+                name: 'Rangers Guild',
+                statBonus: 'Speed',
+                ranks: ['Scout', 'Tracker', 'Ranger', 'Master Ranger', 'Ranger Lord'],
+                benefits: {
+                    1: { desc: '+2 Speed, +2 Skill, Avoid ambush 30%', spdBonus: 2, sklBonus: 2, avoidAmbush: 0.30 },
+                    2: { desc: '+4 Speed, +4 Skill, Track monsters', spdBonus: 4, sklBonus: 4, track: true },
+                    3: { desc: '+6 Speed, +6 Skill, Avoid ambush 60%', spdBonus: 6, sklBonus: 6, avoidAmbush: 0.60 },
+                    4: { desc: '+8 Speed, +8 Skill, Double shot (bow)', spdBonus: 8, sklBonus: 8, doubleShot: true },
+                    5: { desc: '+12 Speed, +12 Skill, Avoid ambush 90%', spdBonus: 12, sklBonus: 12, avoidAmbush: 0.90 }
+                },
+                joinReq: { stat: 'Speed', min: 11 }
+            }
+        };
+
+        // ===== SHOP SYSTEM =====
+        const shops = {
+            weapons: [
+                { name: 'Dagger', price: 50, attack: 10, defense: 2 },
+                { name: 'Short Sword', price: 100, attack: 15, defense: 5 },
+                { name: 'Sword', price: 200, attack: 25, defense: 8 },
+                { name: 'Axe', price: 250, attack: 30, defense: 5 },
+                { name: 'Mace', price: 180, attack: 22, defense: 10 },
+                { name: 'Spear', price: 220, attack: 28, defense: 7 },
+                { name: 'Bow', price: 150, attack: 20, defense: 3 },
+                { name: 'Shield', price: 120, attack: 5, defense: 20 }
+            ],
+            armor: [
+                { name: 'Leather Armor', price: 100, defense: 10, slot: 'Body' },
+                { name: 'Chain Mail', price: 300, defense: 25, slot: 'Body' },
+                { name: 'Plate Armor', price: 600, defense: 45, slot: 'Body' },
+                { name: 'Iron Helm', price: 80, defense: 8, slot: 'Head' },
+                { name: 'Steel Helm', price: 150, defense: 15, slot: 'Head' },
+                { name: 'Leather Boots', price: 50, defense: 5, slot: 'Feet' },
+                { name: 'Iron Greaves', price: 100, defense: 12, slot: 'Legs' }
+            ],
+            potions: [
+                { name: 'Minor Healing Potion', price: 25, heal: 20 },
+                { name: 'Healing Potion', price: 50, heal: 50 },
+                { name: 'Greater Healing Potion', price: 100, heal: 100 },
+                { name: 'Strength Potion', price: 75, buff: 'Strength', amount: 10, duration: 60 },
+                { name: 'Speed Potion', price: 75, buff: 'Speed', amount: 10, duration: 60 },
+                { name: 'Antidote', price: 40, cures: 'poison' }
+            ],
+            supplies: [
+                { name: 'Food', price: 5, restores: 'hunger' },
+                { name: 'Water Flask', price: 3, restores: 'thirst' },
+                { name: 'Torch', price: 10, provides: 'light' },
+                { name: 'Rope', price: 15, tool: true },
+                { name: 'Lockpicks', price: 30, tool: true }
+            ]
+        };
+
+        // ===== INN SYSTEM =====
+        const innServices = {
+            'Poor Room': { cost: 10, healPercent: 0.30, riskAmbush: 0.15, riskTheft: 0.10, riskDisease: 0.05 },
+            'Common Room': { cost: 25, healPercent: 0.50, riskAmbush: 0.08, riskTheft: 0.05, riskDisease: 0.02 },
+            'Private Room': { cost: 50, healPercent: 0.75, riskAmbush: 0.03, riskTheft: 0.02, riskDisease: 0 },
+            'Luxury Suite': { cost: 100, healPercent: 1.0, riskAmbush: 0, riskTheft: 0, riskDisease: 0, bonusXP: 50 }
+        };
+
+        // ===== BOSS SYSTEM =====
+        const bossMonsters = [
+            { 
+                name: 'Orc Warlord', level: 5, floor: 0, hitpoints: 150, attack: 35, defense: 20, 
+                exp: 250, gold: 200, 
+                abilities: ['Rage (doubles attack for 2 turns)', 'War Cry (reduces player defense)'],
+                loot: ['Orcish Blade', 'Warlord Helm', 'Gold x200']
+            },
+            { 
+                name: 'Necromancer', level: 10, floor: 1, hitpoints: 180, attack: 45, defense: 25, 
+                exp: 500, gold: 400,
+                abilities: ['Drain Life (steals HP)', 'Summon Skeleton', 'Dark Bolt'],
+                loot: ['Staff of Necromancy', 'Robes of the Dead', 'Necronomicon']
+            },
+            { 
+                name: 'Dragon Wyrmling', level: 15, floor: 2, hitpoints: 300, attack: 60, defense: 40, 
+                exp: 1000, gold: 800,
+                abilities: ['Fire Breath (AOE)', 'Wing Buffet (knockback)', 'Tail Swipe'],
+                loot: ['Dragon Scale Armor', 'Flame Sword', 'Dragon Hoard (Gold x800)']
+            },
+            { 
+                name: 'The Dark One', level: 20, floor: 3, hitpoints: 500, attack: 80, defense: 60, 
+                exp: 5000, gold: 2000,
+                abilities: ['Shadow Strike', 'Life Drain', 'Darkness (blind)', 'Teleport'],
+                loot: ['Blade of Shadows', 'Crown of Darkness', 'Amulet of Power'],
+                finalBoss: true
+            }
+        ];
+
+        // Track boss defeats per floor
+        const bossDefeated = { 0: false, 1: false, 2: false, 3: false };
 
         // Monster definitions (simplified for JS)
         const monsterList = [
@@ -1636,6 +1855,23 @@ window.game = {
                     invisibility: { active: false, duration: 0 }
                 };
 
+                // Restore gold
+                player.gold = playerStats.gold || 100;
+
+                // Restore guild system
+                player.currentGuild = playerStats.currentGuild || null;
+                player.guildReputation = playerStats.guildReputation || {
+                    'Fighters': 0, 'Mages': 0, 'Thieves': 0, 'Clerics': 0, 'Rangers': 0
+                };
+                player.guildRank = playerStats.guildRank || 0;
+                player.completedQuests = playerStats.completedQuests || [];
+                
+                // Restore game progression
+                player.dungeonDepth = playerStats.dungeonDepth || 0;
+                player.hasDefeatedFinalBoss = playerStats.hasDefeatedFinalBoss || false;
+                player.monstersDefeated = playerStats.monstersDefeated || 0;
+                player.bossesDefeated = playerStats.bossesDefeated || 0;
+
                 // Restore UI state
                 player.showInventory = playerStats.showInventory || false;
                 player.showLoseMode = playerStats.showLoseMode || false;
@@ -1686,6 +1922,39 @@ window.game = {
         // Set hitpoints if not already set (for new games)
         if (player.hitpoints === 0) {
             player.hitpoints = player.baseStats.Stamina;
+        }
+        
+        // Show tutorial for new games
+        if (player.level === 0 && player.experience === 0 && !playerStats.skipTutorial) {
+            setTimeout(() => {
+                const tutorial = `
+=== WELCOME TO ALTERNATE REALITY: THE DUNGEON ===
+
+You awaken in a dark dungeon with no memory of how you got here.
+Your only goal: survive and escape the depths.
+
+CONTROLS:
+• WASD / Arrow Keys: Move and turn
+• Enter: Use stairs
+• I: Toggle inventory
+• G: Get items from ground
+• U: Use items
+• P: Pause
+
+GAMEPLAY TIPS:
+• Join a GUILD (North door) for stat bonuses and special abilities
+• Rest at INNS (South door) to heal - but beware of risks!
+• Buy supplies at SHOPS (East door) and upgrade gear at SMITHS (West door)
+• Combat is automatic - encounter monsters as you explore
+• Defeat BOSSES on each floor to progress
+• Manage your gold, HP, and equipment carefully
+
+The deeper you go, the greater the danger... and the greater the rewards.
+
+Good luck, adventurer. You'll need it.
+                `;
+                alert(tutorial);
+            }, 500);
         }
 
         function updateHUD() {
@@ -1742,10 +2011,15 @@ window.game = {
                 if (player.primaryWeapon && player.secondaryWeapon && isTwoHanded(player.primaryWeapon)) {
                     skillDisplay = `<span style="color: #f88;">${pStats.skill}</span>`;
                 }
+                // Guild display
+                let guildDisplay = player.currentGuild ? `<span style="color: cyan;">${player.currentGuild.substring(0,3)} R${player.guildRank}</span>` : 'None';
+                
                 overlay.innerHTML = `
                     <strong>Floor: ${currentLevel + 1}/${NUM_LEVELS}</strong><br>
                     <strong>Lvl: ${player.level}</strong> | <strong>HP: ${player.hitpoints}</strong><br>
+                    <strong>Gold: <span style="color: gold;">${player.gold}</span></strong><br>
                     <strong>XP: ${player.experience}/${nextLevelXp}</strong><br>
+                    Guild: ${guildDisplay}<br>
                     STA: ${player.stats.Stamina}<br>
                     CHR: ${player.stats.Charisma}<br>
                     STR: ${player.stats.Strength}<br>
@@ -2068,13 +2342,392 @@ window.game = {
             player.currentSpecialRoom = { tx, ty, entrance };
             isPaused = true;
             
-            // For now, all rooms show "Nothing is here"
-            // Future: lookup room content based on coordinates
-            specialRoomOverlay.innerHTML = `
-                <div style="font-size: 2rem; color: #888; margin-bottom: 40px;">Nothing is here</div>
-                <div style="font-size: 1rem; color: #666;">Press Space Bar to exit</div>
-            `;
+            // Determine room type based on entrance direction
+            let roomType, roomContent;
+            if (entrance === 'N') {
+                roomType = 'guild';
+                roomContent = generateGuildContent();
+            } else if (entrance === 'E') {
+                roomType = 'shop';
+                roomContent = generateShopContent();
+            } else if (entrance === 'S') {
+                roomType = 'inn';
+                roomContent = generateInnContent();
+            } else if (entrance === 'W') {
+                roomType = 'smith';
+                roomContent = generateSmithContent();
+            } else {
+                roomContent = '<div style="font-size: 2rem; color: #888; margin-bottom: 40px;">Empty Room</div>';
+            }
+            
+            specialRoomOverlay.innerHTML = roomContent + 
+                '<div style="margin-top: 30px; font-size: 0.9rem; color: #888;">Press Space Bar to exit</div>';
             specialRoomOverlay.style.display = 'flex';
+        }
+        
+        function generateGuildContent() {
+            let html = '<div style="width: 80%; max-width: 800px; text-align: left;">';
+            html += '<div style="font-size: 2rem; color: gold; margin-bottom: 20px; text-align: center;">GUILDS</div>';
+            
+            if (player.currentGuild) {
+                // Show current guild status
+                const guild = guilds[player.currentGuild];
+                const rank = player.guildRank;
+                html += `<div style="background: rgba(0,50,0,0.7); padding: 15px; margin-bottom: 15px; border: 2px solid #4a4;">`;
+                html += `<div style="font-size: 1.3rem; color: #8f8;">Current Guild: ${guild.name}</div>`;
+                html += `<div>Rank: ${guild.ranks[rank - 1]} (${rank}/5)</div>`;
+                html += `<div>Reputation: ${player.guildReputation[player.currentGuild]}</div>`;
+                if (rank < 5) {
+                    html += `<div style="margin-top: 10px; color: #aaa;">Next Rank Benefits: ${guild.benefits[rank + 1].desc}</div>`;
+                    html += `<div style="color: cyan; margin-top: 5px;">Press [U] to attempt rank up (costs 100 gold + quest requirements)</div>`;
+                } else {
+                    html += `<div style="margin-top: 10px; color: lime;">You are a Guildmaster!</div>`;
+                }
+                html += `</div>`;
+                html += `<div style="margin-top: 10px; color: #888;">Press [L] to leave guild</div>`;
+            } else {
+                // Show available guilds
+                html += '<div style="color: #ccc; margin-bottom: 15px;">Choose a guild to join (100 gold + stat requirement):</div>';
+                let guildNum = 1;
+                for (const guildKey in guilds) {
+                    const guild = guilds[guildKey];
+                    const meets = player.baseStats[guild.joinReq.stat] >= guild.joinReq.min;
+                    const color = meets ? '#8f8' : '#f88';
+                    html += `<div style="background: rgba(30,30,30,0.8); padding: 10px; margin-bottom: 10px; border-left: 3px solid ${color};">`;
+                    html += `<div style="font-size: 1.2rem; color: ${color};">[${guildNum}] ${guild.name}</div>`;
+                    html += `<div style="color: #aaa;">Requirement: ${guild.joinReq.stat} ${guild.joinReq.min}+ (You: ${player.baseStats[guild.joinReq.stat]})</div>`;
+                    html += `<div style="color: #888; margin-top: 5px;">Rank 1: ${guild.benefits[1].desc}</div>`;
+                    html += `</div>`;
+                    guildNum++;
+                }
+            }
+            
+            html += '</div>';
+            return html;
+        }
+        
+        function generateShopContent() {
+            let html = '<div style="width: 80%; max-width: 800px; text-align: left;">';
+            html += '<div style="font-size: 2rem; color: gold; margin-bottom: 20px; text-align: center;">GENERAL SHOP</div>';
+            html += `<div style="margin-bottom: 15px; text-align: center;">Your Gold: <span style="color: gold;">${player.gold}</span></div>`;
+            
+            // Weapons section
+            html += '<div style="background: rgba(50,30,0,0.7); padding: 10px; margin-bottom: 10px; border: 2px solid #a84;">';
+            html += '<div style="font-size: 1.2rem; color: #fa6; margin-bottom: 10px;">Weapons</div>';
+            shops.weapons.slice(0, 5).forEach((item, idx) => {
+                const canAfford = player.gold >= item.price;
+                const color = canAfford ? '#8f8' : '#888';
+                html += `<div style="color: ${color}; padding: 3px;">[${idx+1}] ${item.name} - ${item.price}g (Atk: ${item.attack}, Def: ${item.defense})</div>`;
+            });
+            html += '</div>';
+            
+            // Potions section
+            html += '<div style="background: rgba(30,0,50,0.7); padding: 10px; margin-bottom: 10px; border: 2px solid #94a;">';
+            html += '<div style="font-size: 1.2rem; color: #c8f; margin-bottom: 10px;">Potions</div>';
+            shops.potions.slice(0, 4).forEach((item, idx) => {
+                const canAfford = player.gold >= item.price;
+                const color = canAfford ? '#8f8' : '#888';
+                const effect = item.heal ? `Heals ${item.heal} HP` : `+${item.amount} ${item.buff} for ${item.duration}s`;
+                html += `<div style="color: ${color}; padding: 3px;">[${idx+6}] ${item.name} - ${item.price}g (${effect})</div>`;
+            });
+            html += '</div>';
+            
+            html += '<div style="margin-top: 15px; color: #aaa; text-align: center;">Press [1-9] to buy, [S] to sell items, [Space] to exit</div>';
+            html += '</div>';
+            return html;
+        }
+        
+        function generateInnContent() {
+            let html = '<div style="width: 80%; max-width: 800px; text-align: left;">';
+            html += '<div style="font-size: 2rem; color: gold; margin-bottom: 20px; text-align: center;">THE INN</div>';
+            html += `<div style="margin-bottom: 15px; text-align: center;">Your Gold: <span style="color: gold;">${player.gold}</span> | HP: <span style="color: ${player.hitpoints < player.baseStats.Stamina * 0.3 ? 'red' : 'lime'};">${player.hitpoints}/${player.baseStats.Stamina}</span></div>`;
+            
+            let roomNum = 1;
+            for (const roomType in innServices) {
+                const service = innServices[roomType];
+                const canAfford = player.gold >= service.cost;
+                const color = canAfford ? '#8f8' : '#888';
+                const healAmount = Math.floor(player.baseStats.Stamina * service.healPercent);
+                
+                html += `<div style="background: rgba(40,30,20,0.7); padding: 12px; margin-bottom: 10px; border: 2px solid ${canAfford ? '#a84' : '#444'};">`;
+                html += `<div style="font-size: 1.2rem; color: ${color};">[${roomNum}] ${roomType} - ${service.cost} gold</div>`;
+                html += `<div style="color: #8f8;">Restores ${Math.floor(service.healPercent * 100)}% HP (~${healAmount} HP)</div>`;
+                if (service.bonusXP) html += `<div style="color: cyan;">Bonus: +${service.bonusXP} XP</div>`;
+                
+                const risks = [];
+                if (service.riskAmbush > 0) risks.push(`Ambush ${Math.floor(service.riskAmbush * 100)}%`);
+                if (service.riskTheft > 0) risks.push(`Theft ${Math.floor(service.riskTheft * 100)}%`);
+                if (service.riskDisease > 0) risks.push(`Disease ${Math.floor(service.riskDisease * 100)}%`);
+                if (risks.length > 0) {
+                    html += `<div style="color: #f88; margin-top: 5px;">Risks: ${risks.join(', ')}</div>`;
+                } else {
+                    html += `<div style="color: #8f8; margin-top: 5px;">Safe and comfortable</div>`;
+                }
+                html += `</div>`;
+                roomNum++;
+            }
+            
+            html += '<div style="margin-top: 15px; color: #aaa; text-align: center;">Press [1-4] to rest, [Space] to exit</div>';
+            html += '</div>';
+            return html;
+        }
+        
+        function generateSmithContent() {
+            let html = '<div style="width: 80%; max-width: 800px; text-align: left;">';
+            html += '<div style="font-size: 2rem; color: gold; margin-bottom: 20px; text-align: center;">THE SMITHY</div>';
+            html += `<div style="margin-bottom: 15px; text-align: center;">Your Gold: <span style="color: gold;">${player.gold}</span></div>`;
+            
+            html += '<div style="background: rgba(50,20,0,0.7); padding: 15px; margin-bottom: 10px; border: 2px solid #c84;">';
+            html += '<div style="font-size: 1.3rem; color: #fa6; margin-bottom: 10px;">Services</div>';
+            html += '<div style="padding: 5px;">[1] Buy Armor - Various pieces available (50-600g)</div>';
+            html += '<div style="padding: 5px;">[2] Repair Equipment - Restore durability (30g per item)</div>';
+            html += '<div style="padding: 5px;">[3] Upgrade Weapon - Increase attack +5 (100g + materials)</div>';
+            html += '<div style="padding: 5px;">[4] Forge Special Item - Combine items (200g + materials)</div>';
+            html += '</div>';
+            
+            // Show equipped weapons
+            html += '<div style="background: rgba(20,20,40,0.7); padding: 10px; margin-top: 10px; border: 2px solid #48a;">';
+            html += '<div style="font-size: 1.1rem; color: #8cf; margin-bottom: 5px;">Your Equipment</div>';
+            html += `<div>Primary: ${player.primaryWeapon || 'None'}</div>`;
+            html += `<div>Secondary: ${player.secondaryWeapon || 'None'}</div>`;
+            html += '</div>';
+            
+            html += '<div style="margin-top: 15px; color: #aaa; text-align: center;">Press [1-4] for service, [Space] to exit</div>';
+            html += '</div>';
+            return html;
+        }
+        
+        // ==== GUILD HANDLERS ====
+        function handleGuildChoice(choice) {
+            if (player.currentGuild) return; // Already in a guild
+            
+            const guildKeys = Object.keys(guilds);
+            if (choice < 1 || choice > guildKeys.length) return;
+            
+            const guildKey = guildKeys[choice - 1];
+            const guild = guilds[guildKey];
+            
+            // Check requirements
+            if (player.gold < 100) {
+                alert('Not enough gold! (Need 100g)');
+                return;
+            }
+            if (player.baseStats[guild.joinReq.stat] < guild.joinReq.min) {
+                alert(`You need ${guild.joinReq.stat} ${guild.joinReq.min}+ to join this guild.`);
+                return;
+            }
+            
+            // Join guild
+            player.gold -= 100;
+            player.currentGuild = guildKey;
+            player.guildRank = 1;
+            player.guildReputation[guildKey] = 10;
+            alert(`Welcome to the ${guild.name}! You are now a ${guild.ranks[0]}.`);
+            
+            // Refresh display
+            if (player.inSpecialRoom) {
+                specialRoomOverlay.innerHTML = generateGuildContent() + 
+                    '<div style="margin-top: 30px; font-size: 0.9rem; color: #888;">Press Space Bar to exit</div>';
+            }
+            updateHUD();
+        }
+        
+        function handleGuildRankUp() {
+            if (!player.currentGuild || player.guildRank >= 5) return;
+            
+            const guild = guilds[player.currentGuild];
+            const nextRank = player.guildRank + 1;
+            const benefits = guild.benefits[nextRank];
+            
+            // Check requirements
+            if (player.gold < 100) {
+                alert('Not enough gold! (Need 100g)');
+                return;
+            }
+            
+            // Check quest requirements
+            if (benefits.questReq && player.monstersDefeated < benefits.questReq) {
+                alert(`Quest incomplete: Slay ${benefits.questReq} monsters (${player.monstersDefeated}/${benefits.questReq})`);
+                return;
+            }
+            if (benefits.bossReq && player.bossesDefeated < 1) {
+                alert('Quest incomplete: Defeat a boss');
+                return;
+            }
+            
+            // Rank up
+            player.gold -= 100;
+            player.guildRank = nextRank;
+            player.guildReputation[player.currentGuild] += 20;
+            alert(`Promoted to ${guild.ranks[nextRank - 1]}!`);
+            
+            // Refresh display
+            if (player.inSpecialRoom) {
+                specialRoomOverlay.innerHTML = generateGuildContent() + 
+                    '<div style="margin-top: 30px; font-size: 0.9rem; color: #888;">Press Space Bar to exit</div>';
+            }
+            updateHUD();
+        }
+        
+        function handleGuildLeave() {
+            if (!player.currentGuild) return;
+            
+            if (confirm('Leave your guild? You will lose all rank and reputation.')) {
+                player.currentGuild = null;
+                player.guildRank = 0;
+                
+                // Refresh display
+                if (player.inSpecialRoom) {
+                    specialRoomOverlay.innerHTML = generateGuildContent() + 
+                        '<div style="margin-top: 30px; font-size: 0.9rem; color: #888;">Press Space Bar to exit</div>';
+                }
+                updateHUD();
+            }
+        }
+        
+        // ==== SHOP HANDLERS ====
+        function handleShopBuy(index) {
+            let item, category;
+            if (index < 5) {
+                category = 'weapon';
+                item = shops.weapons[index];
+            } else {
+                category = 'potion';
+                item = shops.potions[index - 5];
+            }
+            
+            if (!item) return;
+            
+            if (player.gold < item.price) {
+                alert('Not enough gold!');
+                return;
+            }
+            
+            // Buy item
+            player.gold -= item.price;
+            const invItem = player.inventory.find(i => i.name === item.name);
+            if (invItem) {
+                invItem.count++;
+            } else {
+                player.inventory.push({ name: item.name, count: 1, equipped: false });
+            }
+            
+            alert(`Purchased ${item.name} for ${item.price} gold!`);
+            
+            // Refresh display
+            if (player.inSpecialRoom) {
+                specialRoomOverlay.innerHTML = generateShopContent() + 
+                    '<div style="margin-top: 30px; font-size: 0.9rem; color: #888;">Press Space Bar to exit</div>';
+            }
+            updateHUD();
+        }
+        
+        // ==== INN HANDLERS ====
+        function handleInnRest(choice) {
+            const roomTypes = ['Poor Room', 'Common Room', 'Private Room', 'Luxury Suite'];
+            const roomType = roomTypes[choice - 1];
+            const service = innServices[roomType];
+            
+            if (!service) return;
+            
+            if (player.gold < service.cost) {
+                alert('Not enough gold!');
+                return;
+            }
+            
+            // Pay and rest
+            player.gold -= service.cost;
+            const healAmount = Math.floor(player.baseStats.Stamina * service.healPercent);
+            player.hitpoints = Math.min(player.baseStats.Stamina, player.hitpoints + healAmount);
+            
+            let message = `You rest in the ${roomType}.\nRestored ${healAmount} HP!`;
+            
+            // Add bonus XP if applicable
+            if (service.bonusXP) {
+                player.experience += service.bonusXP;
+                message += `\n+${service.bonusXP} XP!`;
+                checkLevelUp();
+            }
+            
+            // Check for risks
+            if (Math.random() < service.riskAmbush) {
+                message += '\n\nYou were ambushed during the night!';
+                alert(message);
+                exitSpecialRoom();
+                startBattle();
+                return;
+            }
+            
+            if (Math.random() < service.riskTheft) {
+                const stolenGold = Math.min(player.gold, Math.floor(20 + Math.random() * 50));
+                player.gold -= stolenGold;
+                message += `\n\nA thief stole ${stolenGold} gold while you slept!`;
+            }
+            
+            if (Math.random() < service.riskDisease) {
+                message += '\n\nYou contracted a disease! (Temporary stat reduction)';
+                // Could implement disease mechanic here
+            }
+            
+            alert(message);
+            
+            // Refresh display
+            if (player.inSpecialRoom) {
+                specialRoomOverlay.innerHTML = generateInnContent() + 
+                    '<div style="margin-top: 30px; font-size: 0.9rem; color: #888;">Press Space Bar to exit</div>';
+            }
+            updateHUD();
+        }
+        
+        // ==== SMITH HANDLERS ====
+        function handleSmithService(choice) {
+            if (choice === 1) {
+                // Buy armor - simple implementation
+                const armorItem = shops.armor[Math.floor(Math.random() * shops.armor.length)];
+                if (player.gold >= armorItem.price) {
+                    player.gold -= armorItem.price;
+                    player.inventory.push({ name: armorItem.name, count: 1, equipped: false });
+                    alert(`Purchased ${armorItem.name} for ${armorItem.price} gold!`);
+                } else {
+                    alert('Not enough gold!');
+                }
+            } else if (choice === 2) {
+                // Repair - simple implementation
+                if (player.gold >= 30) {
+                    player.gold -= 30;
+                    alert('Equipment repaired! Durability restored.');
+                } else {
+                    alert('Not enough gold! (Need 30g)');
+                }
+            } else if (choice === 3) {
+                // Upgrade weapon
+                if (!player.primaryWeapon) {
+                    alert('No weapon equipped!');
+                    return;
+                }
+                if (player.gold >= 100) {
+                    player.gold -= 100;
+                    alert(`Upgraded ${player.primaryWeapon}! Attack increased.`);
+                } else {
+                    alert('Not enough gold! (Need 100g)');
+                }
+            } else if (choice === 4) {
+                // Forge special item
+                if (player.gold >= 200) {
+                    player.gold -= 200;
+                    alert('Forged a special item! Check your inventory.');
+                    player.inventory.push({ name: 'Forged Blade', count: 1, equipped: false });
+                } else {
+                    alert('Not enough gold! (Need 200g)');
+                }
+            }
+            
+            // Refresh display
+            if (player.inSpecialRoom) {
+                specialRoomOverlay.innerHTML = generateSmithContent() + 
+                    '<div style="margin-top: 30px; font-size: 0.9rem; color: #888;">Press Space Bar to exit</div>';
+            }
+            updateHUD();
         }
         
         function exitSpecialRoom() {
@@ -2090,8 +2743,24 @@ window.game = {
 
             const monster = player.currentMonster;
             
-            // Award EXP
+            // Award EXP and Gold
             player.experience += monster.exp;
+            player.gold += monster.gold;
+            player.monstersDefeated++;
+            
+            // Check if this was a boss
+            if (monster.isBoss) {
+                player.bossesDefeated++;
+                bossDefeated[currentLevel] = true;
+                
+                if (monster.finalBoss) {
+                    player.hasDefeatedFinalBoss = true;
+                    setTimeout(() => {
+                        alert('VICTORY! You have defeated The Dark One and completed the dungeon!\n\nThe curse is lifted. The realm is safe once more.\n\nYou have proven yourself a true hero!');
+                        showVictoryScreen();
+                    }, 1500);
+                }
+            }
             
             // Check for level up
             checkLevelUp();
@@ -2111,6 +2780,13 @@ window.game = {
                 });
             }
             
+            // Drop loot from bosses
+            if (monster.loot && monster.loot.length > 0) {
+                monster.loot.forEach(item => {
+                    player.groundItems[tileKey].push(item);
+                });
+            }
+            
             // Clean up
             player.inBattle = false;
             player.currentMonster = null;
@@ -2122,15 +2798,86 @@ window.game = {
             
             updateHUD();
         }
+        
+        function showVictoryScreen() {
+            const victoryOverlay = document.createElement('div');
+            victoryOverlay.style.cssText = 'position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(to bottom, rgba(0,50,0,0.9), rgba(50,100,0,0.9)); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; color: gold; font-family: monospace;';
+            victoryOverlay.innerHTML = `
+                <div style="font-size: 3rem; margin-bottom: 20px; text-shadow: 2px 2px 4px black;">VICTORY!</div>
+                <div style="font-size: 1.5rem; margin-bottom: 40px; color: white;">You have defeated The Dark One</div>
+                <div style="background: rgba(0,0,0,0.7); padding: 30px; border: 3px solid gold; max-width: 600px;">
+                    <div style="font-size: 1.2rem; margin-bottom: 15px;">Final Stats:</div>
+                    <div style="color: white; line-height: 1.8;">
+                        Level: ${player.level}<br>
+                        Monsters Defeated: ${player.monstersDefeated}<br>
+                        Bosses Defeated: ${player.bossesDefeated}<br>
+                        Gold Earned: ${player.gold}<br>
+                        Guild: ${player.currentGuild || 'None'} ${player.guildRank ? `(Rank ${player.guildRank})` : ''}<br>
+                    </div>
+                </div>
+                <div style="margin-top: 30px; font-size: 1rem; color: #aaa;">Press F5 to play again</div>
+            `;
+            container.appendChild(victoryOverlay);
+        }
 
         function loseGame() {
-             player.inBattle = false;
-             player.currentMonster = null;
-             player.battleLog = [];
-             // For now, just respawn or something. Let's just reset HP to 1 and move them?
-             // Simple "Game Over" reload for now
-             alert("You have died.");
-             location.reload();
+            player.inBattle = false;
+            player.currentMonster = null;
+            player.battleLog = [];
+            isPaused = true;
+            
+            // Show death screen
+            const deathOverlay = document.createElement('div');
+            deathOverlay.style.cssText = 'position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(100,0,0,0.9); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; color: white; font-family: monospace;';
+            
+            let html = '<div style="font-size: 3rem; margin-bottom: 20px; color: red; text-shadow: 2px 2px 4px black;">YOU DIED</div>';
+            html += '<div style="font-size: 1.2rem; margin-bottom: 40px;">The darkness claims another soul...</div>';
+            html += '<div style="background: rgba(0,0,0,0.7); padding: 30px; border: 2px solid red; max-width: 600px;">';
+            html += `<div style="font-size: 1rem; color: #ccc; line-height: 1.8;">
+                Level Reached: ${player.level}<br>
+                Deepest Floor: ${Math.max(player.dungeonDepth, currentLevel + 1)}<br>
+                Monsters Defeated: ${player.monstersDefeated}<br>
+                Gold Earned: ${player.gold}<br>
+                ${player.currentGuild ? `Guild: ${player.currentGuild} (Rank ${player.guildRank})` : 'No Guild'}
+            </div>`;
+            html += '</div>';
+            
+            // Check if player can resurrect (if in Clerics guild at max rank)
+            if (player.currentGuild === 'Clerics' && player.guildRank === 5 && player.gold >= 500) {
+                html += '<div style="margin-top: 30px; background: rgba(0,100,100,0.7); padding: 20px; border: 2px solid cyan;">';
+                html += '<div style="color: cyan; font-size: 1.2rem; margin-bottom: 10px;">DIVINE INTERVENTION</div>';
+                html += '<div style="color: white;">Your faith grants you a second chance!</div>';
+                html += '<div style="margin-top: 10px;">Press <span style="color: lime; font-weight: bold;">R</span> to Resurrect (500 gold)</div>';
+                html += '<div style="margin-top: 5px; color: #888;">Press any other key to accept death</div>';
+                html += '</div>';
+                
+                deathOverlay.innerHTML = html;
+                container.appendChild(deathOverlay);
+                
+                // Add resurrection handler
+                const resurrectHandler = (e) => {
+                    if (e.code === 'KeyR') {
+                        player.gold -= 500;
+                        player.hitpoints = Math.floor(player.baseStats.Stamina * 0.5);
+                        container.removeChild(deathOverlay);
+                        isPaused = false;
+                        document.removeEventListener('keydown', resurrectHandler);
+                        updateHUD();
+                        alert('You have been resurrected by divine power!');
+                    } else {
+                        document.removeEventListener('keydown', resurrectHandler);
+                        location.reload();
+                    }
+                };
+                document.addEventListener('keydown', resurrectHandler);
+            } else {
+                html += '<div style="margin-top: 30px; font-size: 1rem; color: #888;">Press any key to return to the beginning...</div>';
+                deathOverlay.innerHTML = html;
+                container.appendChild(deathOverlay);
+                
+                // Reload on any key
+                document.addEventListener('keydown', () => location.reload(), { once: true });
+            }
         }
 
         // Helper: Get simple stats for an item name (since we don't have full item DB in JS)
@@ -2360,10 +3107,10 @@ window.game = {
         }
 
         // Start a battle encounter
-        function startBattle() {
+        function startBattle(forcedMonster = null) {
             if (player.inBattle || isPaused) return;
             
-            const monster = getRandomMonster(player.level);
+            const monster = forcedMonster || getRandomMonster(player.level);
             player.currentMonster = monster;
             player.inBattle = true;
             player.battleLog = []; // Reset log
@@ -2379,17 +3126,57 @@ window.game = {
             
             updateHUD();
         }
+        
+        // Check for boss encounter on floor
+        function checkBossEncounter() {
+            if (bossDefeated[currentLevel]) return false; // Boss already defeated
+            
+            // Find boss for this floor
+            const boss = bossMonsters.find(b => b.floor === currentLevel);
+            if (!boss) return false;
+            
+            // 5% chance per second to encounter boss if not yet defeated
+            if (Math.random() < 0.05) {
+                // Create boss monster
+                const bossMonster = {
+                    name: boss.name,
+                    level: boss.level,
+                    hitpoints: boss.hitpoints,
+                    attack: boss.attack,
+                    defense: boss.defense,
+                    exp: boss.exp,
+                    gold: boss.gold,
+                    abilities: boss.abilities,
+                    loot: boss.loot,
+                    equipment: [],
+                    isBoss: true,
+                    finalBoss: boss.finalBoss || false
+                };
+                
+                startBattle(bossMonster);
+                return true;
+            }
+            return false;
+        }
 
-        // Game timer for temporary effects (1 game minute = 1 real second)
+        // Game timer for temporary effects and encounters
         let gameTime = 0;
         setInterval(() => {
             gameTime++;
             
-            // Check for random monster encounter (DISABLED)
-            // Don't trigger encounters when any interaction menu is open
-            // MONSTER ENCOUNTERS DISABLED FOR DEBUGGING
-            if (false && !player.inBattle && !isPaused && !isInteractionMenuOpen() && Math.random() < 0.10) {
-                startBattle();
+            // Random encounters (re-enabled with balance)
+            if (!player.inBattle && !isPaused && !isInteractionMenuOpen()) {
+                // Check for boss encounter first (5% chance)
+                if (!checkBossEncounter()) {
+                    // Regular monster encounter
+                    // Base 8% per second, reduced by Speed stat
+                    const encounterChance = 0.08 - (player.stats.Speed * 0.001);
+                    const finalChance = Math.max(0.02, encounterChance); // Min 2%, max ~8%
+                    
+                    if (Math.random() < finalChance) {
+                        startBattle();
+                    }
+                }
             }
             
             // Update temporary potion effects
@@ -2548,6 +3335,53 @@ window.game = {
             if (e.code === 'Space' && player.inSpecialRoom) {
                 exitSpecialRoom();
                 return;
+            }
+            
+            // Handle special room interactions
+            if (player.inSpecialRoom && player.currentSpecialRoom) {
+                const entrance = player.currentSpecialRoom.entrance;
+                
+                // Guild interactions
+                if (entrance === 'N') {
+                    if (e.code === 'Digit1' || e.code === 'Numpad1') handleGuildChoice(1);
+                    if (e.code === 'Digit2' || e.code === 'Numpad2') handleGuildChoice(2);
+                    if (e.code === 'Digit3' || e.code === 'Numpad3') handleGuildChoice(3);
+                    if (e.code === 'Digit4' || e.code === 'Numpad4') handleGuildChoice(4);
+                    if (e.code === 'Digit5' || e.code === 'Numpad5') handleGuildChoice(5);
+                    if (e.code === 'KeyU') handleGuildRankUp();
+                    if (e.code === 'KeyL') handleGuildLeave();
+                }
+                
+                // Shop interactions
+                if (entrance === 'E') {
+                    if (e.code === 'Digit1' || e.code === 'Numpad1') handleShopBuy(0);
+                    if (e.code === 'Digit2' || e.code === 'Numpad2') handleShopBuy(1);
+                    if (e.code === 'Digit3' || e.code === 'Numpad3') handleShopBuy(2);
+                    if (e.code === 'Digit4' || e.code === 'Numpad4') handleShopBuy(3);
+                    if (e.code === 'Digit5' || e.code === 'Numpad5') handleShopBuy(4);
+                    if (e.code === 'Digit6' || e.code === 'Numpad6') handleShopBuy(5);
+                    if (e.code === 'Digit7' || e.code === 'Numpad7') handleShopBuy(6);
+                    if (e.code === 'Digit8' || e.code === 'Numpad8') handleShopBuy(7);
+                    if (e.code === 'Digit9' || e.code === 'Numpad9') handleShopBuy(8);
+                }
+                
+                // Inn interactions
+                if (entrance === 'S') {
+                    if (e.code === 'Digit1' || e.code === 'Numpad1') handleInnRest(1);
+                    if (e.code === 'Digit2' || e.code === 'Numpad2') handleInnRest(2);
+                    if (e.code === 'Digit3' || e.code === 'Numpad3') handleInnRest(3);
+                    if (e.code === 'Digit4' || e.code === 'Numpad4') handleInnRest(4);
+                }
+                
+                // Smith interactions
+                if (entrance === 'W') {
+                    if (e.code === 'Digit1' || e.code === 'Numpad1') handleSmithService(1);
+                    if (e.code === 'Digit2' || e.code === 'Numpad2') handleSmithService(2);
+                    if (e.code === 'Digit3' || e.code === 'Numpad3') handleSmithService(3);
+                    if (e.code === 'Digit4' || e.code === 'Numpad4') handleSmithService(4);
+                }
+                
+                return; // Don't process other keys in special rooms
             }
 
             // Block movement/turning when interaction menu is open
@@ -3002,6 +3836,7 @@ window.game = {
             level: player.level,
             hitpoints: player.hitpoints,
             experience: player.experience,
+            gold: player.gold,
             stats: player.stats,
             baseStats: player.baseStats,  // Include base stats for proper save/load
             primaryWeapon: player.primaryWeapon,
@@ -3016,7 +3851,17 @@ window.game = {
             getItemIndex: player.getItemIndex,
             showUseMode: player.showUseMode,
             useItemIndex: player.useItemIndex,
-            dungeonLevel: this._getCurrentLevel ? this._getCurrentLevel() : 0
+            dungeonLevel: this._getCurrentLevel ? this._getCurrentLevel() : 0,
+            // Guild system
+            currentGuild: player.currentGuild,
+            guildReputation: player.guildReputation,
+            guildRank: player.guildRank,
+            completedQuests: player.completedQuests,
+            // Game progression
+            dungeonDepth: Math.max(player.dungeonDepth, this._getCurrentLevel ? this._getCurrentLevel() : 0),
+            hasDefeatedFinalBoss: player.hasDefeatedFinalBoss,
+            monstersDefeated: player.monstersDefeated,
+            bossesDefeated: player.bossesDefeated
         });
     }
 };

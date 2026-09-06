@@ -199,3 +199,40 @@
 2026-05-24 21:51:39.757: [INFO] OnDoneLoading sync enabled: 0
 2026-05-24 22:05:09.134: [INFO] OnDoneLoading sync enabled: 0
 2026-05-24 23:28:14.483: [INFO] OnDoneLoading sync enabled: 0
+2026-05-24 23:58:03.323: [INFO] OnDoneLoading sync enabled: 0
+2026-05-25 00:38:40.355: [INFO] OnDoneLoading sync enabled: 0
+2026-05-25 00:46:29.916: [INFO] OnDoneLoading sync enabled: 0
+2026-05-25 00:51:10.923: [INFO] OnDoneLoading sync enabled: 0
+2026-05-25 02:03:22.193: [INFO] OnDoneLoading sync enabled: 0
+2026-05-29 03:46:07.571: [INFO] OnDoneLoading sync enabled: 0
+2026-05-30 03:14:13.947: [INFO] OnDoneLoading sync enabled: 0
+2026-09-06 14:48:47.009: [INFO] CurrentProfilePath: E:\cloned repos\AlternateRealityDungeon\bin\Debug\net10.0-windows10.0.19041.0\win-x64\AlternateRealityDungeon.exe.WebView2\EBWebView\Default
+2026-09-06 14:48:47.009: [INFO] Profiles total count: 1
+2026-09-06 14:48:47.009: [INFO] Profile: name=Profile 1 path=E:\cloned repos\AlternateRealityDungeon\bin\Debug\net10.0-windows10.0.19041.0\win-x64\AlternateRealityDungeon.exe.WebView2\EBWebView\Default lastActive=2026-05-30T03:14:14.156Z
+2026-09-06 14:48:47.009: [INFO] LastUsedProfileDir: E:\cloned repos\AlternateRealityDungeon\bin\Debug\net10.0-windows10.0.19041.0\win-x64\AlternateRealityDungeon.exe.WebView2\EBWebView\Default
+2026-09-06 14:48:47.009: [INFO] MostRecentlyActiveProfile: name=Profile 1 path=E:\cloned repos\AlternateRealityDungeon\bin\Debug\net10.0-windows10.0.19041.0\win-x64\AlternateRealityDungeon.exe.WebView2\EBWebView\Default lastActive=2026-05-30T03:14:14.156Z
+2026-09-06 14:48:47.009: [INFO] OnDoneLoading sync enabled: 0
+2026-09-06 14:48:47.009: [INFO] BookmarkModelLoaded, ids_reassigned: 0
+2026-09-06 14:48:47.010: [INFO] BookmarksLoadDropped droppedNodes=0
+2026-09-06 14:48:47.010: [INFO] BookmarksSnapshot Startup total=0 bar=0 other=0 mobile=0 showBar=0 showBarNTP=1
+2026-09-06 14:54:42.989: [INFO] BookmarksSnapshot Shutdown total=0 bar=0 other=0 mobile=0 showBar=0 showBarNTP=1
+2026-09-06 14:55:03.293: [INFO] CurrentProfilePath: E:\cloned repos\AlternateRealityDungeon\bin\Debug\net10.0-windows10.0.19041.0\win-x64\AlternateRealityDungeon.exe.WebView2\EBWebView\Default
+2026-09-06 14:55:03.293: [INFO] Profiles total count: 1
+2026-09-06 14:55:03.293: [INFO] Profile: name=Profile 1 path=E:\cloned repos\AlternateRealityDungeon\bin\Debug\net10.0-windows10.0.19041.0\win-x64\AlternateRealityDungeon.exe.WebView2\EBWebView\Default lastActive=2026-09-06T14:53:24.796Z
+2026-09-06 14:55:03.293: [INFO] LastUsedProfileDir: E:\cloned repos\AlternateRealityDungeon\bin\Debug\net10.0-windows10.0.19041.0\win-x64\AlternateRealityDungeon.exe.WebView2\EBWebView\Default
+2026-09-06 14:55:03.293: [INFO] MostRecentlyActiveProfile: name=Profile 1 path=E:\cloned repos\AlternateRealityDungeon\bin\Debug\net10.0-windows10.0.19041.0\win-x64\AlternateRealityDungeon.exe.WebView2\EBWebView\Default lastActive=2026-09-06T14:53:24.796Z
+2026-09-06 14:55:03.293: [INFO] OnDoneLoading sync enabled: 0
+2026-09-06 14:55:03.293: [INFO] BookmarkModelLoaded, ids_reassigned: 0
+2026-09-06 14:55:03.293: [INFO] BookmarksLoadDropped droppedNodes=0
+2026-09-06 14:55:03.293: [INFO] BookmarksSnapshot Startup total=0 bar=0 other=0 mobile=0 showBar=0 showBarNTP=1
+2026-09-06 14:58:35.639: [INFO] BookmarksSnapshot Shutdown total=0 bar=0 other=0 mobile=0 showBar=0 showBarNTP=1
+2026-09-06 15:26:23.417: [INFO] CurrentProfilePath: E:\cloned repos\AlternateRealityDungeon\bin\Debug\net10.0-windows10.0.19041.0\win-x64\AlternateRealityDungeon.exe.WebView2\EBWebView\Default
+2026-09-06 15:26:23.417: [INFO] Profiles total count: 1
+2026-09-06 15:26:23.417: [INFO] Profile: name=Profile 1 path=E:\cloned repos\AlternateRealityDungeon\bin\Debug\net10.0-windows10.0.19041.0\win-x64\AlternateRealityDungeon.exe.WebView2\EBWebView\Default lastActive=2026-09-06T14:55:03.412Z
+2026-09-06 15:26:23.417: [INFO] LastUsedProfileDir: E:\cloned repos\AlternateRealityDungeon\bin\Debug\net10.0-windows10.0.19041.0\win-x64\AlternateRealityDungeon.exe.WebView2\EBWebView\Default
+2026-09-06 15:26:23.417: [INFO] MostRecentlyActiveProfile: name=Profile 1 path=E:\cloned repos\AlternateRealityDungeon\bin\Debug\net10.0-windows10.0.19041.0\win-x64\AlternateRealityDungeon.exe.WebView2\EBWebView\Default lastActive=2026-09-06T14:55:03.412Z
+2026-09-06 15:26:23.417: [INFO] OnDoneLoading sync enabled: 0
+2026-09-06 15:26:23.417: [INFO] BookmarkModelLoaded, ids_reassigned: 0
+2026-09-06 15:26:23.417: [INFO] BookmarksLoadDropped droppedNodes=0
+2026-09-06 15:26:23.417: [INFO] BookmarksSnapshot Startup total=0 bar=0 other=0 mobile=0 showBar=0 showBarNTP=1
+2026-09-06 15:28:24.816: [INFO] BookmarksSnapshot Shutdown total=0 bar=0 other=0 mobile=0 showBar=0 showBarNTP=1

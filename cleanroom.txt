@@ -1,0 +1,986 @@
+===============================================================================
+ALTERNATE REALITY DUNGEON — CLEANROOM REWRITE SPECIFICATION
+===============================================================================
+
+PURPOSE OF THIS DOCUMENT
+------------------------
+This is a complete, implementation-agnostic specification of the "Alternate
+Reality Dungeon" application. A developer who has never seen the original
+source should be able to rebuild it in any language/framework and achieve:
+  - 100% of the functionality described here, and
+  - >=90% of the visual appearance (exact colors, layout ratios, and fonts
+    are provided).
+
+The original is a .NET MAUI Blazor Hybrid desktop/mobile app whose game view
+is rendered with Three.js (WebGL) inside an embedded web view. You may
+replace this stack with any equivalent (e.g., Electron + React + Three.js,
+a native engine like Unity/Godot, a pure web app, etc.). What matters is the
+behavior and appearance described below, NOT the specific frameworks.
+
+EXCLUSIONS (intentionally omitted, per request):
+  - Logging/telemetry subsystems (the original wrote diagnostic logs; ignore).
+  - Automated tests.
+  - Saved database contents / user save files.
+  - The actual catalog DATA (exact names + per-item numbers) for weapons,
+    monsters, clothing, armor, and potions. Their SCHEMAS, CATEGORIES, and
+    the GAME RULES that consume them ARE fully specified so you can drop in
+    your own catalogs.
+
+===============================================================================
+1. HIGH-LEVEL OVERVIEW
+===============================================================================
+Alternate Reality Dungeon is a first-person, grid-based 3D dungeon crawler
+RPG with:
+  - A character creation screen (roll 7 stats).
+  - A 4-level dungeon explored in first person (WASD + turn-in-place).
+  - Edge-based walls and doors (walls/doors live on the BOUNDARY between
+    tiles, not on tiles themselves).
+  - An inventory/equipment/potion system.
+  - A turn-based combat system vs. randomly generated monsters.
+  - Stairs to move between dungeon levels.
+  - "Special rooms" (e.g., guilds) entered from a specific side.
+  - A 10-slot save/load system.
+  - A separate visual MAP EDITOR for authoring the dungeon, with its own
+    save slots and a "default map" used by new games.
+
+The app persists two kinds of data as JSON files on disk:
+  (a) Map data authored in the editor (the dungeon layout).
+  (b) Player save games (character + position + embedded map snapshot).
+
+===============================================================================
+2. APPLICATION STRUCTURE & NAVIGATION
+===============================================================================
+The app is a single window hosting a router with these routes/screens:
+
+  "/"             Main Menu
+  "/new-player"   New Player (character creation)
+  "/load-player"  Load Player (choose a save slot)
+  "/game"         Game (the 3D dungeon + HUD)
+  "/map-editor"   Map Editor
+  (fallback)      Not Found page
+
+Navigation flow:
+  Main Menu --[New Player]--> New Player --[Select]--> Game
+  Main Menu --[Load Player]--> Load Player --[pick slot]--> Game
+  Main Menu --[Map Editor]--> Map Editor --[Back to Menu]--> Main Menu
+  Game --[Q -> pick slot]--> saves, then returns to Main Menu
+
+Global app state (a single shared singleton/service) carries data between
+screens. It holds:
+  - Stats          : the freshly rolled PlayerStats for a NEW game.
+  - LastCameraState: camera position/orientation to restore on load.
+  - LoadedGameState: a full GameState restored from a save.
+  - CurrentMapData : the map (levels + edge walls/doors) to load into the game.
+  Plus setters/clearers for each. The Game screen reads these once on entry
+  and then clears them.
+
+Dependency-injected services (singletons):
+  - PlayerState (the shared state above)
+  - SaveGameService (player save slots)
+  - MapStorageService (map editor data + default map)
+
+===============================================================================
+3. CORE DATA MODELS
+===============================================================================
+PlayerStats (7 attributes; integers):
+  Name (string, default "Adventurer")
+  Stamina, Charisma, Strength, Intelligence, Wisdom, Skill, Speed
+
+CameraState:
+  X, Y, Z (doubles) — world position; Yaw (double, radians) — facing.
+
+InventoryItem:
+  Name (string), Count (int), Equipped (bool)
+
+GameState (the savable character state):
+  Name (string, default "Adventurer")
+  Level (int, START AT 0; first level-up makes it 1)
+  Hitpoints (int)
+  Experience (int)
+  Stats (PlayerStats)          — current effective stats (with bonuses)
+  BaseStats (PlayerStats)      — stats before equipment/potion bonuses
+  PrimaryWeapon (string|null)  — used for attack
+  SecondaryWeapon (string|null)— used for defense only
+  EquippedClothing: map of bodyPart -> itemName|null, with keys:
+       "Head","Hands","Arms","Body","Legs","Feet"
+  GroundItems: map of "tx,ty" tileKey -> list of item-name strings
+  Inventory: list of InventoryItem
+  ShowInventory, ShowLoseMode, ShowGetMode (bool), GetItemIndex (int)
+  ShowUseMode (bool), UseItemIndex (int)
+  (Runtime also tracks temporaryEffects and dungeonLevel — see save format.)
+
+LoadedMapData / MapData (the dungeon):
+  Id (string/guid), Name (string)
+  Width=65, Height=65, NumLevels=4 (defaults; engine is parameterized)
+  PlayerStartX=32, PlayerStartY=32
+  Levels:  int[level][y][x]   — per-tile type codes (see Tile Codes)
+  HWalls:  bool[level][y][x]  — horizontal wall on the TOP edge of cell (x,y)
+                                array height is (Height+1) rows
+  VWalls:  bool[level][y][x]  — vertical wall on the LEFT edge of cell (x,y)
+                                array width is (Width+1) columns
+  HDoors:  int[level][y][x]   — door on a horizontal edge (same indexing as HWalls)
+  VDoors:  int[level][y][x]   — door on a vertical edge (same indexing as VWalls)
+
+  Door values: 0=none, 1=normal, 2=hidden, 3=one-way positive (S/E passable),
+               4=one-way negative (N/W passable).
+
+  INVARIANT: a wall and a door never coexist on the same edge. A door always
+  wins; when a door is present the wall flag on that edge must be false. This
+  is enforced on save, load, import, and editor edits ("normalize" pass).
+
+Tile Codes (values stored in Levels[][][]):
+  0 = Floor
+  1 = Wall (legacy tile-based wall; only used when NOT using edge walls)
+  2 = Stairs Down
+  3 = Stairs Up
+  4 = Player Start (editor marker; treated as floor in-game)
+  5 = Special Room, entrance from North
+  6 = Special Room, entrance from East
+  7 = Special Room, entrance from South
+  8 = Special Room, entrance from West
+  (10=Wall, 11=Erase, 12=Door are EDITOR TOOL ids, not stored tile values.)
+
+===============================================================================
+4. SCREENS — EXACT UI & BEHAVIOR
+===============================================================================
+GENERAL APPEARANCE
+  - Default (menus) use the host's default font and a light background.
+  - The Game and Map Editor use a dark theme and monospace font.
+  - Accent color is gold (#FFD700 / the CSS name "gold") for headings/labels.
+
+GLOBAL CSS (applied to root/body/#app):
+  html, body, #app { overflow: hidden; margin:0; padding:0; height:100%;
+                     width:100%; }
+  Headings focus outline removed. Standard form validation styles exist
+  (valid = green outline #26b050, invalid = red outline #e50000). A hidden
+  "error UI" bar (light yellow) shows on unhandled errors.
+
+-------------------------------------------------------------------------------
+4.1 MAIN MENU  (route "/")
+-------------------------------------------------------------------------------
+  - <h1> "Alternate Reality Dungeon"
+  - A vertical column (max-width 300px, gap 1rem) of 3 buttons:
+      "New Player"   -> navigate /new-player
+      "Load Player"  -> navigate /load-player
+      "Map Editor"   -> navigate /map-editor  (green: background #2a5a2a,
+                        margin-top 1rem)
+
+-------------------------------------------------------------------------------
+4.2 NEW PLAYER  (route "/new-player")
+-------------------------------------------------------------------------------
+  - <h1> "New Player"
+  - "Back" button -> navigate "/".
+  - Player Name text input (label "Player Name:", placeholder "Enter your
+    name", width 200px), two-way bound, default "Adventurer".
+  - A table with header row (Stat | Value) and 7 rows, one per stat in this
+    order: Stamina, Charisma, Strength, Intelligence, Wisdom, Skill, Speed.
+    Each value is a numeric input (min 1, max 99, width 60px) bound to the
+    corresponding stat.
+  - Two buttons: "Respin" and "Select".
+  - On screen init and on "Respin": roll all 7 stats. Roll formula:
+      value = randomInt(5..21)  (inclusive 5 to 21; original used Random.Next(5,22))
+  - "Select": set Name (trimmed; default "Adventurer" if blank), store the
+    PlayerStats into shared state, navigate "/game".
+
+-------------------------------------------------------------------------------
+4.3 LOAD PLAYER  (route "/load-player")
+-------------------------------------------------------------------------------
+  - <h1> "Load Player"; "Back" button -> "/".
+  - While loading slot info: show "Loading...".
+  - Otherwise a vertical list (max-width 320px) of 10 buttons, one per slot:
+      If slot has a save: label = "Slot {n} - Saved {localDateTime:g}",
+        button enabled.
+      Else: label = "Slot {n} - Empty", button disabled.
+  - Clicking an occupied slot loads it:
+      * Read the save (see Save Format).
+      * Put the GameState into shared LoadedGameState.
+      * If save has a CameraState, store it; else clear it.
+      * Build the map to load:
+          - If the save embeds map levels (MapLevels present & non-empty),
+            convert its flat [level*height + y][x] 2D array into 3D
+            [level][y][x] and use it (Width=65,Height=65,NumLevels=4,
+            PlayerStart from save). (Embedded saves carry tile levels only,
+            not edge walls/doors.)
+          - Else if save has a MapId, look that map up in MapStorageService
+            and use its full data (levels + edge walls/doors).
+      * Store as CurrentMapData, then navigate "/game" (forced reload).
+
+-------------------------------------------------------------------------------
+4.4 GAME  (route "/game")
+-------------------------------------------------------------------------------
+LAYOUT (full window, dark):
+  A vertical fl*ex column, 100% x 100%, overflow hidden:
+    TOP 75%: #game-container (position relative, black background). Hosts the
+      3D canvas (Three.js WebGL renderer fills it). Children overlays:
+        - #stats-overlay: top-left, white text on rgba(0,0,0,0.5), 10px
+          padding, monospace, pointer-events none, z-index 10. (Contents below.)
+        - #hit-flash: full-cover, 10px solid red border, box-sizing border-box,
+          opacity 0 normally, transitions opacity 0.1s, z-index 20. Flashes
+          to opacity 0.8 for 100ms when the player is blocked/hit.
+        - #pause-overlay: full-cover, rgba(0,0,0,0.7), white, centered, font
+          2rem, hidden by default, z-index 30, text "Paused".
+        - (created at runtime) #monster-overlay: full-cover rgba(0,0,0,0.85),
+          centered column, z-index 35 — the battle screen.
+        - (created at runtime) #special-room-overlay: full-cover solid black,
+          centered column, z-index 36 — the special room screen.
+    BOTTOM 25%: #navigation-panel: background #222, top border 2px #444,
+      white monospace, a horizontal flex of FOUR equal quarters (each flex:1,
+      10px padding, divided by 1px #444 right borders):
+        Q1 #nav-area-desc (overflow-y auto, font 0.9rem):
+            - #level-text (gold, bold): "You are on Dungeon Level {L} of {N}."
+            - #area-text: context line (see HUD).
+            - #ground-items (color #aaa): ground description (see HUD).
+        Q2 #nav-compass-time (centered column):
+            - #compass-container: 80x80px, 2px gold border, border-radius 50%,
+              background #111. Inside, #compass-dial (absolute, full size,
+              transition transform 0.1s linear) holds 4 letters positioned at
+              the cardinal points: N (top, color #f66, bold), S (bottom #ccc),
+              E (right #ccc), W (left #ccc). A FIXED gold triangle sits just
+              above the circle pointing down (the "you are facing" indicator):
+              made with border-left/right 6px transparent + border-bottom 8px
+              gold, z-index 10.
+            - #time-display (color #aaa, font 0.9rem).
+        Q3 #nav-inventory (overflow-y auto, flex column): default shows three
+            counts centered: "Food: <n>", "Torches: <n>", "Flasks: <n>".
+            This panel is REPLACED by various modal views (battle options,
+            get/lose/use/equip menus) — see Inventory & Combat.
+        Q4 #nav-char-name (centered, font 1.2rem, bold, gold): the character
+            name.
+
+SAVE OVERLAY (rendered above everything when saving):
+  A fixed full-screen rgba(0,0,0,0.8) backdrop, centered dark (#222) dialog
+  (min-width 320px) titled "Select save slot", listing 10 buttons:
+    "Slot {n} - Saved {localDateTime:g}" or "Slot {n} - Empty",
+  plus a "Cancel" button (background #444). Choosing a slot saves and returns
+  to Main Menu. Cancel closes and resets the save-pending flag.
+
+GAME INITIALIZATION (on first render of the Game screen):
+  Build an init payload from shared state and pass to the 3D engine:
+    - gameState arg:
+        * If a LoadedGameState exists: pass the full state (name, level,
+          hitpoints, experience, stats, groundItems, inventory[], and the
+          show* flags).
+        * Else if fresh Stats exist (new game): pass name, level=1,
+          hitpoints=Stamina, experience=0, the 7 stats, empty groundItems,
+          and a STARTER INVENTORY:
+              Compass x1 (equipped), Timepiece x1 (equipped),
+              Food x0, Torches x0, Flasks x0
+          and all show* flags false.
+    - camera arg: the LastCameraState if present (X,Y,Z,Yaw), else null.
+    - map arg: CurrentMapData if present (a loaded game's map), otherwise the
+      MapStorageService default map. The arg includes width,height,numLevels,
+      playerStartX/Y, levels, hWalls, vWalls, hDoors, vDoors. If no default
+      map exists, pass null (engine generates procedurally).
+  Then call the engine init with (containerId, gameState, hostCallbackRef,
+  camera, map).
+
+SAVING (engine -> host):
+  When the player presses Q, the engine calls back the host with the current
+  CameraState. The host shows the save-slot overlay. On slot choice, the host
+  asks the engine for the full game-state JSON (getGameState), deserializes it
+  into GameState, and writes it to the chosen slot via SaveGameService along
+  with the current map id, the current map levels, and player start. Then it
+  navigates to Main Menu.
+
+===============================================================================
+5. THE 3D GAME ENGINE (the heart of the app)
+===============================================================================
+The engine renders a first-person view of one dungeon level at a time and
+handles all movement, collision, HUD, inventory, combat, stairs, and special
+rooms. Below is the full behavioral spec. Coordinates use a right-handed 3D
+system (Three.js convention): +Y up, camera looks down -Z at yaw 0.
+
+5.1 CONSTANTS & COORDINATE SYSTEM
+  MAP_WIDTH=65, MAP_HEIGHT=65 (from map data; default 65), NUM_LEVELS=4.
+  TILE_SIZE = 4 world units per tile.
+  wallHeight = 3. WALL_THICKNESS (edge walls/doors) = 0.3.
+  Camera: perspective, FOV 90, near 0.1, far 1000, eye height 1.6.
+  Scene background black; fog black from 5 to 80 units.
+  Lighting: ambient light 0x404040 + a directional light 0xffffff intensity
+  0.8 positioned at (10,20,10).
+  A floor plane (MAP_WIDTH*TILE_SIZE by MAP_HEIGHT*TILE_SIZE) lies at y=0,
+  rotated flat, colored #444444.
+
+  Tile <-> world mapping:
+    worldX(center of tile tx) = (tx - MAP_WIDTH/2)*TILE_SIZE + TILE_SIZE/2
+    worldZ(center of tile ty) = (ty - MAP_HEIGHT/2)*TILE_SIZE + TILE_SIZE/2
+    worldToTile(x,z): tx=floor(x/TILE_SIZE + MAP_WIDTH/2),
+                      ty=floor(z/TILE_SIZE + MAP_HEIGHT/2)
+    The TOP edge of cell (x,y) is at worldZ = (y - H/2)*TILE_SIZE.
+    The LEFT edge of cell (x,y) is at worldX = (x - W/2)*TILE_SIZE.
+
+5.2 MAP REPRESENTATION IN ENGINE
+  dungeonLevels[level][y][x] = tile code.
+  hWalls[level][y][x], vWalls[level][y][x] = booleans (edge walls).
+  hDoors[level][y][x], vDoors[level][y][x] = ints (edge doors).
+  Perimeter is always walled: hWalls true at y==0 and y==MAP_HEIGHT;
+  vWalls true at x==0 and x==MAP_WIDTH.
+
+  useEdgeWalls is TRUE when the provided map has non-empty hWalls & vWalls.
+  In edge-wall mode every tile is "floor-walkable" and walls/doors are edges.
+  (Legacy tile-wall mode exists only if no edge data is supplied.)
+
+  On load, copy provided arrays into the engine arrays (bounded by sizes),
+  track stair positions, then run normalizeWallDoorExclusivity (clear any wall
+  flag where a door exists).
+
+5.3 RENDERING (per level; rebuilt on level change)
+  buildLevel(level): dispose previous meshes, then:
+    - For each tile: if STAIRS_DOWN add a down-stair; if STAIRS_UP add an
+      up-stair; if a SPECIAL_ROOM_* add a special-room block; (only if NOT
+      edge-walls: WALL tiles add a solid wall box).
+    - If edge-walls: for every horizontal edge with a wall (and no door) add a
+      horizontal edge wall; for every horizontal edge with a door>0 add a
+      horizontal arched door. Same for vertical edges.
+
+  Wall texture: a 256x256 procedurally drawn canvas — fill #d2b48c (tan), then
+  vertical lines every 32px in #c9a57a (lineWidth 2), then horizontal lines
+  every 32px in #b88f63 — used as a repeating texture. Wall material is
+  MeshStandard, map=texture, color 0xD2B48C, roughness 0.85, metalness 0.05,
+  double-sided.
+
+  Solid wall tile (legacy mode): a TILE_SIZE x wallHeight x TILE_SIZE box at
+  tile center, plus a red (0xFF6666) wireframe edge overlay.
+
+  Edge walls: gold/dark-yellow material 0xB8860B, roughness 0.7, metalness 0.1,
+  double-sided.
+    - Horizontal edge wall geometry: box (TILE_SIZE, wallHeight, WALL_THICKNESS)
+      centered on the top edge of cell (tx,ty), y = wallHeight/2.
+    - Vertical edge wall geometry: box (WALL_THICKNESS, wallHeight, TILE_SIZE)
+      centered on the left edge of cell (tx,ty).
+
+  DOORS (rendered as an ARCHED OPENING so they are visually distinct from solid
+  walls — never render a wall on an edge that has a door):
+    openingWidth = TILE_SIZE*0.62; jambWidth = (TILE_SIZE-openingWidth)/2;
+    frameHeight = wallHeight*0.72; archRadius = openingWidth/2;
+    thickness = WALL_THICKNESS; tubeRadius = 0.16.
+    Build: two vertical jamb posts (frame material, dark wood 0x4a2810,
+    roughness 0.6, metalness 0.2) on either side of the opening; a half-torus
+    arch on top (TorusGeometry radius=archRadius, tube=0.16, arc=PI) rotated to
+    stand vertically across the edge; a small keystone box at the top center.
+    Material per door type:
+      - normal(1): arch material wood-brown 0x6b4423; plus a thin door PANEL
+        in the opening, magenta 0x8B008B (roughness 0.3, metalness 0.1),
+        sized ~openingWidth*0.78 wide x frameHeight*0.82 tall.
+      - hidden(2): arch material wall-gold 0xB8860B (blends with walls; no panel,
+        no accent — looks like a subtle wall arch).
+      - one-way positive S/E (3): arch wood-brown + a glowing green accent bar
+        (0x32CD32, emissive 0x103010) near the base, no door panel.
+      - one-way negative N/W (4): same but yellow-green accent (0xADFF2F,
+        emissive 0x203010).
+    Orientation: for a horizontal edge, the door spans along X (axis 'x'); for
+    a vertical edge, it spans along Z (axis 'z', arch rotated 90 deg in Y).
+    Placement uses the same edge anchor as edge walls (top edge / left edge).
+
+  STAIRS: a flat box (TILE_SIZE*0.8, 0.3, TILE_SIZE*0.8) at the tile center,
+  y=0.15. Down stairs = dark red 0x8B0000; up stairs = dark green 0x006400.
+  Plus a 4-sided cone "arrow" (ConeGeometry radius 0.5, height 1) above it,
+  pointing DOWN for down-stairs (y=0.5, rotated PI on X) or UP for up-stairs
+  (y=1.5).
+
+  SPECIAL ROOM: a solid wall box at the tile (same wall material/size as a
+  tile wall), PLUS a normal arched door on the side matching its entrance
+  direction (N -> top edge of the cell, S -> bottom edge (ty+1), E -> right
+  edge (tx+1), W -> left edge). This is the only visible entrance.
+
+5.4 MOVEMENT, TURNING, & PHYSICS (grid-locked first person)
+  Controls:
+    W / ArrowUp     : move forward (along facing)
+    S / ArrowDown   : move backward
+    A / ArrowLeft   : turn left  90 degrees (yaw += PI/2)
+    D / ArrowRight  : turn right 90 degrees (yaw -= PI/2)
+    Z (held)        : crouch (eye height -> 0.8 instead of 1.6)
+    Left Shift      : jump (only when grounded and not crouching)
+    P               : toggle pause overlay
+    Enter / NumpadEnter : use stairs on the current tile (down if STAIRS_DOWN
+                          and not on last level; up if STAIRS_UP and not on
+                          first level)
+    I               : toggle full inventory view
+    U               : toggle "Use item" mode (if any usable items)
+    L               : toggle "Lose item" (drop) mode
+    G               : "Get" items from ground (or flash "Nothing to Grab")
+    Y / N / E       : Yes / No / End in Get and Use modes
+    1..6            : context actions (equip slot choice, body part choice,
+                      battle option, or drop item index in Lose mode)
+    Q               : request save (opens slot picker via host)
+    Space           : exit a special room
+
+  Turning is DISCRETE and snaps to multiples of 90 degrees: after changing yaw
+  it is rounded to the nearest PI/2. After a turn, the player re-centers on the
+  orthogonal axis of the current tile (so they stay centered in corridors).
+
+  Movement is grid-aligned: only forward/back along the current facing; there
+  is NO strafing. Move speed is derived from the Speed stat:
+      clamp Speed to [5,50]; t=(Speed-5)/45;
+      moveSpeed = 0.08 + (0.30-0.08)*t   (so 0.08..0.30 per frame)
+  When moving, the engine computes the next position, then a "collision
+  position" pushed by playerRadius=0.6 in the movement direction, and checks:
+    1) Is the target tile walkable? (edge-wall mode: all non-special tiles are
+       walkable; special-room tiles are not walkable directly.)
+    2) Edge collision: see 5.5. If the path crosses a blocking edge, movement
+       is denied.
+  If allowed: move along the facing axis and lock the orthogonal coordinate to
+  the tile center (keeps the player centered). If denied: trigger the red
+  hit-flash. If the blocked tile is a SPECIAL ROOM, check the approach
+  direction; if the player is approaching from the room's entrance side, ENTER
+  the room (open special-room overlay); otherwise flash (wrong side).
+
+  Vertical physics each frame: gravity 0.01 subtracted from verticalVelocity;
+  jumpStrength 0.2; ground/eye height = crouchHeight(0.8) if Z held else
+  standHeight(1.6). Land when y <= base height.
+
+  When the player moves to a new tile, reset any open Get/Use mode and refresh
+  the HUD.
+
+  Camera state restore: if a saved camera is supplied, set position (X,Y,Z)
+  and yaw from it; otherwise start at the player-start tile center, eye height
+  1.6, yaw 0.
+
+5.5 EDGE-BASED COLLISION (the crux of walls/doors)
+  isDoorPassable(doorValue, isPositiveDir):
+    0 -> false (no door means not passable AS a door; wall logic handles it)
+    1 or 2 -> true (passable both ways)
+    3 -> passable only when moving in the POSITIVE direction (south for
+         horizontal edges, east for vertical edges)
+    4 -> passable only when moving in the NEGATIVE direction (north/west)
+  isEdgeBlocked(hasWall, doorValue, isPositiveDir):
+    if doorValue>0 -> blocked = NOT isDoorPassable(...)  (door overrides wall)
+    else if hasWall -> blocked
+    else -> open
+  "Positive direction" = increasing coordinate: moving south crosses the
+  horizontal edge at the cell's own top index when going north (negative) or
+  the next row's top index when going south (positive); moving east crosses
+  the vertical edge at the cell's own left index (negative=west) or the next
+  column (positive=east).
+  Collision check at a world point with a buffer (=playerRadius): determine the
+  current tile, then for each of the 4 sides, if the point is within "buffer"
+  of that side, look up the wall/door on that edge and test isEdgeBlocked with
+  the correct direction; if blocked, deny movement.
+
+  STAIR HELPERS: when needed, the engine can clear edge walls around a tile
+  (all four edges) and convert nearby wall tiles to floor in a radius (used so
+  the player never gets stuck at stairs).
+
+5.6 LEVEL TRANSITIONS (stairs)
+  On Enter at a STAIRS_DOWN tile (and currentLevel < NUM_LEVELS-1): go to
+  currentLevel+1. On STAIRS_UP (and currentLevel > 0): go to currentLevel-1.
+  changeLevel(newLevel): set currentLevel, rebuild meshes for that level,
+  refresh HUD. The player keeps the same (x,z); stair positions are aligned
+  between levels so an up-stair exists where a down-stair was.
+
+5.7 HUD (updated on movement, level change, and state changes)
+  Q4 char name = player.name.
+  Q1 level-text = "You are on Dungeon Level {currentLevel+1} of {NUM_LEVELS}."
+  Q1 area-text by current tile type:
+      STAIRS_DOWN -> 'You see stairs leading DOWN. Press Enter to descend.'
+                     ("DOWN" colored dark red, bold)
+      STAIRS_UP   -> 'You see stairs leading UP. Press Enter to ascend.'
+                     ("UP" colored dark green, bold)
+      else        -> 'You are standing in a dark dungeon corridor.'
+  Q1 ground-items by count of items on current tile:
+      0 -> "There is nothing on the ground."
+      1 -> "Something is on the ground."
+      >1 -> "Some things are on the ground."
+  Stats overlay (top-left) shows, each on its own line:
+      "Floor: {L}/{N}"
+      "Lvl: {level} | HP: {hitpoints}"
+      "XP: {experience}/{xpForNextLevel}"
+      STA/CHR/STR/INT/WIS/SKL/SPD: each stat value (SKL shown red if a
+        two-handed primary + a secondary weapon cause the skill penalty)
+      "Pri: {primaryWeapon or 'None'}" (green) and "Sec: {secondaryWeapon or
+        'None'}" (blue).
+  Compass (Q2): only visible if the player has a Compass item (count>0). The
+  dial rotates so the facing direction is at top: rotation_degrees = yaw in
+  degrees (yaw*180/PI). Time display shows "12:00 PM" if the player has a
+  Timepiece, else blank. (Time is currently static.)
+
+5.8 INVENTORY, EQUIPMENT & ITEM USE
+  The Q3 panel switches between these mutually-exclusive views based on the
+  active mode (pressing the relevant key toggles it and clears the others):
+
+  Default view: "Food: n", "Torches: n", "Flasks: n" (counts from inventory).
+
+  Inventory (I): list all items with count>0 as "Name (count)"; "(Empty)" if
+  all zero. Title "Inventory:" in gold.
+
+  Lose mode (L): title "Lose Items (Press # to drop):" then every inventory
+  entry as "{index+1}. Name (count)". Pressing digit 1..len drops one of that
+  item onto the current tile's ground (decrement count, push name to
+  groundItems[tileKey]).
+
+  Get mode (G): if items exist on the current tile, show "Get?" then the
+  current candidate item name, options "Yes, No, End", and "(Item i of n)".
+    Y -> take it (add to inventory or +1 count; remove from ground; if none
+         left at tile, delete the tile key; close if no more).
+    N -> advance to next ground item (close at end).
+    E -> close.
+    If no items on tile: briefly show "Nothing to Grab." for ~1.5s.
+
+  Use mode (U): among items with count>0, show "Use?" then current item name
+  and count, options "Yes, No, End", and "(Item i of n)".
+    Y -> use the current item (see useItem); N -> next; E -> close.
+    If no usable items: "No items to use."
+
+  useItem(item) rules:
+    - If it's a WEAPON: open Weapon Equip mode (does not consume).
+    - If it's CLOTHING or ARMOR: auto-equip to its mapped body part
+      (replace whatever was there) and refresh. (Immediate.)
+    - If it's a POTION: apply its effect immediately and consume one.
+    - "Food"/"Food Packet": heal +10 HP (capped at BaseStats.Stamina),
+      consume one.
+    - "Water Flask"/"Flasks": heal +5 HP (capped at BaseStats.Stamina),
+      consume one.
+    - "Unlit Torch" -> becomes "Lit Torch"; "Lit Torch" -> "Burnt Stick".
+    - Anything else: no effect, not consumed.
+
+  Weapon Equip mode (after Use on a weapon): title "Equip Weapon", the weapon
+  name, a "(Two-Handed)" note if applicable, options:
+      1. Primary (Attack)
+      2. Secondary (Defense)
+      E = Cancel
+    Plus the current primary/secondary shown. Choosing sets that slot to the
+    weapon (the previously equipped weapon simply remains in inventory).
+
+  Clothing Equip mode: title "Equip Clothing", the item name, "Fits: {part}",
+  then the 6 body parts listed "{i}. {Part} ({current or 'Empty'})" with the
+  matching part highlighted; E = Cancel. Choosing the matching part equips it;
+  choosing a wrong part cancels.
+
+5.9 ITEMS, EQUIPMENT, POTIONS — SCHEMAS & RULES (catalog DATA omitted)
+  The engine recognizes these CATEGORIES of item names. You will supply your
+  own catalogs; the RULES below are what must be preserved.
+
+  WEAPONS:
+    - There is a set of LOW-TIER weapons and a set of HIGH-TIER weapons.
+    - A subset of weapons are TWO-HANDED.
+    - isWeapon(name): true if the name matches/contains a known weapon.
+    - isTwoHanded(name): true if it is in the two-handed set.
+    - Combat stat contribution (getItemStats): high-tier weapon = attack 30,
+      defense 5; low-tier weapon = attack 10, defense 2; any "Shield" =
+      attack 2, defense 15.
+  CLOTHING:
+    - A list of clothing names spanning the 6 body parts (Head, Hands, Arms,
+      Body, Legs, Feet). Clothing provides 0 defense (may have flavor/magic).
+  ARMOR:
+    - A list of armor names spanning the same 6 body parts. Armor provides
+      DEFENSE. Each armor name maps to a defense value (per-item numbers are
+      DATA you supply; typical tiers: head 3-5, hands 2-4, arms 2-4, body
+      8-12, legs 4-6, feet 3-5).
+  BODY-PART MAP:
+    - Every clothing and armor name maps to exactly one of the 6 body parts.
+    - Only one item per body part may be equipped.
+  POTIONS (effects are RULES; the specific names are DATA you supply):
+    - TEMPORARY stat potions: while active, +10 to one stat for 60 game
+      minutes (see timer). One temporary slot per stat.
+    - INVISIBILITY potion: temporary "invisibility" effect, 60 minutes.
+    - PERMANENT stat potions: +5 permanently to one base stat (capped at
+      MAX_STAT=255).
+    - CURE/utility potions: cure disease, banish curse, cure poison, relieve
+      fatigue (restore HP to BaseStats.Stamina), banish hunger, banish thirst.
+    - Using a potion consumes one and recalculates stats.
+  GENERAL ITEMS: Compass, Timepiece, Food/Food Packet, Water Flask/Flasks,
+    Torches/Unlit Torch/Lit Torch/Burnt Stick, Keys, Crystals, Gems, Jewels,
+    etc. (Compass enables the compass HUD; Timepiece enables the clock.)
+
+  (Original C# also defines richer Item/Monster classes with DamageGrade
+  enums {None,Low,Medium,High,Excellent,Godlike}, ItemType {General,Clothing,
+  Weapon}, condition, value-in-silver, attack/defense values, and per-element
+  DamageTypes/Resistances. You may keep or simplify these; the JS runtime only
+  uses the simplified categories above.)
+
+5.10 STATS, XP, & LEVELING
+  MAX_STAT = 255 (cap for any stat). BASE_XP_THRESHOLD = 1000.
+  XP needed to GO from level L to L+1: 1000 * 2^(L)  (i.e., per-level cost
+    doubles: lvl1=1000, lvl2=2000, lvl3=4000, ...). Implemented as
+    getXpThresholdForLevel(target)=1000*2^(target-1).
+  CUMULATIVE XP to reach level L: getTotalXpForLevel(L)=1000*(2^L - 1).
+  getXpProgress(): xpIntoLevel = experience - totalXp(level);
+    needed = totalXp(level+1)-totalXp(level); percent = floor(into/needed*100).
+  recalculateStats(): for each stat, current = min(MAX_STAT, base +
+    equipmentBonus + activeTemporaryPotionBonus). (Equipment bonus is 0 in the
+    current build; temporary potion adds +10 while active.)
+  levelUp(): level++ and for each stat add a random 3..6 to the BASE stat
+    (capped at 255), then recompute current. Max HP grows to at least the new
+    base Stamina.
+  checkLevelUp(): while experience >= totalXp(level+1), level up (accumulating
+    stat gains), and push a gold "LEVEL UP!" line plus a cyan stat-gain summary
+    (e.g., "STR+4, SPD+3") to the battle log if present.
+  New-game stat init: from the provided stats; baseStats set equal to stats.
+  Hitpoints default to BaseStats.Stamina if zero.
+
+5.11 COMBAT (turn-based encounters)
+  An encounter overlay (#monster-overlay) appears when a battle starts. NOTE:
+  in the current build RANDOM encounters are DISABLED (the trigger is gated by
+  a constant false), but the full battle system is implemented and reachable;
+  preserve it. (When enabled, the design was: each game-second, if not in
+  battle/paused/menu, ~10% chance to start a battle.)
+
+  Monster selection getRandomMonster(playerLevel): pick from a monster catalog
+  filtered to level in [max(1,playerLevel-2), playerLevel+2]; clone it. Then
+  assign equipment drops:
+    - Monsters level >= 11: always get one HIGH-TIER weapon + (50/50) one
+      clothing or one armor.
+    - Monsters level < 11: 30% chance to get a drop; if so, 50/50 a low-tier
+      weapon OR (50/50 clothing/armor).
+  (Monster catalog with names + per-monster numbers is DATA you supply. Schema:
+   name, level, hitpoints, attack, defense, exp(reward), gold(drop), and
+   optional equipment list.)
+
+  Battle overlay shows: "ENCOUNTER!", monster name (gold), level, HP, attack,
+  defense, any "Wielding: ..." equipment, the last 4 battle-log lines, and the
+  6 options:
+      1. Attack
+      2. Charge  (-Hit, +Damage)
+      3. Aimed   (+Hit, +Damage, may take a turn to set up)
+      4. Transact (try to pacify — charisma based)
+      5. Switch Weapon  (swap primary/secondary)
+      6. Run     (speed based)
+  Q3 panel mirrors these options while in battle.
+
+  Player combat stats getPlayerCombatStats():
+      attack = Strength + primaryWeapon.attack (if any)
+      defense = floor(Strength/2) + secondaryWeapon.defense (if any) +
+                sum of equipped clothing/armor defense
+      skill = Skill; if primary is two-handed AND a secondary is equipped,
+              skill = floor(skill*0.5)  (penalty)
+      speed = Speed
+
+  Player action resolution executePlayerAction(action):
+    baseHit = 70 + (skill - monster.level*2). damageMult=1.0.
+    - Attack(1): standard.
+    - Charge(2): baseHit-=20; damageMult=1.5.
+    - Aimed(3): 30% chance to "wait for an opening" (skip to monster turn);
+      else baseHit+=30; damageMult=1.3.
+    - Transact(4): success chance = 30 + (Charisma - monster.level)*5; on
+      success the monster is "calmed" and you WIN the battle; on fail, monster
+      takes its turn.
+    - Switch(5): swap primary/secondary; logs it; does NOT end the turn.
+    - Run(6): success = 50 + (Speed - monster.level*2)*5; on success leave
+      battle; on fail, monster takes its turn.
+    For actions 1-3: roll d100 < baseHit to hit; damage =
+      max(1, attack - monster.defense/2) * damageMult * (0.8 + rand*0.4)
+      (±20% variance), floored. Subtract from monster HP; if <=0 you defeated
+      it -> winBattle after a short delay. Miss otherwise.
+    After most actions, the monster takes a turn after ~800ms.
+
+  Monster turn executeMonsterTurn():
+    hitChance = 70 + (monster.level*2 - playerSpeed); roll d100.
+    On hit: damage = max(1, monster.attack - playerDefense/2) * (0.8+rand*0.4),
+    floored; subtract from player HP; trigger nothing visual here but if HP<=0
+    -> lose. On miss: log a miss.
+
+  winBattle(): award monster.exp to experience; checkLevelUp(); drop the
+  monster's equipment onto the current tile's ground; clear battle state;
+  unpause; hide overlay; refresh HUD.
+
+  loseGame(): clear battle; alert "You have died." and reload the app
+  (simple game-over). (Replace with your own game-over flow if desired.)
+
+5.12 SPECIAL ROOMS
+  Entered by walking into a special-room tile FROM its entrance side (N/E/S/W).
+  enterSpecialRoom: pause the game and show the #special-room-overlay with
+  big gray text "Nothing is here" and a hint "Press Space Bar to exit".
+  (Content is a placeholder; future rooms would key off coordinates.)
+  exitSpecialRoom: hide overlay, unpause. Space exits.
+
+5.13 GAME TIMER & TEMPORARY EFFECTS
+  A 1-second interval represents 1 game minute. Each tick: (random encounter
+  check — currently disabled), then decrement every active temporary effect's
+  duration; when one reaches 0, deactivate it; if any expired, recalculate
+  stats and refresh HUD.
+
+5.14 SAVE STATE FORMAT (engine getGameState -> JSON)
+  The engine serializes:
+    name, level, hitpoints, experience, stats, baseStats, primaryWeapon,
+    secondaryWeapon, equippedClothing, temporaryEffects, groundItems,
+    inventory, showInventory, showLoseMode, showGetMode, getItemIndex,
+    showUseMode, useItemIndex, dungeonLevel (current level).
+  The host wraps this into a GameSave together with camera, savedAt, mapId,
+  mapLevels (flattened), and map player start (see Persistence).
+  On load the engine accepts either a full game state (restores everything,
+  including dungeonLevel) or a basic stats object (new game). It tolerates both
+  PascalCase and camelCase keys.
+
+===============================================================================
+6. THE MAP EDITOR  (route "/map-editor")
+===============================================================================
+A 2D top-down grid editor for authoring the 4-level dungeon with edge walls
+and edge doors. Dark theme, monospace.
+
+CONSTANTS: MapWidth=65, MapHeight=65, base TileDisplaySize=10 px, NumLevels=4.
+
+LAYOUT:
+  Header bar (background #2a2a2a, bottom border 2px #444):
+    - Title "Map Editor" (gold).
+    - A map-name text input (width 150px).
+    - Buttons:
+        "Set as Default" (green #2a5a2a) — save current as the default map.
+        "Save to Slot"   (#3a4a5a) — open the save-slot modal.
+        "Load from Slot" (#2a2a5a) — open the load-slot modal.
+        "Import from Legacy Slot" (#5a3a2a) — open legacy import modal.
+        "Generate New"   (#5a4a2a) — generate a procedural map.
+        "Clear Level"    (#5a2a2a) — clear the current level to floor +
+                          perimeter walls.
+        "Back to Menu"   (#444) — navigate "/".
+  Body is a horizontal flex:
+    LEFT TOOL PANEL (width 200px, #252525, right border 2px #444):
+      "Level" section: 4 buttons "Level 1".."Level 4" (active one highlighted
+        #4a4a4a vs #333).
+      "Tile Type" section: a vertical list of tool buttons, each with a small
+        swatch + label (active tool highlighted):
+          Erase   (swatch #222 with #888 border) — removes walls, doors, and
+                  resets tile to floor.
+          Wall    (swatch transparent with 2px #B8860B border) — gold.
+          Floor   (swatch #444).
+          Stairs Down (swatch #8B0000).
+          Stairs Up   (swatch #006400).
+          Player Start(swatch #FFD700).
+          Special Room (Guild) (swatch #9932CC) — purple.
+          Door    (swatch transparent with 2px #00CED1 border) — cyan.
+      If Door tool selected: a "Door Type" sub-section:
+          Normal (cyan solid), Hidden (red dashed #FF6347), One-Way
+          (green solid #32CD32). If One-Way: a "Passable Direction" choice:
+          "South / East" (positive) or "North / West" (negative), with a hint
+          "H-edges: N/S, V-edges: W/E".
+      If Special Room tool selected: an "Entrance Direction" choice
+          (North/East/South/West) which picks tile code 5/6/7/8.
+      "Brush Size" section: buttons 1..5 (active highlighted). Brush applies to
+        TILE tools only (paints a (size)x(size) block); wall/door/erase always
+        act on a single edge.
+      A help footer: "Left-click: Paint", "Right-click drag: Pan",
+          "Mouse wheel: Zoom", plus colored hints for Wall/Door/Erase.
+    RIGHT CANVAS AREA (flex:1, relative, context-menu suppressed):
+      A scrollable viewport (#map-viewport, overflow auto, background #111) that
+      contains the grid. The grid is a CSS grid of MapWidth columns; each cell
+      is DisplayTileSize px square (DisplayTileSize = round(10 * zoom)), with
+      box-sizing border-box and per-edge borders representing walls/doors.
+      A 2px #666 border frames the whole grid; 20px padding around it.
+      Cell visuals:
+        - Background by tile code: Floor #444444; legacy wall #111111;
+          Stairs Down #8B0000; Stairs Up #006400; Special rooms (5-8) #9932CC;
+          default #444444.
+        - Per-edge border (top/bottom/left/right) computed from that edge's
+          wall/door state (door takes priority over wall):
+            door 1 -> 2px solid #00CED1 (cyan)
+            door 2 -> 2px dashed #FF6347 (red, hidden)
+            door 3 -> 2px solid #32CD32 (green, one-way +)
+            door 4 -> 2px solid #ADFF2F (yellow-green, one-way -)
+            wall   -> 2px solid #B8860B (gold)
+            none   -> 1px solid #333 (faint grid line)
+          (Using box-sizing:border-box + a uniform 1px grid line keeps cell
+          lines visually even regardless of zoom.)
+        - Player start: a 6px gold dot centered, shown only on level 0 at
+          (playerStartX, playerStartY).
+        - Special room tile: a 4px magenta (#FF00FF) center dot plus a small
+          magenta tick on the entrance edge (top/right/bottom/left for 5/6/7/8).
+      Status bar (bottom, rgba(0,0,0,0.8)): left = "Level: L | Position:
+        (hoverX,hoverY) | Edge: {hoveredEdge} | Zoom: {zoom%}"; right = "Tool:
+        {tool} | Brush: {b}x{b} | Map: {name}".
+
+EDIT MODEL:
+  mapData[level,y,x] = tile code (default Floor).
+  hWalls[level,y,x] (rows 0..MapHeight), vWalls[level,y,x] (cols 0..MapWidth).
+  hDoors[level,y,x], vDoors[level,y,x] (same indexing as the walls).
+  InitializeMap: all tiles Floor; InitializeWallEdges: clear all edges then add
+  the perimeter walls (top/bottom rows, left/right columns).
+
+  Edge detection: when the mouse is over a cell, normalized offset (0..1) within
+  the cell decides the nearest edge (Top/Bottom/Left/Right) using a 0.25 edge
+  threshold; while drawing, a direction lock (Horizontal vs Vertical) is set
+  from the first edge so dragging paints a straight run of edges.
+
+  Painting:
+    - Wall tool: set the detected edge's wall=true and clear its door.
+    - Door tool: set the detected edge's door=selected value and clear its wall.
+    - Erase tool: clear the detected edge's wall AND door, and reset the cell to
+      floor.
+    - Tile tools (Floor/Stairs/Player Start/Special Room): set tiles over the
+      brush area. Player Start sets the level-0 start coords and clears walls
+      around it. Placing stairs clears the surrounding walls so the player can
+      move.
+  After load and before save, run a "reconcile" pass so that any edge with a
+  door has its wall flag cleared (door-wins invariant).
+
+  SetWallEdge maps Top->hWalls[y][x], Bottom->hWalls[y+1][x],
+  Left->vWalls[y][x], Right->vWalls[y][x+1]; SetDoorEdge maps the same indices
+  for hDoors/vDoors and forces the corresponding wall to false.
+
+INPUT:
+  - Left-drag paints with the active tool (single edge for wall/door/erase,
+    brush block for tile tools).
+  - RIGHT-CLICK DRAG pans the viewport: on right mousedown, begin a
+    document-level drag that adjusts the viewport scrollLeft/scrollTop by the
+    mouse delta (so panning continues even if the cursor leaves the viewport);
+    end on mouseup. The browser context menu is suppressed over the canvas.
+  - MOUSE WHEEL zooms: wheel up -> zoom += 0.1 (max 3.0); wheel down -> zoom
+    -= 0.1 (min 0.3). IMPORTANT: zoom must change the ACTUAL tile pixel size
+    (DisplayTileSize = round(10*zoom)) so the scrollable area grows/shrinks to
+    match — do NOT use a CSS transform scale (that would not expand the scroll
+    region). The viewport must allow both horizontal and vertical scrolling
+    (set min-width:0/min-height:0 in a flex layout; wrap the grid in an
+    inline-block sized to its content).
+
+EDITOR ACTIONS:
+  - Set as Default: build a MapData from the current arrays and store it as the
+    default map (used by new games).
+  - Save to Slot: open a modal listing 10 slots ("Slot k: {name or (Empty)}"
+    + timestamp); choosing one saves into that slot.
+  - Load from Slot: open a modal with a "DEFAULT MAP" button (loads default or
+    generates if none) plus the 10 saved slots (load or delete each).
+  - Import from Legacy Slot: open a modal listing legacy player-save slots
+    (slot1..slot10) that contain old tile-based map data; importing converts
+    the legacy flat tile grid into edge walls (see Legacy Conversion).
+  - Generate New: replace current data with a procedurally generated map.
+  - Clear Level: reset the current level's tiles to floor and keep only the
+    perimeter walls (clear all interior walls and all doors).
+
+  Map name defaults to "Untitled" (or the loaded map's name).
+
+  JS helpers for the editor:
+    - panBy/startDragPan (the right-drag pan described above).
+    - downloadMapFile(jsonContent, filename): trigger a JSON file download.
+    - readMapFile(inputId): read a selected file's text (for import).
+
+===============================================================================
+7. PROCEDURAL DUNGEON GENERATION
+===============================================================================
+Used by "Generate New" in the editor and as a fallback when no map is provided
+to the game. For each of the 4 levels:
+  - Start every tile as Floor (edge-wall mode) with a walled perimeter.
+  - Generate 8..12 non-overlapping rectangular rooms, each 4..10 wide/high,
+    placed at random within the interior (1-tile buffer between rooms). Carve
+    rooms to floor.
+  - Connect consecutive room centers with L-shaped corridors (randomly choosing
+    horizontal-first or vertical-first at each step). If >2 rooms, also connect
+    the last room back to the first (ensures connectivity).
+  - Level 0 only: force a 5x5 open area around the player start (default 32,32)
+    and carve a corridor from the start to the nearest room center.
+  - Place 2 down-stairs per level (except the last level): pick rooms whose
+    centers are >=8 tiles apart when possible; mark a floor tile STAIRS_DOWN and
+    the SAME (x,y) on the next level STAIRS_UP; open the 3x3 area around both so
+    they are reachable.
+
+(The C# editor version and the JS in-game version implement the same algorithm;
+keep them equivalent. The editor's generator writes into the MapData arrays;
+the in-game generator writes into dungeonLevels and only uses tile-based walls
+when no edge data exists.)
+
+===============================================================================
+8. PERSISTENCE (FILE STORAGE)
+===============================================================================
+All persistence is local JSON files. Two stores:
+
+8.1 MAP STORAGE (the dungeon authored in the editor)
+  Stored as a SINGLE file "map_collection.json" with shape:
+      { "DefaultMap": MapData | null, "SavedMaps": [ MapData, ... up to 10 ] }
+  MapData shape is as in section 3 (Id, Name, CreatedAt, Width, Height,
+  NumLevels, PlayerStartX/Y, Levels, HWalls, VWalls, HDoors, VDoors).
+
+  LOCATION: the file is stored INSIDE the project/app folder so it can be
+  committed to source control: "<app root>/Data/Maps/map_collection.json".
+  The resolver walks up from the running binary's directory to find the project
+  root (the folder containing the project file); if none is found (e.g., a
+  packaged/mobile build) it falls back to "<app base>/Data/Maps". The build
+  copies Data/Maps to the output directory. (Historically this lived in the OS
+  user-local app-data folder; on first run the app migrates that old file into
+  Data/Maps if the new file does not yet exist.)
+
+  API the editor/game use:
+    LoadMapCollection (cached), SaveMapCollection,
+    GetDefaultMap / SetDefaultMap,
+    GetSavedMaps / SaveMapToSlot(index 0..9) / DeleteMapAtSlot,
+    GetMapById,
+    GetLegacySlotInfos / ImportFromLegacySlot,
+    GenerateProceduralMap.
+  On every load/save/import/get, run the wall-door normalization so doors win.
+  Default-map fallback: if no DefaultMap exists, the app may synthesize one by
+  importing the first legacy slot that has map data.
+
+8.2 PLAYER SAVE GAMES (10 slots)
+  Each slot is a JSON file "slot{n}.json" (n=1..10) in a "Database" folder next
+  to the running app ("<app base>/Database/slot{n}.json").
+  GameSave shape:
+    { State: GameState, Camera: CameraState, SavedAt: datetime,
+      MapId: string|null, MapLevels: int[][]|null,
+      MapPlayerStartX: int, MapPlayerStartY: int }
+  MapLevels is the dungeon tile data FLATTENED: levels are concatenated row-wise
+  so row index = level*Height + y, columns = x. (Edge walls/doors are NOT
+  embedded in player saves; if a save only has a MapId, the full edge data is
+  re-fetched from map storage on load.)
+  SaveSlotInfo (for listing): Slot, HasSave, SavedAt. Timestamps come from file
+  write times.
+
+===============================================================================
+9. APPEARANCE QUICK-REFERENCE (to hit >=90% visual parity)
+===============================================================================
+Fonts: menus use the platform default; GAME and EDITOR use monospace.
+Primary accent: gold (#FFD700 / "gold").
+Key colors:
+  Floor tile (3D ground & editor floor): #444444 / #444
+  Wall (3D edge & editor):  #B8860B (gold-brown); wall texture base #d2b48c
+  Door normal: cyan #00CED1 (3D panel magenta #8B008B; frame #4a2810; arch
+    #6b4423)
+  Door hidden: dashed red #FF6347 (3D arch blends to wall gold #B8860B)
+  Door one-way +: green #32CD32 ; one-way -: yellow-green #ADFF2F
+  Stairs Down: dark red #8B0000 ; Stairs Up: dark green #006400
+  Special room: purple #9932CC (3D), magenta marker #FF00FF (editor)
+  Player start marker: gold dot
+  Panels: #222 (nav panel) / #252525 (editor tool panel) / #2a2a2a (headers
+    & modals) ; borders #444 ; faint grid line #333
+  Overlays: pause rgba(0,0,0,0.7); battle rgba(0,0,0,0.85); special room solid
+    black; save backdrop rgba(0,0,0,0.8); status message green rgba(0,100,0,0.9)
+Layout ratios: Game = 75% view / 25% nav panel; nav panel = 4 equal quarters.
+Compass: 80x80 circle, gold border, rotating dial, fixed gold pointer.
+Editor: 200px tool panel; 10px base tile; 2px #666 grid frame; 20px padding.
+
+===============================================================================
+10. CONTROL REFERENCE (GAME)
+===============================================================================
+  W / Up        : forward            S / Down     : backward
+  A / Left      : turn left 90°       D / Right    : turn right 90°
+  Z (hold)      : crouch              Left Shift   : jump
+  Enter         : use stairs          P            : pause toggle
+  I             : inventory           U            : use item
+  L             : drop (lose) item    G            : get item
+  Y / N / E     : yes / no / end (Get & Use modes)
+  1..6          : equip-slot / body-part / battle option / drop index
+  Q             : save (opens slot picker)
+  Space         : exit special room
+
+===============================================================================
+11. REBUILD CHECKLIST (functional acceptance)
+===============================================================================
+[] Main menu with 3 buttons and correct navigation.
+[] New player: 7 stats roll 5..21, respin, name, Select -> game.
+[] Load player: 10 slots, load restores character + camera + map + level.
+[] 3D first-person view: grid-locked movement, 90° turning, recenters in halls.
+[] Edge-based walls AND doors; door-wins invariant everywhere.
+[] Doors render as arched openings (normal/hidden/one-way variants).
+[] One-way doors enforce direction; hidden doors passable both ways.
+[] Stairs up/down with arrows; Enter changes level; up/down align across levels.
+[] Special rooms: enter only from the entrance side; "Nothing is here"; Space
+   exits.
+[] HUD: stats overlay, level text, area text, ground-item text, compass (needs
+   Compass item), clock (needs Timepiece), char name, hit-flash, pause overlay.
+[] Inventory modes: I/U/L/G with Y/N/E and digit selection as specified.
+[] Equipment: weapons (primary/secondary, two-handed skill penalty), clothing
+   & armor by body part, armor adds defense.
+[] Potions: temporary +10/60min, permanent +5, cures (incl. fatigue->full HP);
+   stat recalculation; effect expiry via 1s timer.
+[] Combat: encounter overlay, 6 options with the exact formulas, monster turns,
+   win (XP + drops + level-up), run/transact/switch, lose -> game over.
+[] XP/leveling: per-level cost doubles from 1000; level-up adds 3..6 per base
+   stat; HP scales with Stamina; cap 255.
+[] Save: Q -> slot picker -> writes GameSave JSON; returns to menu.
+[] Map editor: tools (erase/wall/floor/stairs/player-start/special/door), door
+   subtypes + one-way direction, special entrance direction, brush sizes,
+   4 levels, clear level, generate, set-default, save/load slots, legacy import.
+[] Editor: left-drag paint, RIGHT-DRAG PAN, wheel zoom that expands the scroll
+   area (both horizontal & vertical scroll work at any zoom).
+[] Persistence: map_collection.json under Data/Maps (committable); player saves
+   under Database/slot{n}.json; door-wins normalization on all map I/O.
+[] Procedural generation matches the room/corridor/stairs algorithm.
+
+===============================================================================
+END OF SPECIFICATION
+===============================================================================

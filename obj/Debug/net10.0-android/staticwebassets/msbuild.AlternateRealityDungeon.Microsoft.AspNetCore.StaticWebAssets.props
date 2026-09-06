@@ -72,12 +72,12 @@
       <RelatedAsset></RelatedAsset>
       <AssetTraitName></AssetTraitName>
       <AssetTraitValue></AssetTraitValue>
-      <Fingerprint>ofe8mqmxlu</Fingerprint>
-      <Integrity>FBktg92Y2uJFsbH8UARsOvoBE4UGzWfxpYO28nYyHpE=</Integrity>
+      <Fingerprint>e6pjm2ddhq</Fingerprint>
+      <Integrity>ysvitd7nD9LVgE5yZL9w0wE85vxlElY5fvzoLBPLQWA=</Integrity>
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-      <FileLength>151505</FileLength>
-      <LastWriteTime>Sun, 24 May 2026 23:31:56 GMT</LastWriteTime>
+      <FileLength>196883</FileLength>
+      <LastWriteTime>Sun, 06 Sep 2026 14:40:34 GMT</LastWriteTime>
       <OriginalItemSpec>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\js\game.js'))</OriginalItemSpec>
     </StaticWebAsset>
     <StaticWebAsset Include="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\js\mapeditor.js'))">
@@ -92,12 +92,12 @@
       <RelatedAsset></RelatedAsset>
       <AssetTraitName></AssetTraitName>
       <AssetTraitValue></AssetTraitValue>
-      <Fingerprint>838jatjbin</Fingerprint>
-      <Integrity>tH07RVUhZstSAhhZweorqoVPZUdsZK9X+9HMdV6nDf8=</Integrity>
+      <Fingerprint>bc16jducve</Fingerprint>
+      <Integrity>tYzUOTJ2vyy/5gU/4HGFsY3JeVaOaiAdQdWmLshUnyg=</Integrity>
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-      <FileLength>1199</FileLength>
-      <LastWriteTime>Thu, 27 Nov 2025 06:15:17 GMT</LastWriteTime>
+      <FileLength>2416</FileLength>
+      <LastWriteTime>Sat, 25 Jul 2026 19:04:36 GMT</LastWriteTime>
       <OriginalItemSpec>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\js\mapeditor.js'))</OriginalItemSpec>
     </StaticWebAsset>
     <StaticWebAsset Include="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\_framework\blazor.modules.json'))">
