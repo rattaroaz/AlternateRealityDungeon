@@ -180,37 +180,24 @@ def create_level_2():
     h_walls, v_walls = create_empty_walls()
     h_doors, v_doors = create_empty_doors()
     
-    # Stairs up from level 1
-    level[14][14] = STAIRS_UP
-    level[52][18] = STAIRS_UP
-    level[55][55] = STAIRS_UP
-    
     # Central crypt chamber
     add_room(level, h_walls, v_walls, 25, 25, 15, 15)
     
-    # North wing: Guild
+    # North wing: Guild room
     add_room(level, h_walls, v_walls, 30, 10, 6, 6)
     add_corridor(level, h_walls, v_walls, 32, 25, 32, 15)
-    level[14][32] = SPECIAL_ROOM_N
-    add_door(h_walls, v_walls, h_doors, v_doors, 32, 14, 'N')
     
-    # East wing: Shop
+    # East wing: Shop room
     add_room(level, h_walls, v_walls, 48, 28, 6, 6)
     add_corridor(level, h_walls, v_walls, 40, 32, 48, 32)
-    level[31][47] = SPECIAL_ROOM_E
-    add_door(h_walls, v_walls, h_doors, v_doors, 47, 31, 'E')
     
-    # South wing: Inn
+    # South wing: Inn room
     add_room(level, h_walls, v_walls, 28, 48, 6, 6)
     add_corridor(level, h_walls, v_walls, 32, 40, 32, 48)
-    level[47][31] = SPECIAL_ROOM_S
-    add_door(h_walls, v_walls, h_doors, v_doors, 31, 47, 'S')
     
-    # West wing: Smith
+    # West wing: Smith room
     add_room(level, h_walls, v_walls, 12, 30, 6, 6)
     add_corridor(level, h_walls, v_walls, 25, 32, 18, 32)
-    level[33][18] = SPECIAL_ROOM_W
-    add_door(h_walls, v_walls, h_doors, v_doors, 18, 33, 'W')
     
     # Maze sections
     add_room(level, h_walls, v_walls, 8, 8, 5, 5)
@@ -230,10 +217,32 @@ def create_level_2():
     add_room(level, h_walls, v_walls, 55, 5, 8, 8)
     add_corridor(level, h_walls, v_walls, 54, 10, 48, 28)
     
-    # Stairs down
-    level[32][32] = STAIRS_DOWN
+    # Place special room tiles (AFTER corridors)
+    level[14][32] = SPECIAL_ROOM_N  # Guild
+    add_door(h_walls, v_walls, h_doors, v_doors, 32, 14, 'S')
+    
+    level[31][47] = SPECIAL_ROOM_E  # Shop
+    add_door(h_walls, v_walls, h_doors, v_doors, 47, 31, 'W')
+    
+    level[47][31] = SPECIAL_ROOM_S  # Inn
+    add_door(h_walls, v_walls, h_doors, v_doors, 31, 47, 'N')
+    
+    level[33][18] = SPECIAL_ROOM_W  # Smith
+    add_door(h_walls, v_walls, h_doors, v_doors, 18, 33, 'E')
+    
+    # Add doors to boss arena
+    add_door(h_walls, v_walls, h_doors, v_doors, 55, 8, 'W')
+    
+    # Stairs - MUST BE PLACED LAST to avoid being overwritten
+    # Stairs up from level 1
+    level[14][14] = STAIRS_UP
+    level[52][18] = STAIRS_UP
+    level[55][55] = STAIRS_UP
+    
+    # Stairs down to level 3
     level[10][10] = STAIRS_DOWN
-    level[58][8] = STAIRS_DOWN  # In boss area
+    level[58][8] = STAIRS_DOWN
+    level[52][14] = STAIRS_DOWN  # Position (14, 52) which is [52][14]
     
     return level, h_walls, v_walls, h_doors, v_doors
 
@@ -245,11 +254,6 @@ def create_level_3():
     level = create_empty_level()
     h_walls, v_walls = create_empty_walls()
     h_doors, v_doors = create_empty_doors()
-    
-    # Stairs up from level 2 (place early)
-    level[32][32] = STAIRS_UP
-    level[10][10] = STAIRS_UP
-    level[58][8] = STAIRS_UP
     
     # Main cavern system (irregular shape)
     add_room(level, h_walls, v_walls, 20, 20, 25, 25)
@@ -303,10 +307,20 @@ def create_level_3():
     level[50][53] = SPECIAL_ROOM_W  # Smith
     add_door(h_walls, v_walls, h_doors, v_doors, 53, 50, 'E')
     
-    # Stairs down
+    # Add doors to treasure pockets
+    add_door(h_walls, v_walls, h_doors, v_doors, 10, 28, 'E')
+    add_door(h_walls, v_walls, h_doors, v_doors, 55, 30, 'W')
+    
+    # Stairs - MUST BE PLACED LAST to avoid being overwritten
+    # Stairs up from level 2
+    level[10][10] = STAIRS_UP
+    level[58][8] = STAIRS_UP
+    level[52][14] = STAIRS_UP  # FIX: Should be at (14, 52) which is [52][14]
+    
+    # Stairs down to level 4
     level[17][17] = STAIRS_DOWN
-    level[52][14] = STAIRS_DOWN
-    level[33][33] = STAIRS_DOWN  # Center of boss lair
+    level[33][33] = STAIRS_DOWN
+    level[14][52] = STAIRS_DOWN  # Position (52, 14) which is [14][52]
     
     return level, h_walls, v_walls, h_doors, v_doors
 
@@ -318,11 +332,6 @@ def create_level_4():
     level = create_empty_level()
     h_walls, v_walls = create_empty_walls()
     h_doors, v_doors = create_empty_doors()
-    
-    # Stairs up from level 3 (place early)
-    level[17][17] = STAIRS_UP
-    level[52][14] = STAIRS_UP
-    level[33][33] = STAIRS_UP
     
     # Starting area (southwest corner)
     add_room(level, h_walls, v_walls, 8, 48, 12, 10)
@@ -382,6 +391,20 @@ def create_level_4():
     
     level[54][6] = SPECIAL_ROOM_W  # Smith
     add_door(h_walls, v_walls, h_doors, v_doors, 6, 54, 'E')
+    
+    # Add doors to side chambers
+    add_door(h_walls, v_walls, h_doors, v_doors, 44, 42, 'N')
+    add_door(h_walls, v_walls, h_doors, v_doors, 27, 42, 'S')
+    add_door(h_walls, v_walls, h_doors, v_doors, 58, 26, 'W')
+    
+    # Add door to throne room
+    add_door(h_walls, v_walls, h_doors, v_doors, 33, 11, 'S')
+    
+    # Stairs - MUST BE PLACED LAST to avoid being overwritten
+    # Stairs up from level 3
+    level[17][17] = STAIRS_UP
+    level[33][33] = STAIRS_UP
+    level[14][52] = STAIRS_UP  # Position (52, 14) which is [14][52]
     
     # No stairs down - this is the final level!
     
